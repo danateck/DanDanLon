@@ -849,7 +849,7 @@ function handleLogout() {
   console.log("✅ Logout complete, redirecting to login...");
   
   // Go to login
-  window.location.replace("forms/eco-wellness/index.html");
+go("forms/eco-wellness/index.html");
 }
 
 
