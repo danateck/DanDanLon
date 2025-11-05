@@ -2,7 +2,6 @@
 <html lang="he" dir="rtl">
 <head>
 
-  <base href="/Eco-Files-FullStack/">
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <!-- ה-CSS שלך -->
-  <link rel="stylesheet" href="./CSS/main.css" />
+  <link rel="stylesheet" href="/docs/CSS/main.css" />
 
   <style>
 
@@ -1379,8 +1378,8 @@ element.style {
 
 <body>
 <!-- PDF.js מהפרויקט המקומי שלנו -->
-<script src="./libs/pdf.min.js"></script>
-<script src="./libs/pdf.worker.min.js"></script>
+<script src="./docs/libs/pdf.min.js"></script>
+<script src="./docs/libs/pdf.worker.min.js"></script>
 <script>
   if (window['pdfjsLib']) {
     window['pdfjsLib'].GlobalWorkerOptions.workerSrc = "./libs/pdf.worker.min.js";
@@ -2040,12 +2039,12 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <!-- Initialize Firebase and expose globals -->
-<script type="module" src="./firebase-config.js"></script>
+<script type="module" src="./docs/firebase-config.js"></script>
 
 <!-- Your app — runs after firebase-config creates window.app/db/fs -->
-<script type="module" src="./JS/main.js"></script>
+<script type="module" src="./docs/JS/main.js"></script>
 
 
-  <script src="api-bridge.js"></script>
+  <script src="./docs/api-bridge.js"></script>
 </body>
 </html>
