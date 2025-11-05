@@ -2045,10 +2045,23 @@ go("forms/eco-wellness/index.html");
 <!-- Initialize Firebase and expose globals -->
 <script type="module" src="/firebase-config.js"></script>
 
+<script src="/JS/authCheck.js"></script>
 <!-- Your app — runs after firebase-config creates window.app/db/fs -->
 <script type="module" src="/JS/main.js"></script>
 
 
   <script src="/api-bridge.js"></script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    // If not logged in: this will redirect to login (no loop)
+    if (typeof requireLogin === 'function' && !requireLogin()) return;
+
+    // You *must* call bootFromCloud() so the page actually loads the docs and starts realtime listeners
+    if (typeof bootFromCloud === 'function') {
+      await bootFromCloud();
+    }
+  });
+</script>
 </body>
 </html>
