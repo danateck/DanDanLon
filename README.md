@@ -9,12 +9,12 @@
 2) In `server/sql/schema.sql`, copy & run in Supabase SQL Editor
 3) `cp server/.env.example server/.env` → paste your `DATABASE_URL` + `CORS_ORIGIN`
 4) `cd server && npm install && npm run dev` (http://localhost:8787)
-5) In `public/api-bridge.js` set `API_BASE` to your deployed server URL
+5) In `src/api-bridge.js` set `API_BASE` to your deployed server URL
 6) Deploy server to Render (free), set env vars
 7) Push frontend to GitHub Pages — it will call your API
 
 ## Files you may edit
-- `public/api-bridge.js`: overrides `loadDocuments` and `uploadDocument` only.
+- `src/api-bridge.js`: overrides `loadDocuments` and `uploadDocument` only.
 - Your UI, styles, Firebase auth stay the same.
 
 ## Security
