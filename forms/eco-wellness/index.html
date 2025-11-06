@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-    <base href="/Eco-Files-FullStack/">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eco Wellness Login</title>
-    <link rel="stylesheet" href="/forms/eco-wellness/styleLogin.css">
-     <script src="/JS/authCheck.js"></script>
-    <script src="/forms/eco-wellness/scriptLogin.js"></script>
+  <base href="/Eco-Files-FullStack/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eco Wellness Login</title>
+  <link rel="stylesheet" href="./styleLogin.css">
 </head>
+
 <body>
     <div class="nature-background">
         <div class="floating-leaf leaf-1"></div>
@@ -173,17 +171,16 @@
   window.db   = firebase.firestore();
 </script>
 
-<script src="/firebase-config.js"></script>
-<script src="/JS/authCheck.js"></script>
-
-<script src="/forms/eco-wellness/scriptLogin.js"></script>
-
+<script type="module" src="../../firebase-config.js"></script>
+<script src="../../JS/authCheck.js"></script>
+<script src="./scriptLogin.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     // ONLY login page calls redirectIfLoggedIn()
     if (typeof redirectIfLoggedIn === 'function') redirectIfLoggedIn();
   });
 </script>
+
 
 </body>
 </html>
