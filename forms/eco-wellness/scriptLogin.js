@@ -1,6 +1,11 @@
 // scriptLogin.js
 // Cloud Firestore Version - All data stored in Firebase Firestore
 
+
+import { setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+
+
 // Firestore Database functions
 async function loadUserDataFromFirestore(email) {
     try {
@@ -34,17 +39,24 @@ async function saveUserDataToFirestore(email, userData) {
     }
 }
 
-async function setCurrentUser(email) {
-    // Store in sessionStorage only (not persistent across browser closes)
-    console.log("Setting current user:", email);
-    sessionStorage.setItem("docArchiveCurrentUser", email);
-    const verify = sessionStorage.getItem("docArchiveCurrentUser");
-    console.log("Verification - User stored in session:", verify);
+async function setCurrentUser() {
+    const user = auth.currentUser;
+    if (user) {
+        const email = user.email?.toLowerCase() ?? "";
+        console.log("✅ Current logged-in user from Firebase:", email);
+        // You can use `email` directly wherever you need it
+        return email;
+    } else {
+        console.log("❌ No user currently logged in");
+        return null;
+    }
 }
 
-async function getCurrentUser() {
-    return sessionStorage.getItem("docArchiveCurrentUser");
+
+function getCurrentUser() {
+    return auth.currentUser?.email ?? null;
 }
+
 
 class EcoWellnessLoginForm {
     constructor() {
@@ -80,55 +92,52 @@ class EcoWellnessLoginForm {
     }
 
     async initFirebase() {
-        try {
-            const [appModule, authModule, firestoreModule] = await Promise.all([
-                import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js"),
-                import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js"),
-                import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js")
-            ]);
+    try {
+        const [appModule, authModule, firestoreModule] = await Promise.all([
+            import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js"),
+            import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js"),
+            import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js")
+        ]);
 
-            const { initializeApp } = appModule;
-            const { 
-                getAuth, 
-                GoogleAuthProvider, 
-                signInWithPopup,
-                signInWithEmailAndPassword,
-                createUserWithEmailAndPassword,
-                sendPasswordResetEmail
-            } = authModule;
-            const { getFirestore } = firestoreModule;
+        const { initializeApp } = appModule;
+        const { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithPopup,
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            sendPasswordResetEmail,
+            setPersistence,               // ✅ add this
+            browserLocalPersistence       // ✅ and this
+        } = authModule;
 
-            const firebaseConfig = {
-                apiKey: "AIzaSyBPr4X2_8JYCgXzMlTcVB0EJLhup9CdyYw",
-                authDomain: "login-page-echo-file.firebaseapp.com",
-                projectId: "login-page-echo-file",
-                storageBucket: "login-page-echo-file.firebasestorage.app",
-                messagingSenderId: "200723524735",
-                appId: "1:200723524735:web:9eaed6ef10cbc2c406234a",
-                measurementId: "G-LT5XQFQPKP"
-            };
+        const { getFirestore } = firestoreModule;
 
-            const firebaseApp = initializeApp(firebaseConfig);
-            this.auth = getAuth(firebaseApp);
-            this.db = getFirestore(firebaseApp);
-            this.googleProvider = new GoogleAuthProvider();
-            
-            // Store auth functions
-            this.signInWithPopup = signInWithPopup;
-            this.signInWithEmailAndPassword = signInWithEmailAndPassword;
-            this.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-            this.sendPasswordResetEmail = sendPasswordResetEmail;
+        const firebaseApp = initializeApp(firebaseConfig);
+        this.auth = getAuth(firebaseApp);
 
-            // Make auth and db globally available
-            window.auth = this.auth;
-            window.db = this.db;
+        // ✅ ADD THIS — persistence handled by Firebase cookie
+        await setPersistence(this.auth, browserLocalPersistence);
 
-            console.log("Firebase initialized successfully");
-        } catch (err) {
-            console.error("Firebase initialization error:", err);
-            alert("שגיאה באתחול המערכת. אנא רענני את הדף.");
-        }
+        this.db = getFirestore(firebaseApp);
+        this.googleProvider = new GoogleAuthProvider();
+
+        // Store auth functions
+        this.signInWithPopup = signInWithPopup;
+        this.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        this.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        this.sendPasswordResetEmail = sendPasswordResetEmail;
+
+        window.auth = this.auth;
+        window.db = this.db;
+
+        console.log("Firebase initialized successfully (cookie persistence enabled)");
+    } catch (err) {
+        console.error("Firebase initialization error:", err);
+        alert("שגיאה באתחול המערכת. אנא רענני את הדף.");
     }
+}
+
 
     bindEvents() {
         this.form.addEventListener('submit', (e) => this.handleSubmit(e));
@@ -388,7 +397,7 @@ class EcoWellnessLoginForm {
             await setCurrentUser(email);
             
             // Verify it was set
-            const storedUser = sessionStorage.getItem("docArchiveCurrentUser");
+            const storedUser = auth.currentUser?.email?.toLowerCase() ?? "";
             console.log("Stored user after setCurrentUser:", storedUser);
 
             // Load or create user data in Firestore
@@ -414,21 +423,21 @@ class EcoWellnessLoginForm {
             // IMPORTANT: Wait for animation, then redirect
             console.log("Setting timeout for redirect...");
             setTimeout(() => {
-                console.log("=== REDIRECTING NOW ===");
-                console.log("Current URL:", window.location.href);
-                
-                // CRITICAL: Set loginSuccess flag RIGHT BEFORE redirect
-                // This prevents the dashboard from thinking we're already logged in
-                sessionStorage.setItem("loginSuccess", "true");
-                console.log("✅ loginSuccess flag set just before redirect");
-                
-                // Redirect to dashboard
-                const redirectPath = "../../index.html";
-                console.log("Redirecting to:", redirectPath);
-                
-                // Use replace to prevent back button issues
-                window.location.replace(redirectPath);
-            }, 1500);
+    console.log("=== REDIRECTING NOW ===");
+    console.log("Current URL:", window.location.href);
+
+    // Redirect only if user is signed in
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            console.log("✅ User logged in, redirecting to dashboard:", user.email);
+            window.location.replace("../../index.html"); // Dashboard
+        } else {
+            console.log("❌ User not logged in, redirecting to login page");
+            window.location.replace("../../login.html");
+        }
+    });
+}, 1500);
+
             
         } catch (err) {
             console.error("=== ERROR IN FINISH LOGIN ===");

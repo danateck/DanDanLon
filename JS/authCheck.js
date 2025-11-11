@@ -1,24 +1,57 @@
 // authCheck.js
 // FIXED: Prevents infinite redirect loops
 
+
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+
+const auth = getAuth();
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    // User is signed in
+    console.log("✅ User is logged in:", user.email);
+    // Redirect to dashboard
+    if (window.location.pathname.includes("login.html")) {
+      window.location.replace("../../index.html");
+    }
+  } else {
+    // User is signed out
+    console.log("❌ User not logged in");
+    if (!window.location.pathname.includes("login.html")) {
+      window.location.replace("../../login.html");
+    }
+  }
+});
+
+
+
 // Check if user is logged in
 function isUserLoggedIn() {
-    const currentUser = sessionStorage.getItem("docArchiveCurrentUser");
+    const currentUser = auth.currentUser?.email?.toLowerCase() ?? "";
     return currentUser !== null && currentUser !== "";
 }
 
 // Get current logged in user email
 function getCurrentUserEmail() {
-    return sessionStorage.getItem("docArchiveCurrentUser");
+    return auth.currentUser?.email?.toLowerCase() ?? "";
 }
 
 // Logout function
 function logoutUser() {
-    console.log("🚪 Logging out user:", getCurrentUserEmail());
-    sessionStorage.removeItem("docArchiveCurrentUser");
-    sessionStorage.removeItem("loginSuccess");
-    // Redirect to login page
-    window.location.replace("./forms/eco-wellness/index.html");
+    const auth = getAuth();
+    const userEmail = auth.currentUser?.email ?? "Unknown";
+    console.log("🚪 Logging out user:", userEmail);
+
+    signOut(auth)
+        .then(() => {
+            console.log("✅ User signed out successfully");
+            // Redirect to login page
+            window.location.replace("./forms/eco-wellness/index.html");
+        })
+        .catch((error) => {
+            console.error("❌ Error signing out:", error);
+        });
 }
 
 // For LOGIN PAGE: Redirect to home if already logged in
@@ -28,15 +61,22 @@ function redirectIfLoggedIn() {
     if (window.location.href.includes("index.html") && 
         document.getElementById("loginForm")) {
         
-        const loginSuccess = sessionStorage.getItem("loginSuccess");
-        
-        // Only redirect if user is logged in AND login was successful
-        if (isUserLoggedIn() && loginSuccess === "true") {
-            console.log("✅ User already logged in, redirecting to dashboard...");
-            sessionStorage.removeItem("loginSuccess"); // Clear flag
+       onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // User is logged in, redirect to dashboard
+        console.log("✅ User already logged in, redirecting to dashboard:", user.email);
+        if (!window.location.pathname.includes("index.html")) {
             window.location.replace("../../index.html");
-            return true;
         }
+    } else {
+        // User not logged in, redirect to login page
+        console.log("❌ No user logged in, redirecting to login page");
+        if (!window.location.pathname.includes("login.html")) {
+            window.location.replace("../../login.html");
+        }
+    }
+});
+
     }
     return false;
 }

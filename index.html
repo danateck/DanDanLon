@@ -12,7 +12,6 @@
   <base href="/Eco-Files-FullStack/">
   
 
-
   
   <!-- פונט -->
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -1962,10 +1961,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   <!-- סקריפט עזר UI (כניסה/יציאה/ניווט בתפריט) -->
   <script>
+  import { getAuth, signOut } from "firebase/auth";
+
+const auth = getAuth();
+
+logoutBtn.addEventListener("click", () => {
+    signOut(auth)
+        .then(() => {
+            console.log("✅ User signed out successfully");
+            // Redirect after logout
+            window.location.replace("forms/eco-wellness/index.html");
+        })
+        .catch((error) => {
+            console.error("❌ Error signing out:", error);
+        });
+});
+
     // שם משתמש בפינה
     const label = document.getElementById("currentUserLabel");
     const mail = document.getElementById("currentUserEmail");
-    const currentUserShown = sessionStorage.getItem("docArchiveCurrentUser");
+const currentUserShown = auth.currentUser?.email ?? null;
     if (label) label.textContent = `שלום, ${currentUserShown}`;
     if (mail) mail.textContent = currentUserShown;
 
@@ -1973,18 +1988,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const logoutBtn = document.getElementById("logoutBtn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", () => {
-        sessionStorage.removeItem("docArchiveCurrentUser");
-        sessionStorage.removeItem("loginSuccess");
-go("forms/eco-wellness/index.html");
-      });
+    signOut(auth)
+        .then(() => {
+            console.log("✅ User signed out successfully");
+            // Redirect after logout
+            window.location.replace("forms/eco-wellness/index.html");
+        })
+        .catch((error) => {
+            console.error("❌ Error signing out:", error);
+        });
+});
+
     }
     const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
     if (mobileLogoutBtn) {
-      mobileLogoutBtn.addEventListener("click", () => {
-        sessionStorage.removeItem("docArchiveCurrentUser");
-        sessionStorage.removeItem("loginSuccess");
-go("forms/eco-wellness/index.html");
-      });
+     mobileLogoutBtn.addEventListener("click", () => {
+    signOut(auth)
+        .then(() => {
+            console.log("✅ User signed out successfully (mobile)");
+            // Redirect after logout
+            window.location.replace("forms/eco-wellness/index.html");
+        })
+        .catch((error) => {
+            console.error("❌ Error signing out (mobile):", error);
+        });
+});
     }
 
     // טאבים בראש (רק עיצוב כרגע)

@@ -6,7 +6,9 @@ const API_BASE = (location.hostname === 'localhost')
   : 'https://eco-files.onrender.com'; // e.g. https://eco-docs-api.onrender.com
 
 async function loadDocuments() {
-  const me = (typeof getCurrentUserEmail === 'function') ? getCurrentUserEmail() : (sessionStorage.getItem('docArchiveCurrentUser') || '').toLowerCase();
+const me = (typeof getCurrentUserEmail === "function")
+  ? getCurrentUserEmail()
+  : (auth.currentUser?.email ?? "").toLowerCase();
   if (!me) return [];
 
   const headers = {};
@@ -42,7 +44,9 @@ async function loadDocuments() {
 }
 
 async function uploadDocument(file, metadata = {}) {
-  const me = (typeof getCurrentUserEmail === 'function') ? getCurrentUserEmail() : (sessionStorage.getItem('docArchiveCurrentUser') || '').toLowerCase();
+const me = (typeof getCurrentUserEmail === "function")
+  ? getCurrentUserEmail()
+  : (auth.currentUser?.email ?? "").toLowerCase();
   if (!me) throw new Error("User not logged in");
 
   const fd = new FormData();

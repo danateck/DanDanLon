@@ -1,5 +1,9 @@
 function normalizeEmail(e) { return (e || "").trim().toLowerCase(); }
 
+
+import { getAuth, signOut } from "firebase/auth";
+
+
 // Read the globals created by firebase-config.js
 let appRef = window.app;
 let dbRef = window.db;
@@ -143,7 +147,7 @@ function setUserDocs(username, docsArray, _allUsersData) {
 let stopWatching = null;
 // Add this helper function at the top of your main.js
 function getCurrentUserEmail() {
-  const raw = sessionStorage.getItem("docArchiveCurrentUser") || "";
+  const raw =auth.currentUser?.email?.toLowerCase() ?? "" ;
   return raw.trim().toLowerCase();
 }
 
@@ -826,31 +830,34 @@ fileInput.addEventListener("change", async () => {
 
 
 
+
 function handleLogout() {
-  console.log("🚪 Logging out...");
-  
-  // Stop any active listeners
-  try { if (stopWatching) stopWatching(); } catch(_) {}
-  try { if (window._stopMembersWatch) window._stopMembersWatch(); } catch(_) {}
-  try { if (window._stopSharedDocsWatch) window._stopSharedDocsWatch(); } catch(_) {}
+    console.log("🚪 Logging out...");
 
-  // Clear session keys used by auth & home
-  sessionStorage.removeItem("docArchiveCurrentUser");
-  sessionStorage.removeItem("loginSuccess");
-  sessionStorage.removeItem("docArchiveUsers");
+    const auth = getAuth();
 
-  // Clear local data + UI caches
-  try { 
-    allDocsData = [];
-    // Force a complete reset of the memory cache
-    Object.keys(memoryUsers).forEach(key => delete memoryUsers[key]);
-  } catch(_) {}
+    // Stop any active listeners
+    try { if (stopWatching) stopWatching(); } catch (_) {}
+    try { if (window._stopMembersWatch) window._stopMembersWatch(); } catch (_) {}
+    try { if (window._stopSharedDocsWatch) window._stopSharedDocsWatch(); } catch (_) {}
 
-  console.log("✅ Logout complete, redirecting to login...");
-  
-  // Go to login
-go("forms/eco-wellness/index.html");
+    // Clear in-memory caches (optional)
+    try { 
+        allDocsData = [];
+        Object.keys(memoryUsers).forEach(key => delete memoryUsers[key]);
+    } catch (_) {}
+
+    // Sign out the user via Firebase
+    signOut(auth)
+        .then(() => {
+            console.log("✅ Logout complete, redirecting to login...");
+            window.location.replace("forms/eco-wellness/index.html");
+        })
+        .catch((error) => {
+            console.error("❌ Error signing out:", error);
+        });
 }
+
 
 
 
