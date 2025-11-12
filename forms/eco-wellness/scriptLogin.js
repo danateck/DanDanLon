@@ -425,21 +425,18 @@ class EcoWellnessLoginForm {
 
             // IMPORTANT: Wait for animation, then redirect
             console.log("Setting timeout for redirect...");
-            setTimeout(() => {
-    console.log("=== REDIRECTING NOW ===");
-    console.log("Current URL:", window.location.href);
-
-    // Redirect only if user is signed in
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            console.log("✅ User logged in, redirecting to dashboard:", user.email);
-            window.location.replace("../../index.html"); // Dashboard
-        } else {
-            console.log("❌ User not logged in, redirecting to login page");
-            window.location.replace("../../login.html");
-        }
-    });
+setTimeout(() => {
+  onAuthStateChanged(this.auth, (user) => {
+    if (user) {
+      // Dashboard (repo root)
+      window.location.replace("/Eco-Files-FullStack/");
+    } else {
+      // Login page (folder with index.html)
+      window.location.replace("/Eco-Files-FullStack/forms/eco-wellness/");
+    }
+  });
 }, 1500);
+
 
             
         } catch (err) {
@@ -494,9 +491,9 @@ class EcoWellnessLoginForm {
 
                 this.showHarmonySuccess();
                 setTimeout(() => {
-                    console.log("Google login redirect to: ../../../index.html");
-                    window.location.replace("../../index.html");
-                }, 1500);
+  window.location.replace("/Eco-Files-FullStack/");
+}, 1500);
+
 
             } catch (err) {
                 console.error("Google Sign-In Error:", err);
