@@ -1,13 +1,12 @@
-// firebase-config.js (ESM)
-import { initializeApp } from "firebase/app";
+// AFTER (CDN ESM)  ✅
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  initializeFirestore,
-  collection, addDoc, getDoc, getDocs, doc, query, where,
+  initializeFirestore, collection, addDoc, getDoc, getDocs, doc, query, where,
   updateDoc, setDoc, arrayUnion, onSnapshot
-} from "firebase/firestore";       // <-- Firestore stuff comes from here!
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   getStorage, ref, uploadBytes, getDownloadURL, deleteObject
-} from "firebase/storage";          // <-- Storage stuff comes from here!
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBPr4X2_8JYCgXzMlTcVB0EJLhup9CdyYw",
