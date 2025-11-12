@@ -12,14 +12,14 @@ onAuthStateChanged(auth, (user) => {
     // User is signed in
     console.log("✅ User is logged in:", user.email);
     // Redirect to dashboard
-    if (window.location.pathname.includes("login.html")) {
-      window.location.replace("../../index.html");
+    if (window.location.pathname.includes("eco-wellness")) {
+window.location.replace("/Eco-Files-FullStack/");
     }
   } else {
     // User is signed out
     console.log("❌ User not logged in");
-    if (!window.location.pathname.includes("login.html")) {
-      window.location.replace("../../login.html");
+    if (!window.location.pathname.includes("eco-wellness")) {
+window.location.replace("/Eco-Files-FullStack/forms/eco-wellness/");
     }
   }
 });
@@ -65,14 +65,14 @@ function redirectIfLoggedIn() {
     if (user) {
         // User is logged in, redirect to dashboard
         console.log("✅ User already logged in, redirecting to dashboard:", user.email);
-        if (!window.location.pathname.includes("index.html")) {
-            window.location.replace("../../index.html");
+        if (!window.location.pathname.includes("eco-wellness")) {
+window.location.replace("/Eco-Files-FullStack/");
         }
     } else {
         // User not logged in, redirect to login page
         console.log("❌ No user logged in, redirecting to login page");
-        if (!window.location.pathname.includes("login.html")) {
-            window.location.replace("../../login.html");
+        if (!window.location.pathname.includes("eco-wellness")) {
+window.location.replace("/Eco-Files-FullStack/forms/eco-wellness/");
         }
     }
 });
