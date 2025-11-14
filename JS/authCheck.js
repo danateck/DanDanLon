@@ -1,5 +1,5 @@
 // JS/authCheck.js
-// Simple auth guard for GitHub Pages (no redirect loops)
+// Simple auth guard for GitHub Pages
 
 import {
   getAuth,
@@ -9,47 +9,43 @@ import {
 
 const auth = getAuth();
 
-// Your GitHub Pages base
+// Base path for your GitHub Pages repo
 const BASE = "/Eco-Files-FullStack";
 
-function getRouteInfo() {
-  const path = window.location.pathname;
+// Paths we care about
+const DASHBOARD_PATHS = [
+  `${BASE}/`,
+  `${BASE}/index.html`,
+];
 
-  const isDashboard =
-    path === `${BASE}/` ||
-    path === `${BASE}/index.html`;
+const LOGIN_PREFIX = `${BASE}/forms/eco-wellness`;
 
-  const isLogin =
-    path === `${BASE}/forms/eco-wellness/` ||
-    path === `${BASE}/forms/eco-wellness/index.html` ||
-    path.startsWith(`${BASE}/forms/eco-wellness`);
+const path = window.location.pathname;
+const isDashboard = DASHBOARD_PATHS.includes(path);
+const isLogin = path.startsWith(LOGIN_PREFIX);
 
-  return { path, isDashboard, isLogin };
-}
-
-const { path, isDashboard, isLogin } = getRouteInfo();
 console.log("🔎 authCheck route:", { path, isDashboard, isLogin });
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
     console.log("✅ User is logged in:", user.email);
 
-    // If user is logged in and still on the LOGIN page → send to dashboard
+    // If user is on login while logged in → go to dashboard
     if (isLogin) {
       window.location.replace(`${BASE}/`);
     }
   } else {
     console.log("❌ No user logged in");
 
-    // If user is NOT logged in and is trying to see the DASHBOARD → send to login
+    // If user is on dashboard but NOT logged in → send to login
     if (isDashboard) {
-      window.location.replace(`${BASE}/forms/eco-wellness/`);
+      window.location.replace(`${LOGIN_PREFIX}/`);
     }
-    // If we’re already on the login page, do nothing (no spam reload)
+    // If already on login page: do nothing (no reload loop)
   }
 });
 
-// Expose logout for buttons on the dashboard
+// expose logout for buttons
 export function logoutUser() {
   const userEmail = auth.currentUser?.email ?? "Unknown";
   console.log("🚪 Logging out:", userEmail);
@@ -57,7 +53,7 @@ export function logoutUser() {
   signOut(auth)
     .then(() => {
       console.log("✅ Signed out");
-      window.location.replace(`${BASE}/forms/eco-wellness/`);
+      window.location.replace(`${LOGIN_PREFIX}/`);
     })
     .catch((err) => {
       console.error("❌ Error during logout", err);
