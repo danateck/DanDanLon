@@ -1,101 +1,76 @@
-// authCheck.js
-// Safer GitHub Pages auth guard: no redirect loops 💚
+// JS/authCheck.js
 
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 const auth = getAuth();
 
-// ===== PATH HELPERS (GitHub Pages) =====
-const BASE = "/Eco-Files-FullStack"; // if you ever rename the repo, update this
+// ---- PATHS FOR GITHUB PAGES ----
+const ROOT_PATH = "/Eco-Files-FullStack/";                 // dashboard (index.html)
+const LOGIN_PATH = "/Eco-Files-FullStack/forms/eco-wellness/"; // login form folder
 
-const path = window.location.pathname;
+function isOnLoginPage() {
+  const path = window.location.pathname;
+  // works for:
+  //  /Eco-Files-FullStack/forms/eco-wellness/
+  //  /Eco-Files-FullStack/forms/eco-wellness/index.html
+  return path === LOGIN_PATH || path.startsWith(LOGIN_PATH);
+}
 
-// On GitHub Pages, dashboard is usually /Eco-Files-FullStack/ or /Eco-Files-FullStack/index.html
-const isDashboard =
-  path === `${BASE}/` ||
-  path === `${BASE}/index.html` ||
-  path === "/" ||
-  path === "/index.html ";
+function isOnDashboard() {
+  const path = window.location.pathname;
+  // works for:
+  //  /Eco-Files-FullStack/
+  //  /Eco-Files-FullStack/index.html
+  return path === ROOT_PATH || path === ROOT_PATH + "index.html";
+}
 
-// Login page is under /Eco-Files-FullStack/forms/eco-wellness/...
-const isLoginPage = path.startsWith(`${BASE}/forms/eco-wellness`);
-
-// ===== GLOBAL AUTH GUARD =====
-// This runs once when Firebase knows if user is logged in or not
 onAuthStateChanged(auth, (user) => {
+  console.log(
+    "authCheck fired. path =",
+    window.location.pathname,
+    "user exists?",
+    !!user
+  );
+
   if (user) {
+    // ---------- USER LOGGED IN ----------
     console.log("✅ User is logged in:", user.email);
 
-    // If user is on LOGIN page while logged in → send to dashboard
-    if (isLoginPage) {
-      window.location.replace(`${BASE}/`);
+    // If a logged-in user is on the login page → send them to dashboard
+    if (isOnLoginPage() && !isOnDashboard()) {
+      console.log("➡ Logged-in user on login page, going to dashboard");
+      window.location.replace(ROOT_PATH);
     }
+    // If already on dashboard or some other page → do nothing
   } else {
-    console.log("❌ User not logged in");
+    // ---------- NO USER LOGGED IN ----------
+    console.log("❌ No user logged in");
 
-    // Only send to login if they’re on the DASHBOARD
-    if (isDashboard) {
-      window.location.replace(`${BASE}/forms/eco-wellness/`);
+    // If not on login page → go there ONCE
+    if (!isOnLoginPage()) {
+      console.log("➡ Redirecting to login page…");
+      window.location.replace(LOGIN_PATH);
+    } else {
+      console.log("ℹ Already on login page, not redirecting again");
     }
   }
 });
 
-// ===== HELPERS =====
+// ---- OPTIONAL HELPERS (if you use them elsewhere) ----
 export function isUserLoggedIn() {
-  const currentUser = auth.currentUser?.email?.toLowerCase() ?? "";
-  return currentUser !== null && currentUser !== "";
+  return !!auth.currentUser;
 }
 
 export function getCurrentUserEmail() {
-  return auth.currentUser?.email?.toLowerCase() ?? "";
+  return auth.currentUser?.email ?? null;
 }
 
-// Logout function
-export function logoutUser() {
-  const authInstance = getAuth();
-  const userEmail = authInstance.currentUser?.email ?? "Unknown";
-  console.log(" Logging out user:", userEmail);
-
-  signOut(authInstance)
-    .then(() => {
-      console.log("✅ User signed out successfully");
-      // Go back to login page
-      window.location.replace(`${BASE}/forms/eco-wellness/`);
-    })
-    .catch((error) => {
-      console.error("❌ Error signing out:", error);
-    });
-}
-
-// ===== OPTIONAL: page helpers (if you call them anywhere) =====
-export function redirectIfLoggedIn() {
-  // Only care about the login page
-  if (!isLoginPage) return false;
-
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      console.log("✅ User already logged in, redirecting to dashboard:", user.email);
-      window.location.replace(`${BASE}/`);
-    }
+export function logout() {
+  return signOut(auth).then(() => {
+    window.location.replace(LOGIN_PATH);
   });
-
-  return false;
 }
-
-export function requireLogin() {
-  // Only guard the dashboard, not the login page
-  if (isDashboard && !isLoginPage && !isUserLoggedIn()) {
-    console.log("❌ User not logged in, redirecting to login...");
-    window.location.replace(`${BASE}/forms/eco-wellness/`);
-    return false;
-  }
-
-  if (isDashboard && isUserLoggedIn()) {
-    sessionStorage.removeItem("loginSuccess");
-    console.log("✅ User authenticated on dashboard:", getCurrentUserEmail());
-  }
-
-  return true;
-}
-
-console.log("✅ authCheck.js loaded");

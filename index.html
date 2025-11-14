@@ -1860,32 +1860,47 @@ element.style {
   console.log("🔥 Firebase initialized");
 
   // --- Auth state check ---
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      console.log("✅ User logged in:", user.email);
+// --- Auth state check ---
+onAuthStateChanged(auth, (user) => {
+  console.log(
+    "auth state changed. path =",
+    window.location.pathname,
+    "user =",
+    user ? user.email : null
+  );
 
-      // Update UI
-      const label = document.getElementById("currentUserLabel");
-      const mail = document.getElementById("currentUserEmail");
-      if (label) label.textContent = `שלום, ${user.email.split('@')[0]}`;
-      if (mail) mail.textContent = user.email;
+  if (user) {
+    console.log("✅ User logged in:", user.email);
 
-      // Dispatch ready event for other scripts
-      window.dispatchEvent(new CustomEvent('firebase-ready'));
+    // Update UI
+    const label = document.getElementById("currentUserLabel");
+    const mail = document.getElementById("currentUserEmail");
+    if (label) label.textContent = `שלום, ${user.email.split('@')[0]}`;
+    if (mail) mail.textContent = user.email;
 
-      // Start the app if bootFromCloud exists
-      if (typeof window.bootFromCloud === 'function') {
-        window.bootFromCloud();
-      }
+    // Dispatch ready event for other scripts
+    window.dispatchEvent(new CustomEvent('firebase-ready'));
 
-    } else {
-      // Only redirect if we're not already on the login page
-      if (!window.location.pathname.includes("forms/eco-wellness/index.html")) {
-        console.log("❌ No user logged in, redirecting...");
-        window.location.replace("./forms/eco-wellness/index.html");
-      }
+    // Start the app if bootFromCloud exists
+    if (typeof window.bootFromCloud === 'function') {
+      window.bootFromCloud();
     }
-  });
+
+  } else {
+    console.log("❌ No user logged in");
+
+    const path = window.location.pathname;
+    const onLoginPage = path.startsWith("/Eco-Files-FullStack/forms/eco-wellness");
+
+    if (!onLoginPage) {
+      console.log("➡ Redirecting to login page…");
+      window.location.replace("/Eco-Files-FullStack/forms/eco-wellness/");
+    } else {
+      console.log("ℹ Already on login page, not redirecting again");
+    }
+  }
+});
+
 
   // --- Logout handling ---
   const logoutHandler = () => {
