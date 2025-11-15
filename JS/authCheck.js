@@ -1,4 +1,4 @@
-// JS/authCheck.js – Fixed version
+// JS/authCheck.js – Fixed version with proper timing
 
 import {
   getAuth,
@@ -45,7 +45,7 @@ function paintUserHeader(user) {
   if (mail) mail.textContent = email;
 }
 
-// ✅ NEW: Wait for DOM to be ready
+// ✅ Wait for DOM
 function waitForDOM() {
   return new Promise((resolve) => {
     if (document.readyState === 'loading') {
@@ -56,7 +56,7 @@ function waitForDOM() {
   });
 }
 
-// ✅ NEW: Wait for bootFromCloud to be defined
+// ✅ Wait for bootFromCloud function
 function waitForBootFunction() {
   return new Promise((resolve) => {
     const check = () => {
@@ -72,67 +72,45 @@ function waitForBootFunction() {
 
 // ---------- MAIN AUTH LISTENER ----------
 onAuthStateChanged(auth, async (user) => {
-  console.log(
-    "🔍 Auth state changed:",
-    "path =", window.location.pathname,
-    "user =", user ? user.email : null
-  );
+  console.log("🔍 Auth state changed:", "user =", user ? user.email : null);
 
-  // Always try to paint username in header (if elements exist)
   paintUserHeader(user);
 
   if (user) {
-  console.log(
-    "🔍 Auth state changed:",
-    "path =", window.location.pathname,
-    "user =", user ? user.email : null
-  );
+    console.log("✅ User logged in:", user.email);
+    window.userNow = (user.email || "").toLowerCase();
 
-  paintUserHeader(user);
+    if (isOnLoginPage()) {
+      console.log("➡ Redirecting to dashboard");
+      setTimeout(() => {
+        window.location.replace(ROOT_PATH);
+      }, 100);
+      return;
+    }
 
-  console.log("✅ User logged in:", user.email);
-  window.userNow = (user.email || "").toLowerCase();
-
-  if (isOnLoginPage()) {
-    console.log("➡ Logged-in user on login page, going to dashboard");
-    setTimeout(() => {
-      window.location.replace(ROOT_PATH);
-    }, 100);
-    return;
-  }
-
-  if (isOnDashboard()) {
-    console.log("✅ On dashboard, waiting for DOM and functions...");
-
-    await waitForDOM();
-    console.log("✅ DOM ready");
-
-    window.dispatchEvent(new CustomEvent('firebase-ready'));
-
-    await waitForBootFunction();
-    console.log("✅ bootFromCloud function ready");
-
-    // ⬇️ IMPORTANT CHANGE:
-    console.log("🚀 Calling bootFromCloud for:", window.userNow);
-    window.bootFromCloud(window.userNow);
-  }
-}else {
-    // ---------- NO USER LOGGED IN ----------
+    if (isOnDashboard()) {
+      console.log("✅ On dashboard, waiting for boot...");
+      
+      await waitForDOM();
+      window.dispatchEvent(new CustomEvent('firebase-ready'));
+      
+      await waitForBootFunction();
+      console.log("🚀 Calling bootFromCloud");
+      
+      window.bootFromCloud(window.userNow);
+    }
+  } else {
     console.log("❌ No user logged in");
-
-    // If not on login page → go there
+    
     if (!isOnLoginPage()) {
-      console.log("➡ Redirecting to login page…");
+      console.log("➡ Redirecting to login");
       setTimeout(() => {
         window.location.replace(LOGIN_PATH);
       }, 100);
-    } else {
-      console.log("ℹ Already on login page");
     }
   }
 });
 
-// ---------- OPTIONAL HELPERS FOR OTHER SCRIPTS ----------
 export function isUserLoggedIn() {
   return !!auth.currentUser;
 }
@@ -145,13 +123,13 @@ export function logout() {
   console.log("🚪 Logout initiated");
   return signOut(auth)
     .then(() => {
-      console.log("✅ Signed out successfully");
+      console.log("✅ Signed out");
       setTimeout(() => {
         window.location.href = LOGIN_PATH;
       }, 100);
     })
     .catch((err) => {
-      console.error("❌ Error while logging out:", err);
+      console.error("❌ Logout error:", err);
     });
 }
 

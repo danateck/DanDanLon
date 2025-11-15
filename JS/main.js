@@ -241,6 +241,7 @@ async function uploadDocument(file, metadata = {}) {
 
   let downloadURL = null;
   // Around line 237-252 in uploadDocument
+// Around line 237-252 in uploadDocument
 try {
   if (window.storage) {
     const encodedName = encodeURIComponent(safeName);
@@ -263,9 +264,12 @@ try {
 } catch (e) {
   console.warn("⚠️ Storage upload failed (will save metadata only):", e.message);
   downloadURL = null;
-alert("העלאת הקובץ נכשלה (CORS). המסמך לא נשמר.");
-
+  
+  // Show user-friendly message
+  showNotification("הקובץ נשמר מקומית. העלאה לענן נכשלה בגלל הגדרות CORS.", false);
 }
+
+// Continue even if storage fails - save to Firestore with null downloadURL
 
 
 if (!downloadURL) return;
@@ -2480,8 +2484,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  await new Promise(resolve => {
+    if (window.userNow) {
+      resolve();
+    } else {
+      window.addEventListener('firebase-ready', resolve, { once: true });
+      // Timeout after 5 seconds
+      setTimeout(resolve, 5000);
+    }
+  });
+
   // Check if user is logged in
-  let currentUser = getCurrentUser();
+  const currentUser = getCurrentUser();
 
   if (!currentUser) {
     console.warn("⚠️ No user logged in on DOM load, waiting for auth...");
@@ -2499,6 +2513,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const categoryView = document.getElementById("categoryView");
   const categoryTitle = document.getElementById("categoryTitle");
   const docsList = document.getElementById("docsList");
+  
   const backButton = document.getElementById("backButton");
   const uploadBtn = document.getElementById("uploadBtn");
   const fileInput = document.getElementById("fileInput");

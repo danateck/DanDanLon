@@ -1831,8 +1831,131 @@ element.style {
 <script type="module" src="./api-bridge.js"></script>
 
 
+<script>
+  // Around line 1800+ in main.js - AFTER DOMContentLoaded
 
-<script type="module" src="./JS/init-fix.js"></script>
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("📄 DOM Content Loaded");
+  
+  // ===== WAIT FOR AUTH =====
+  // Don't do anything until we know if user is logged in
+  await new Promise(resolve => {
+    if (window.userNow) {
+      resolve();
+    } else {
+      window.addEventListener('firebase-ready', resolve, { once: true });
+      // Timeout after 5 seconds
+      setTimeout(resolve, 5000);
+    }
+  });
 
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    console.warn("⚠️ No user logged in");
+    return;
+  }
+
+  console.log("👤 Current user:", currentUser);
+
+  // ===== NOW SAFE TO ATTACH EVENTS =====
+  const uploadBtn = document.getElementById("uploadBtn");
+  const fileInput = document.getElementById("fileInput");
+  const backButton = document.getElementById("backButton");
+  const sortSelect = document.getElementById("sortSelect");
+  
+  // Mobile menu
+  const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+  const closeMenuBtn = document.getElementById("closeMenuBtn");
+  const sidebar = document.querySelector(".sidebar");
+  
+  if (mobileMenuBtn && sidebar) {
+    mobileMenuBtn.addEventListener("click", () => {
+      sidebar.classList.add("open");
+    });
+  }
+  
+  if (closeMenuBtn && sidebar) {
+    closeMenuBtn.addEventListener("click", () => {
+      sidebar.classList.remove("open");
+    });
+  }
+
+  // Upload button
+  if (uploadBtn && fileInput) {
+    uploadBtn.addEventListener("click", () => {
+      console.log("📤 Upload button clicked");
+      fileInput.click();
+    });
+  }
+
+  // Back button
+  if (backButton) {
+    backButton.addEventListener("click", () => {
+      console.log("⬅ Back button clicked");
+      if (typeof renderHome === 'function') {
+        renderHome();
+      }
+    });
+  }
+
+  // Sort select
+  if (sortSelect) {
+    sortSelect.addEventListener("change", () => {
+      const [field, dir] = sortSelect.value.split("-");
+      currentSortField = field;
+      currentSortDir = dir;
+      
+      const categoryTitle = document.getElementById("categoryTitle");
+      if (categoryTitle && !categoryView.classList.contains("hidden")) {
+        openCategoryView(categoryTitle.textContent);
+      }
+    });
+  }
+
+  // Logout buttons
+  const logoutBtn = document.getElementById("logoutBtn");
+  const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+  
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", handleLogout);
+  }
+  if (mobileLogoutBtn) {
+    mobileLogoutBtn.addEventListener("click", handleLogout);
+  }
+
+  // Menu items (sidebar navigation)
+  document.querySelectorAll(".menu-item").forEach(item => {
+    item.addEventListener("click", (e) => {
+      const view = e.currentTarget.getAttribute("data-view");
+      console.log("🔘 Menu item clicked:", view);
+      
+      // Remove active from all
+      document.querySelectorAll(".menu-item").forEach(i => i.classList.remove("active"));
+      e.currentTarget.classList.add("active");
+      
+      if (view === "home" && typeof renderHome === 'function') {
+        renderHome();
+      } else if (view === "shared" && typeof openSharedView === 'function') {
+        openSharedView();
+      } else if (view === "recycle" && typeof openRecycleView === 'function') {
+        openRecycleView();
+      } else if (view === "settings") {
+        // Open settings panel
+        const settingsPanel = document.getElementById("settingsPanel");
+        if (settingsPanel) {
+          settingsPanel.classList.remove("hidden");
+        }
+      }
+    });
+  });
+
+  console.log("✅ All event listeners attached");
+
+  // Initialize view
+  if (typeof renderHome === 'function') {
+    renderHome();
+  }
+});
+</script>
 </body>
 </html>
