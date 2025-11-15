@@ -2422,7 +2422,7 @@ function ensureUserSharedFields(allUsersData, username) {
  * 4. אפליקציה / UI  *
  *********************/
 
-document.addEventListener("", async () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
  console.log("📄 DOM Content Loaded");
 
