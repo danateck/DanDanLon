@@ -264,8 +264,7 @@ try {
   console.warn("⚠️ Storage upload failed (will save metadata only):", e.message);
   downloadURL = null;
 alert("העלאת הקובץ נכשלה (CORS). המסמך לא נשמר.");
-return; // 👈 עצרי את כל הפונקציה! אל תשמרי בפיירסטור
-  // Don't throw - continue without Storage URL
+
 }
 
 
@@ -3784,18 +3783,11 @@ if (currentCat === "אחסון משותף") {
     a.remove();
   });
 
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    if (typeof bootFromCloud === "function") {
-      await bootFromCloud();
-    }
-  } catch (e) {
-    console.error("Failed to boot from cloud:", e);
-  }
-
-  console.log("✅ DOM initialization complete");
-
 
 });
 
+
+window.addEventListener("firebase-ready", () => {
+   console.log("🔥 Firebase ready → booting app");
+   bootFromCloud();
 });
