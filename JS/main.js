@@ -1597,6 +1597,61 @@ const CATEGORIES = [
   "אחר"
 ];
 
+
+
+function renderFolderItem(categoryName) {
+  const folderGrid = document.getElementById("folderGrid");
+  if (!folderGrid) return;
+
+  const folder = document.createElement("button");
+  folder.className = "folder-card";
+  folder.setAttribute("data-category", categoryName);
+
+  folder.innerHTML = `
+    <div class="folder-icon"></div>
+    <div class="folder-label">${categoryName}</div>
+  `;
+
+  folder.addEventListener("click", () => {
+    if (typeof openCategoryView === "function") {
+      openCategoryView(categoryName);
+    }
+  });
+
+  folderGrid.appendChild(folder);
+}
+
+window.renderHome = function() {
+  console.log("🎨 renderHome called");
+  
+  const homeView = document.getElementById("homeView");
+  const categoryView = document.getElementById("categoryView");
+  const folderGrid = document.getElementById("folderGrid");
+  
+  if (!homeView || !folderGrid) {
+    console.error("❌ Home view elements not found");
+    return;
+  }
+
+  folderGrid.innerHTML = "";
+  CATEGORIES.forEach(cat => {
+    renderFolderItem(cat);
+  });
+
+  homeView.classList.remove("hidden");
+  if (categoryView) categoryView.classList.add("hidden");
+  
+  console.log("✅ renderHome complete");
+};
+
+// Make it available as both window.renderHome and renderHome
+const renderHome = window.renderHome;
+
+console.log("✅ renderHome defined globally");
+
+
+
+
 /*********************
  * 2. LocalStorage   *
 /*********************
@@ -2057,7 +2112,7 @@ function ensureUserSharedFields(allUsersData, username) {
 
 
 
-let openSharedView, openRecycleView, openCategoryView, renderHome;
+let openSharedView, openRecycleView, openCategoryView;
 
 
 /*********************
@@ -2182,19 +2237,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     folderGrid.appendChild(folder);
   }
 
-  function renderHome() {
-    console.log("🎨 renderHome called");
-    folderGrid.innerHTML = "";
-    CATEGORIES.forEach(cat => {
-      renderFolderItem(cat);
-    });
-
-    homeView.classList.remove("hidden");
-    categoryView.classList.add("hidden");
-  }
-
-  // Make renderHome global so bootFromCloud can call it
-  window.renderHome = renderHome;
 
 
 
@@ -3434,7 +3476,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("✅ DOM initialization complete");
 
-  
+
 });
 
 });
