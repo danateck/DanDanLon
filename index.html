@@ -1884,5 +1884,286 @@ element.style {
   });
 </script>
 
+
+// Add this at the END of index.html, AFTER all other scripts
+// This ensures everything is loaded before initialization
+
+<script type="module">
+console.log("🚀 Dashboard initialization starting...");
+
+// Wait for everything to be ready
+async function initializeDashboard() {
+  // Wait for DOM
+  if (document.readyState === 'loading') {
+    await new Promise(resolve => {
+      document.addEventListener('DOMContentLoaded', resolve, { once: true });
+    });
+  }
+  
+  // Wait for Firebase ready event
+  await new Promise(resolve => {
+    if (window.db && window.fs && window.app) {
+      resolve();
+    } else {
+      window.addEventListener('firebase-ready', resolve, { once: true });
+    }
+  });
+  
+  console.log("✅ Firebase ready, initializing UI...");
+  
+  // Get UI elements
+  const homeView = document.getElementById("homeView");
+  const categoryView = document.getElementById("categoryView");
+  const sharedView = document.getElementById("sharedView");
+  const settingsPanel = document.getElementById("settingsPanel");
+  const folderGrid = document.getElementById("folderGrid");
+  const backButton = document.getElementById("backButton");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const fileInput = document.getElementById("fileInput");
+  const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+  const closeMenuBtn = document.getElementById("closeMenuBtn");
+  const sidebarDrawer = document.getElementById("sidebarDrawer");
+  const premiumBtn = document.getElementById("premiumBtn");
+  const premiumPanel = document.getElementById("premiumPanel");
+  
+  // ===== CATEGORIES =====
+  const CATEGORIES = [
+    "כלכלה", "רפואה", "עבודה", "בית",
+    "אחריות", "תעודות", "עסק", "אחר"
+  ];
+  
+  // ===== RENDER HOME =====
+  function renderHome() {
+    console.log("🎨 Rendering home view...");
+    
+    if (!folderGrid) {
+      console.error("❌ folderGrid not found");
+      return;
+    }
+    
+    // Clear and rebuild
+    folderGrid.innerHTML = "";
+    
+    CATEGORIES.forEach(cat => {
+      const folder = document.createElement("button");
+      folder.className = "folder-card";
+      folder.innerHTML = `
+        <div class="folder-icon"></div>
+        <div class="folder-label">${cat}</div>
+      `;
+      
+      folder.addEventListener("click", () => {
+        console.log("📂 Opening category:", cat);
+        if (typeof window.openCategoryView === "function") {
+          window.openCategoryView(cat);
+        }
+      });
+      
+      folderGrid.appendChild(folder);
+    });
+    
+    // Show home, hide others
+    homeView?.classList.remove("hidden");
+    categoryView?.classList.add("hidden");
+    sharedView?.classList.add("hidden");
+    settingsPanel?.classList.add("hidden");
+    
+    console.log("✅ Home view rendered with", CATEGORIES.length, "folders");
+  }
+  
+  // ===== BACK BUTTON =====
+  if (backButton) {
+    backButton.addEventListener("click", () => {
+      console.log("⬅ Back button clicked");
+      renderHome();
+    });
+  }
+  
+  // ===== UPLOAD BUTTON =====
+  if (uploadBtn && fileInput) {
+    uploadBtn.addEventListener("click", () => {
+      console.log("📤 Upload button clicked");
+      fileInput.click();
+    });
+    
+    // Verify file input change handler
+    fileInput.addEventListener("change", (e) => {
+      const file = fileInput.files?.[0];
+      if (file) {
+        console.log("📎 File selected:", file.name);
+        // The actual upload logic is in main.js
+        // Just trigger a custom event if needed
+        const event = new CustomEvent("file-selected", { detail: { file } });
+        window.dispatchEvent(event);
+      } else {
+        console.warn("⚠️ No file selected");
+      }
+    }, { once: false }); // Allow multiple uploads
+    
+    console.log("✅ File input handler attached");
+  }
+  
+  // ===== MOBILE MENU =====
+  if (mobileMenuBtn && sidebarDrawer) {
+    mobileMenuBtn.addEventListener("click", () => {
+      console.log("📱 Mobile menu opened");
+      sidebarDrawer.classList.add("open");
+    });
+  }
+  
+  if (closeMenuBtn && sidebarDrawer) {
+    closeMenuBtn.addEventListener("click", () => {
+      console.log("❌ Mobile menu closed");
+      sidebarDrawer.classList.remove("open");
+    });
+  }
+  
+  // ===== MENU NAVIGATION =====
+  const menuItems = document.querySelectorAll(".menu-item");
+  menuItems.forEach(btn => {
+    btn.addEventListener("click", () => {
+      console.log("🔘 Menu item clicked:", btn.dataset.view);
+      
+      // Update active state
+      menuItems.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      
+      const view = btn.dataset.view;
+      
+      // Navigate to view
+      if (view === "home") {
+        renderHome();
+      } else if (view === "shared") {
+        if (typeof window.openSharedView === "function") {
+          window.openSharedView();
+        }
+      } else if (view === "recycle") {
+        if (typeof window.openRecycleView === "function") {
+          window.openRecycleView();
+        }
+      } else if (view === "settings") {
+        // Show settings panel
+        settingsPanel?.classList.remove("hidden");
+        settingsPanel?.setAttribute("aria-hidden", "false");
+        homeView?.classList.add("hidden");
+        categoryView?.classList.add("hidden");
+        sharedView?.classList.add("hidden");
+      }
+      
+      // Close mobile menu on small screens
+      if (window.matchMedia("(max-width: 760px)").matches) {
+        sidebarDrawer?.classList.remove("open");
+      }
+    });
+  });
+  
+  // ===== SETTINGS PANEL =====
+  if (settingsPanel) {
+    const closeButtons = settingsPanel.querySelectorAll("[data-close]");
+    closeButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        console.log("⚙️ Settings panel closed");
+        settingsPanel.classList.add("hidden");
+        settingsPanel.setAttribute("aria-hidden", "true");
+        renderHome();
+      });
+    });
+    
+    // Theme switcher
+    const themeLight = document.getElementById("themeLight");
+    const themeDark = document.getElementById("themeDark");
+    
+    if (themeLight && themeDark) {
+      themeLight.addEventListener("change", () => {
+        if (themeLight.checked) {
+          document.body.classList.remove("theme-dark");
+          console.log("☀️ Light theme activated");
+        }
+      });
+      
+      themeDark.addEventListener("change", () => {
+        if (themeDark.checked) {
+          document.body.classList.add("theme-dark");
+          console.log("🌙 Dark theme activated");
+        }
+      });
+    }
+  }
+  
+  // ===== PREMIUM PANEL =====
+  if (premiumBtn && premiumPanel) {
+    premiumBtn.addEventListener("click", () => {
+      console.log("💎 Premium panel opened");
+      premiumPanel.classList.remove("hidden");
+      premiumPanel.setAttribute("aria-hidden", "false");
+    });
+    
+    const premiumCloseBtn = document.getElementById("premiumCloseBtn");
+    const premiumLaterBtn = document.getElementById("premiumLaterBtn");
+    
+    const closePremium = () => {
+      console.log("💎 Premium panel closed");
+      premiumPanel.classList.add("hidden");
+      premiumPanel.setAttribute("aria-hidden", "true");
+    };
+    
+    premiumCloseBtn?.addEventListener("click", closePremium);
+    premiumLaterBtn?.addEventListener("click", closePremium);
+    
+    // Plan selection buttons
+    premiumPanel.querySelectorAll("[data-select-plan]").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const plan = e.currentTarget.getAttribute("data-select-plan");
+        console.log("💎 Plan selected:", plan);
+        alert(`נבחרה תוכנית: ${plan === "pro" ? "פרו" : "פרימיום"}`);
+        closePremium();
+      });
+    });
+  }
+  
+  // ===== TABS (STYLING ONLY) =====
+  const tabs = document.querySelectorAll(".tab-btn");
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+    });
+  });
+  
+  // ===== LOGOUT BUTTONS =====
+  const logoutBtn = document.getElementById("logoutBtn");
+  const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+  
+  const handleLogout = async () => {
+    console.log("🚪 Logout initiated");
+    if (typeof window.handleLogout === "function") {
+      window.handleLogout();
+    } else {
+      // Fallback
+      const { logout } = await import('./JS/authCheck.js');
+      logout();
+    }
+  };
+  
+  logoutBtn?.addEventListener("click", handleLogout);
+  mobileLogoutBtn?.addEventListener("click", handleLogout);
+  
+  // ===== INITIAL RENDER =====
+  console.log("🎬 Performing initial render...");
+  renderHome();
+  
+  // Make renderHome available globally
+  window.renderHome = renderHome;
+  
+  console.log("✅ Dashboard initialization complete!");
+}
+
+// Start initialization
+initializeDashboard().catch(err => {
+  console.error("❌ Dashboard initialization failed:", err);
+});
+</script>
+
+
 </body>
 </html>
