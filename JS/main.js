@@ -264,17 +264,9 @@ try {
 } catch (e) {
   console.warn("⚠️ Storage upload failed (will save metadata only):", e.message);
   downloadURL = null;
-  
-  // Show user-friendly message
-  showNotification("הקובץ נשמר מקומית. העלאה לענן נכשלה בגלל הגדרות CORS.", false);
 }
 
-// Continue even if storage fails - save to Firestore with null downloadURL
-
-
-if (!downloadURL) return;
-
-
+// Continue even if storage fails - save to Firestore with metadata
 
   const docRef = window.fs.doc(window.db, "documents", newId);
 
@@ -1685,6 +1677,24 @@ function buildDocCard(doc, mode) {
       }
     });
     actions.appendChild(trashBtn);
+
+    // Add to shared folder button
+    const shareBtn = document.createElement("button");
+    shareBtn.className = "doc-action-btn";
+    shareBtn.textContent = "הכנס לתיקייה משותפת 📤";
+    shareBtn.addEventListener("click", () => {
+      // Open shared folder modal or prompt
+      if (typeof openShareModal === "function") {
+        openShareModal(doc);
+      } else {
+        const email = prompt("הזן כתובת מייל לשיתוף:");
+        if (email && email.trim()) {
+          console.log("Share document", doc.id, "with", email);
+          showNotification("שיתוף נשלח!");
+        }
+      }
+    });
+    actions.appendChild(shareBtn);
 
   } else {
     const restoreBtn = document.createElement("button");

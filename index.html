@@ -1422,7 +1422,7 @@ element.style {
 
         <div class="user-panel">
           <div class="user-panel-name" id="currentUserLabel">שלום, משתמש!</div>
-          <div class="user-panel-mail" id="currentUserEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5f2a2c3a2d1f3a273e322f333a713c3032">[email&#160;protected]</a></div>
+          <div class="user-panel-mail" id="currentUserEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="443137213604213c25293428216a272b29">[email&#160;protected]</a></div>
         </div>
 
         <nav class="menu">
@@ -1819,6 +1819,7 @@ element.style {
 
 
 
+
 <!-- Remove ALL inline Firebase initialization -->
 <!-- authCheck.js will handle everything -->
 
@@ -1828,9 +1829,6 @@ element.style {
 <script type="module" src="./JS/authCheck.js"></script>
 <script type="module" src="./JS/main.js"></script>
 <script type="module" src="./api-bridge.js"></script>
-
-
-
 
 
 <script>
@@ -1883,12 +1881,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Upload button
-  if (uploadBtn && fileInput) {
-    uploadBtn.addEventListener("click", () => {
-      console.log("📤 Upload button clicked");
-      fileInput.click();
-    });
-  }
+  // Upload button - handled in main.js
 
   // Back button
   if (backButton) {
@@ -1919,10 +1912,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
   
   if (logoutBtn) {
-    logoutBtn.addEventListener("click", handleLogout);
+    logoutBtn.addEventListener("click", window.handleLogout);
   }
   if (mobileLogoutBtn) {
-    mobileLogoutBtn.addEventListener("click", handleLogout);
+    mobileLogoutBtn.addEventListener("click", window.handleLogout);
   }
 
   // Menu items (sidebar navigation)
@@ -1946,18 +1939,80 @@ document.addEventListener("DOMContentLoaded", async () => {
         const settingsPanel = document.getElementById("settingsPanel");
         if (settingsPanel) {
           settingsPanel.classList.remove("hidden");
+          settingsPanel.setAttribute("aria-hidden", "false");
         }
       }
     });
   });
 
-  console.log("✅ All event listeners attached");
-
-  // Initialize view
-  if (typeof renderHome === 'function') {
-    renderHome();
+  // ===== SETTINGS PANEL HANDLERS =====
+  const settingsPanel = document.getElementById("settingsPanel");
+  
+  // Close settings panel
+  if (settingsPanel) {
+    settingsPanel.querySelectorAll("[data-close]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        settingsPanel.classList.add("hidden");
+        settingsPanel.setAttribute("aria-hidden", "true");
+      });
+    });
+    
+    // Close on backdrop click
+    settingsPanel.addEventListener("click", (e) => {
+      if (e.target === settingsPanel) {
+        settingsPanel.classList.add("hidden");
+        settingsPanel.setAttribute("aria-hidden", "true");
+      }
+    });
   }
+
+  // Theme switcher
+  const themeLight = document.getElementById("themeLight");
+  const themeDark = document.getElementById("themeDark");
+  
+  if (themeLight && themeDark) {
+    // Load saved theme
+    const savedTheme = localStorage.getItem("theme") || "light";
+    if (savedTheme === "dark") {
+      themeDark.checked = true;
+      document.documentElement.classList.add("theme-dark");
+    } else {
+      themeLight.checked = true;
+      document.documentElement.classList.remove("theme-dark");
+    }
+    
+    // Theme change handlers
+    themeLight.addEventListener("change", () => {
+      if (themeLight.checked) {
+        document.documentElement.classList.remove("theme-dark");
+        localStorage.setItem("theme", "light");
+      }
+    });
+    
+    themeDark.addEventListener("change", () => {
+      if (themeDark.checked) {
+        document.documentElement.classList.add("theme-dark");
+        localStorage.setItem("theme", "dark");
+      }
+    });
+  }
+
+  // Confirm delete toggle
+  const toggleConfirmDelete = document.getElementById("toggleConfirmDelete");
+  if (toggleConfirmDelete) {
+    const savedConfirm = localStorage.getItem("confirmDelete") !== "false";
+    toggleConfirmDelete.checked = savedConfirm;
+    
+    toggleConfirmDelete.addEventListener("change", () => {
+      localStorage.setItem("confirmDelete", toggleConfirmDelete.checked);
+      console.log("Confirm delete:", toggleConfirmDelete.checked);
+    });
+  }
+
+  console.log("✅ All event handlers attached");
 });
+
 </script>
+
 </body>
 </html>
