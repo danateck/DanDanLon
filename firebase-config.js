@@ -5,7 +5,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   initializeFirestore, collection, addDoc, getDoc, getDocs, doc, query, where,
-  updateDoc, setDoc, arrayUnion, onSnapshot
+  updateDoc, setDoc, arrayUnion, onSnapshot, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   getStorage, ref, uploadBytes, getDownloadURL, deleteObject
@@ -34,7 +34,7 @@ const storage = getStorage(app);
 const fs = {
   // Firestore
   collection, addDoc, getDoc, getDocs, doc, query, where,
-  updateDoc, setDoc, arrayUnion, onSnapshot,
+  updateDoc, setDoc, arrayUnion, onSnapshot, deleteDoc,
   // Storage
   ref, uploadBytes, getDownloadURL, deleteObject
 };
