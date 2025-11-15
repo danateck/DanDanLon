@@ -4,40 +4,26 @@ import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/fir
 
 const auth = getAuth();
 
-// Wait for Firebase to be ready
-let appRef, dbRef, storageRef, fsRef;
-
-function initializeFirebaseRefs() {
-  appRef = window.app;
-  dbRef = window.db;
-  storageRef = window.storage;
-  fsRef = window.fs;
-  
-  if (!appRef || !dbRef || !fsRef) {
-    console.warn("⚠️ Firebase not ready, will retry...");
-    return false;
-  }
-  
-  console.log("✅ Firebase refs initialized");
-  return true;
-}
-
-// Try to initialize immediately
-if (!initializeFirebaseRefs()) {
-  // If not ready, wait for event
-  console.log("⏳ Waiting for firebase-ready event...");
-  window.addEventListener("firebase-ready", () => {
-    if (initializeFirebaseRefs()) {
-      console.log("✅ Firebase ready after event");
+// Wait for Firebase globals
+function waitForFirebase() {
+  return new Promise((resolve) => {
+    if (window.db && window.fs && window.app) {
+      console.log("✅ Firebase already available");
+      resolve();
+    } else {
+      console.log("⏳ Waiting for firebase-ready event...");
+      window.addEventListener("firebase-ready", () => {
+        console.log("✅ Firebase ready event received");
+        resolve();
+      }, { once: true });
     }
-  }, { once: true });
+  });
 }
 
-// Create aliases for easier use
-const app = () => appRef || window.app;
-const db = () => dbRef || window.db;
-const storage = () => storageRef || window.storage;
-const fs = () => fsRef || window.fs;
+// ---- Global safety net ----
+window.allDocsData = Array.isArray(window.allDocsData) ? window.allDocsData : [];
+window.allUsersData = window.allUsersData || {};
+window.userNow = window.userNow || "";
 
 // ---- Minimal pending-invites renderer ----
 window.paintPending = window.paintPending || function(invites = []) {
@@ -71,74 +57,37 @@ window.paintPending = window.paintPending || function(invites = []) {
   };
 };
 
-// ---- Global safety net ----
-window.allDocsData = Array.isArray(window.allDocsData) ? window.allDocsData : [];
-window.allUsersData = window.allUsersData || {};
-window.userNow = window.userNow || "";
-
-
-
 
 /******** NO-LOCAL-STORAGE SHIM (Firebase-only) ********/
-
-// Current user email: prefer Firebase Auth if you use it.
-// Fallback to your existing helper (getCurrentUserEmail) if present.
 function getCurrentUserFirebaseOnly() {
-  // If you added Firebase Auth:
-  // const u = (window.firebaseAuth && window.firebaseAuth.currentUser);
-  // if (u && u.email) return u.email.trim().toLowerCase();
-
-  // Otherwise reuse your session helper (or replace with your own source of truth):
   if (typeof getCurrentUserEmail === "function") {
     return (getCurrentUserEmail() || "").trim().toLowerCase();
   }
-  return ""; // not logged in
+  return "";
 }
 
-// In-memory cache (not persisted)
 const memoryUsers = Object.create(null);
 
-// ── REPLACING the old “LocalStorage section” ──
-// Delete your previous STORAGE_KEY/CURRENT_USER_KEY and the functions that used sessionStorage.
-// Replace them **exactly** with the following no-ops / Firebase-only versions:
-
 function loadAllUsersDataFromStorage() {
-  // No local storage: return our in-memory map
   return memoryUsers;
 }
 
 function saveAllUsersDataToStorage(allUsersData) {
-  // No local storage: keep memory in sync (no disk write)
   Object.assign(memoryUsers, allUsersData || {});
 }
 
+
 function getCurrentUser() {
-  // No local/session storage: always read from Firebase/Auth helper
   return getCurrentUserFirebaseOnly();
 }
-
 function getUserDocs(username, _allUsersData) {
-  // Your app already keeps `allDocsData` for the signed-in user.
-  // If some code still calls this, return from memory cache if present.
   return (memoryUsers[username]?.docs) || [];
 }
 
 function setUserDocs(username, docsArray, _allUsersData) {
-  // Keep an in-memory copy for UI components that expect it,
-  // but DO NOT write to local/session storage.
   if (!memoryUsers[username]) memoryUsers[username] = { password: "", docs: [] };
   memoryUsers[username].docs = Array.isArray(docsArray) ? docsArray : [];
-
-  // If you want to persist something to Firestore (optional),
-  // you can save a lightweight marker under users/{email}, NOT the whole docs:
-  // const email = (username normalizeEmail|| "").trim().toLowerCase();
-  // if (email && window.db && window.fs) {
-  //   const userRef = window.fs.doc(window.db, "users", email);
-  //   window.fs.setDoc(userRef, { lastDocsCount: memoryUsers[username].docs.length, updatedAt: Date.now() }, { merge: true });
-  // }
 }
-/******** END NO-LOCAL-STORAGE SHIM ********/
-
 
 
 
@@ -146,7 +95,7 @@ function setUserDocs(username, docsArray, _allUsersData) {
 let stopWatching = null;
 // Add this helper function at the top of your main.js
 function getCurrentUserEmail() {
-  const raw =auth.currentUser?.email?.toLowerCase() ?? "" ;
+  const raw = auth.currentUser?.email?.toLowerCase() ?? "";
   return raw.trim().toLowerCase();
 }
 
@@ -201,6 +150,59 @@ async function loadDocuments() {
   console.log("✅ Total documents loaded:", result.length);
   return result;
 }
+
+
+
+window.bootFromCloud = async function() {
+  console.log("🚀 bootFromCloud called");
+  
+  await waitForFirebase();
+  
+  const me = getCurrentUserEmail();
+  console.log("👤 Boot user:", me);
+  
+  if (!me || !isFirebaseAvailable()) {
+    console.warn("❌ Cannot boot: no user or Firebase unavailable");
+    return;
+  }
+
+  try {
+    if (typeof showLoading === "function") showLoading("טוען מסמכים מהענן...");
+    
+    const docs = await loadDocuments();
+    console.log("📦 Loaded", docs.length, "documents from Firestore");
+    
+    window.allDocsData = docs || [];
+    
+    const userNow = me;
+    if (typeof setUserDocs === "function") {
+      setUserDocs(userNow, window.allDocsData, window.allUsersData);
+    }
+    
+    // Render home view
+    console.log("🎨 Calling renderHome");
+    if (typeof window.renderHome === "function") {
+      window.renderHome();
+    } else if (typeof renderHome === "function") {
+      renderHome();
+    } else {
+      console.error("❌ renderHome function not found!");
+    }
+    
+    console.log("✅ Boot complete:", window.allDocsData.length, "documents");
+  } catch (error) {
+    console.error("❌ Boot failed:", error);
+  } finally {
+    if (typeof hideLoading === "function") hideLoading();
+  }
+
+  watchMyDocs();
+};
+
+console.log("✅ bootFromCloud defined globally");
+
+
+
 
 // ============================================
 // FIX 2: Upload document with owner info
@@ -2064,9 +2066,9 @@ let openSharedView, openRecycleView, openCategoryView, renderHome;
 
 document.addEventListener("DOMContentLoaded", async () => {
 
+ console.log("📄 DOM Content Loaded");
 
-console.log("📄 DOM Content Loaded");
-
+  // Premium panel setup
   const panel = document.getElementById("premiumPanel");
   const modal = panel?.querySelector(".modal");
   const btnOpen = document.getElementById("premiumBtn");
@@ -2107,15 +2109,18 @@ console.log("📄 DOM Content Loaded");
     });
   });
 
+  // Check if user is logged in
   const currentUser = getCurrentUser();
   if (!currentUser) {
-    console.warn("⚠️ No user logged in on DOM load");
+    console.warn("⚠️ No user logged in on DOM load, waiting for auth...");
     return;
   }
 
   const userNow = currentUser;
-  console.log("👤 Current user:", userNow);
+  console.log("👤 Current user on DOM load:", userNow);
+  window.userNow = userNow;
 
+  // Get UI elements
   const homeView = document.getElementById("homeView");
   const folderGrid = document.getElementById("folderGrid");
   const categoryView = document.getElementById("categoryView");
@@ -2153,11 +2158,43 @@ console.log("📄 DOM Content Loaded");
     setUserDocs(userNow, allDocsData, allUsersData);
   }
 
-  console.log("📊 Initial local data:", allDocsData.length, "documents");
+  const removed = purgeExpiredWarranties(allDocsData);
+  if (removed) {
+    setUserDocs(userNow, allDocsData, allUsersData);
+    showNotification("מסמכי אחריות ישנים הוסרו אוטומטית");
+  }
 
-  // Boot from cloud will be called by authCheck.js
-  console.log("✅ Main.js initialized, waiting for bootFromCloud call");
+  // ===== RENDER FUNCTIONS =====
+  function renderFolderItem(categoryName) {
+    const folder = document.createElement("button");
+    folder.className = "folder-card";
+    folder.setAttribute("data-category", categoryName);
 
+    folder.innerHTML = `
+      <div class="folder-icon"></div>
+      <div class="folder-label">${categoryName}</div>
+    `;
+
+    folder.addEventListener("click", () => {
+      openCategoryView(categoryName);
+    });
+
+    folderGrid.appendChild(folder);
+  }
+
+  function renderHome() {
+    console.log("🎨 renderHome called");
+    folderGrid.innerHTML = "";
+    CATEGORIES.forEach(cat => {
+      renderFolderItem(cat);
+    });
+
+    homeView.classList.remove("hidden");
+    categoryView.classList.add("hidden");
+  }
+
+  // Make renderHome global so bootFromCloud can call it
+  window.renderHome = renderHome;
 
 
 
@@ -2212,12 +2249,7 @@ saveAllUsersDataToStorage(allUsersData);
     setUserDocs(userNow, allDocsData, allUsersData);
   }
 
-  // מסירים אחריות שפג תוקפה
-  const removed = purgeExpiredWarranties(allDocsData);
-  if (removed) {
-    setUserDocs(userNow, allDocsData, allUsersData);
-    showNotification("מסמכי אחריות ישנים הוסרו אוטומטית");
-  }
+
 
   // כפתורי התיקיות בעמוד הבית
   function renderFolderItem(categoryName) {
@@ -2237,15 +2269,7 @@ saveAllUsersDataToStorage(allUsersData);
     folderGrid.appendChild(folder);
   }
 
-  function renderHome() {
-    folderGrid.innerHTML = "";
-    CATEGORIES.forEach(cat => {
-      renderFolderItem(cat);
-    });
 
-    homeView.classList.remove("hidden");
-    categoryView.classList.add("hidden");
-  }
 
   function buildDocCard(doc, mode) {
     const card = document.createElement("div");
@@ -3407,6 +3431,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (e) {
     console.error("Failed to boot from cloud:", e);
   }
+
+  console.log("✅ DOM initialization complete");
+
+  
 });
 
 });
