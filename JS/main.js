@@ -1822,10 +1822,28 @@ function buildDocCard(doc, mode) {
     const restoreBtn = document.createElement("button");
     restoreBtn.className = "doc-action-btn restore";
     restoreBtn.textContent = "שחזור ♻️";
-    restoreBtn.addEventListener("click", () => {
-      markDocTrashed(doc.id, false);
-      if (typeof openRecycleView === "function") openRecycleView();
-    });
+    restoreBtn.addEventListener("click", async () => {
+  try {
+    // ננסה קודם את הגרסה שמדברת עם Render (api-bridge.js)
+    if (window.markDocTrashed && typeof window.markDocTrashed === "function") {
+      await window.markDocTrashed(doc.id, false);
+    } else {
+      // fallback – רק לוקלי, אם מסיבה כלשהי אין api bridge
+      if (typeof markDocTrashed === "function") {
+        markDocTrashed(doc.id, false);
+      }
+    }
+
+    if (typeof openRecycleView === "function") {
+      openRecycleView();
+    }
+  } catch (err) {
+    console.error("❌ Restore failed:", err);
+    if (typeof showNotification === "function") {
+      showNotification("שגיאה בשחזור המסמך", true);
+    }
+  }
+});
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "doc-action-btn danger";
@@ -4231,14 +4249,16 @@ async function deleteDocForever(id) {
   
   try {
     // Delete from backend if available
-    if (window.deleteDocument && typeof window.deleteDocument === 'function') {
+        // Delete from backend (Render API) דרך ה-api-bridge
+    if (window.deleteDocForever && typeof window.deleteDocForever === 'function') {
       try {
-        await window.deleteDocument(id);
-        console.log("✅ Deleted from backend");
+        await window.deleteDocForever(id); // ← קורא לפונקציה מ-api-bridge.js
+        console.log("✅ Deleted from backend (Render + DB)");
       } catch (backendError) {
         console.warn("⚠️ Backend delete failed:", backendError);
       }
     }
+
     
     // Delete from IndexedDB (local)
     if (typeof deleteFileFromDB === 'function') {
