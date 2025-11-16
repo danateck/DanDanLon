@@ -2071,23 +2071,36 @@ window.openRecycleView = function() {
   
   docsList.innerHTML = "";
   
+  // 3. RECYCLE VIEW
+window.openRecycleView = function() {
+  console.log("🗑️ Opening recycle view");
+  
+  const categoryTitle = document.getElementById("categoryTitle");
+  const docsList = document.getElementById("docsList");
+  const homeView = document.getElementById("homeView");
+  const categoryView = document.getElementById("categoryView");
+  
+  if (!categoryTitle || !docsList) return;
+
+  categoryTitle.textContent = "סל מחזור";
+  const docs = (window.allDocsData || []).filter(d => d._trashed === true);
+  
+  docsList.innerHTML = "";
+  
   if (docs.length === 0) {
     docsList.innerHTML = `<div style="padding:2rem;text-align:center;opacity:0.6;">סל המחזור ריק</div>`;
   } else {
     docs.forEach(doc => {
-      const card = document.createElement("div");
-      card.className = "doc-card";
-      card.innerHTML = `
-        <p class="doc-card-title">${doc.title || doc.fileName || "מסמך"}</p>
-        <div class="doc-card-meta">
-          <span>ארגון: ${doc.org || "לא ידוע"}</span>
-        </div>
-        <button class="doc-action-btn restore">שחזור ♻️</button>
-        <button class="doc-action-btn danger">מחיקה לצמיתות 🗑️</button>
-      `;
+      // 👈 משתמשים ב-buildDocCard במצב recycle
+      const card = buildDocCard(doc, "recycle");
       docsList.appendChild(card);
     });
   }
+
+  if (homeView) homeView.classList.add("hidden");
+  if (categoryView) categoryView.classList.remove("hidden");
+};
+
 
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
