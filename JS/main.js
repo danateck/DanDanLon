@@ -666,6 +666,8 @@ async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
 // 3. Updated file upload handler (replace in your DOMContentLoaded)
 // Replace your existing fileInput.addEventListener("change", ...) with this:
 
+
+if (fileInput) {
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files[0];
   if (!file) {
@@ -888,6 +890,9 @@ fileInput.addEventListener("change", async () => {
     hideLoading();
   }
 });
+
+}
+
 
 
 
@@ -3533,11 +3538,11 @@ renderPending();
 
 
 
-  function openRecycleView() {
-    categoryTitle.textContent = "סל מחזור";
-    const docs = allDocsData.filter(d => d._trashed === true);
-    renderDocsList(docs, "recycle");
-  }
+  // function openRecycleView() {
+  //   categoryTitle.textContent = "סל מחזור";
+  //   const docs = allDocsData.filter(d => d._trashed === true);
+  //   renderDocsList(docs, "recycle");
+  // }
 
   function markDocTrashed(id, trashed) {
     const i = allDocsData.findIndex(d => d.id === id);
@@ -3668,212 +3673,7 @@ renderPending();
   }
 
   // העלאת קובץ ושמירה (Metadata -> localStorage, קובץ -> IndexedDB)
-  if (fileInput) {
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files[0];
-      if (!file) {
-        showNotification("❌ לא נבחר קובץ", true);
-        return;
-      }
-
-      try {
-        const fileName = file.name.trim();
-
-        const alreadyExists = allDocsData.some(doc => {
-          return (
-            doc.originalFileName === fileName &&
-            doc._trashed !== true
-          );
-        });
-        if (alreadyExists) {
-          showNotification("הקובץ הזה כבר קיים בארכיון שלך", true);
-          fileInput.value = "";
-          return;
-        }
-
-        // קטגוריה
-        let guessedCategory = guessCategoryForFileNameOnly(file.name);
-        if (!guessedCategory || guessedCategory === "אחר") {
-          const manual = prompt(
-            'לא זיהיתי אוטומטית את סוג המסמך.\nלאיזו תיקייה לשמור?\nאפשרויות: ' +
-            CATEGORIES.join(", "),
-            "רפואה"
-          );
-          if (manual && manual.trim() !== "") {
-            guessedCategory = manual.trim();
-          } else {
-            guessedCategory = "אחר";
-          }
-        }
-
-        // פרטי אחריות אם זה "אחריות"
-        let warrantyStart = null;
-        let warrantyExpiresAt = null;
-        let autoDeleteAfter = null;
-
-        if (guessedCategory === "אחריות") {
-          let extracted = {
-            warrantyStart: null,
-            warrantyExpiresAt: null,
-            autoDeleteAfter: null,
-          };
-
-          if (file.type === "application/pdf") {
-            const ocrText = await extractTextFromPdfWithOcr(file);
-            const dataFromText = extractWarrantyFromText(ocrText);
-            extracted = { ...extracted, ...dataFromText };
-          }
-
-          if (file.type.startsWith("image/") && window.Tesseract) {
-            const { data } = await window.Tesseract.recognize(file, "heb+eng", {
-              tessedit_pageseg_mode: 6,
-            });
-            const imgText = data?.text || "";
-            const dataFromText = extractWarrantyFromText(imgText);
-            extracted = { ...extracted, ...dataFromText };
-          }
-
-          if (!extracted.warrantyStart && !extracted.warrantyExpiresAt) {
-            const buf = await file.arrayBuffer().catch(() => null);
-            if (buf) {
-              const txt = new TextDecoder("utf-8").decode(buf);
-              const dataFromText = extractWarrantyFromText(txt);
-              extracted = { ...extracted, ...dataFromText };
-            }
-          }
-
-          if (!extracted.warrantyStart && !extracted.warrantyExpiresAt) {
-            const manualData = fallbackAskWarrantyDetails();
-            if (manualData.warrantyStart) {
-              extracted.warrantyStart = manualData.warrantyStart;
-            }
-            if (manualData.warrantyExpiresAt) {
-              extracted.warrantyExpiresAt = manualData.warrantyExpiresAt;
-            }
-            if (manualData.autoDeleteAfter) {
-              extracted.autoDeleteAfter = manualData.autoDeleteAfter;
-            }
-          }
-
-          warrantyStart     = extracted.warrantyStart     || null;
-          warrantyExpiresAt = extracted.warrantyExpiresAt || null;
-          autoDeleteAfter   = extracted.autoDeleteAfter   || null;
-        }
-
-        // קוראות את הקובץ כ-base64 (dataURL)
-        const fileDataBase64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            resolve(reader.result);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        // מזהה למסמך
-        const newId = crypto.randomUUID();
-
-        // שמירת הקובץ עצמו ב-IndexedDB (לא ב-localStorage)
-        await saveFileToDB(newId, fileDataBase64);
-
-        // נבנה אובייקט מסמך בלי לשמור את כל הבייס64
-        const newDoc = {
-          id: newId,
-          title: fileName,
-          originalFileName: fileName,
-          category: guessedCategory,
-          uploadedAt: new Date().toISOString().split("T")[0],
-          year: new Date().getFullYear().toString(),
-          org: "",
-          recipient: [],
-          sharedWith: [],
-
-          warrantyStart,
-          warrantyExpiresAt,
-          autoDeleteAfter,
-
-          mimeType: file.type,
-          hasFile: true // יש קובץ שמור ב-IndexedDB
-        };
-allDocsData.push(newDoc);
-setUserDocs(userNow, allDocsData, allUsersData);
-
-
-// === Mirror to Firestore (owner document) ===
-// === Mirror to Firestore (owner document) ===
-if (isFirebaseAvailable()) {
-  try {
-    const ownerEmail = normalizeEmail(getCurrentUserEmail() || userNow);
-    const docRef = window.fs.doc(window.db, "documents", newId);
-
-    // Create a clean copy without undefined fields
-    const cleanDoc = {
-      id: newDoc.id,
-      title: newDoc.title,
-      originalFileName: newDoc.originalFileName,
-      category: newDoc.category,
-      uploadedAt: newDoc.uploadedAt,
-      year: newDoc.year,
-      org: newDoc.org || "",
-      recipient: newDoc.recipient || [],
-      sharedWith: newDoc.sharedWith || [],
-      warrantyStart: newDoc.warrantyStart || null,
-      warrantyExpiresAt: newDoc.warrantyExpiresAt || null,
-      autoDeleteAfter: newDoc.autoDeleteAfter || null,
-      mimeType: newDoc.mimeType,
-      hasFile: true,
-      owner: ownerEmail,
-      downloadURL: null, // Will be updated by uploadDocument if storage succeeds
-      deletedAt: null,
-      deletedBy: null,
-      lastModified: Date.now(),
-      lastModifiedBy: ownerEmail
-    };
-
-    await window.fs.setDoc(docRef, cleanDoc, { merge: true });
-    console.log("✅ Mirrored owner doc to Firestore:", newId);
-  } catch (e) {
-    console.error("❌ Firestore mirror failed:", e);
-  }
-}
-
-// If this doc is in a shared folder, sync to Firestore immediately
-if (newDoc.sharedFolderId && isFirebaseAvailable()) {
-  console.log("🔄 New doc has sharedFolderId, syncing to Firestore...");
-  try {
-    await upsertSharedDocRecord(newDoc, newDoc.sharedFolderId);
-  } catch (e) {
-    console.error("Error syncing new doc to Firestore:", e);
-  }
-}
-
-// ניסוח הודעה נחמה לפי התיקייה
-let niceCat = guessedCategory && guessedCategory.trim()
-  ? guessedCategory.trim()
-  : "התיקייה";
-
-showNotification(`הקובץ נוסף לתיקייה "${niceCat}" ✅`);
-
-const currentCat = categoryTitle.textContent;
-if (currentCat === "אחסון משותף") {
-  openSharedView();
-} else if (currentCat === "סל מחזור") {
-  openRecycleView();
-} else if (!homeView.classList.contains("hidden")) {
-  renderHome();
-} else {
-  openCategoryView(currentCat);
-}
-
-
-        fileInput.value = "";
-
-      } catch (err) {
-        console.error("שגיאה בהעלאה:", err);
-        showNotification("הייתה בעיה בהעלאה / OCR. נסי שוב או קובץ אחר.", true);
-      }
-    });
-  }
+ 
 
   // פתיחת קובץ מה-IndexedDB
   document.addEventListener("click", async (ev) => {
