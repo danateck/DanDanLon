@@ -1881,56 +1881,56 @@ async function markDocTrashed(id, trashed) {
   }
 }
 
-async function deleteDocForever(id) {
-  const allDocsData = window.allDocsData || [];
-  const userNow = getCurrentUserEmail();
-  const allUsersData = window.allUsersData || {};
+// async function deleteDocForever(id) {
+//   const allDocsData = window.allDocsData || [];
+//   const userNow = getCurrentUserEmail();
+//   const allUsersData = window.allUsersData || {};
   
-  const i = allDocsData.findIndex(d => d.id === id);
-  if (i === -1) {
-    showNotification("המסמך לא נמצא", true);
-    return;
-  }
+//   const i = allDocsData.findIndex(d => d.id === id);
+//   if (i === -1) {
+//     showNotification("המסמך לא נמצא", true);
+//     return;
+//   }
   
-  const doc = allDocsData[i];
+//   const doc = allDocsData[i];
   
-  try {
-    // Delete from IndexedDB (local)
-    await deleteFileFromDB(id).catch(() => {});
+//   try {
+//     // Delete from IndexedDB (local)
+//     await deleteFileFromDB(id).catch(() => {});
     
-    // Delete from Firestore
-    if (isFirebaseAvailable()) {
-      const docRef = window.fs.doc(window.db, "documents", id);
-      await window.fs.deleteDoc(docRef);
-      console.log("✅ Document deleted from Firestore:", id);
-    }
+//     // Delete from Firestore
+//     if (isFirebaseAvailable()) {
+//       const docRef = window.fs.doc(window.db, "documents", id);
+//       await window.fs.deleteDoc(docRef);
+//       console.log("✅ Document deleted from Firestore:", id);
+//     }
     
-    // Delete from Storage (if has downloadURL)
-    if (doc.downloadURL && window.storage) {
-      try {
-        const storageRef = window.fs.ref(window.storage, doc.downloadURL);
-        await window.fs.deleteObject(storageRef);
-        console.log("✅ File deleted from Storage");
-      } catch (storageError) {
-        console.warn("⚠️ Could not delete from Storage (might not exist):", storageError.message);
-      }
-    }
+//     // Delete from Storage (if has downloadURL)
+//     if (doc.downloadURL && window.storage) {
+//       try {
+//         const storageRef = window.fs.ref(window.storage, doc.downloadURL);
+//         await window.fs.deleteObject(storageRef);
+//         console.log("✅ File deleted from Storage");
+//       } catch (storageError) {
+//         console.warn("⚠️ Could not delete from Storage (might not exist):", storageError.message);
+//       }
+//     }
     
-    // Remove from local array
-    allDocsData.splice(i, 1);
-    window.allDocsData = allDocsData;
+//     // Remove from local array
+//     allDocsData.splice(i, 1);
+//     window.allDocsData = allDocsData;
     
-    if (typeof setUserDocs === "function") {
-      setUserDocs(userNow, allDocsData, allUsersData);
-    }
+//     if (typeof setUserDocs === "function") {
+//       setUserDocs(userNow, allDocsData, allUsersData);
+//     }
     
-    showNotification("הקובץ נמחק לצמיתות");
+//     showNotification("הקובץ נמחק לצמיתות");
     
-  } catch (error) {
-    console.error("❌ Error deleting document:", error);
-    showNotification("שגיאה במחיקת המסמך", true);
-  }
-}
+//   } catch (error) {
+//     console.error("❌ Error deleting document:", error);
+//     showNotification("שגיאה במחיקת המסמך", true);
+//   }
+// }
 
 console.log("✅ buildDocCard and helpers defined");
 
