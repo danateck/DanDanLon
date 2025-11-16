@@ -1861,27 +1861,38 @@ function buildDocCard(doc, mode) {
 }
 
 async function markDocTrashed(id, trashed) {
+  console.log("♻️ markDocTrashed called from main.js:", id, trashed);
+
+  // אם יש גרסה "אמיתית" מ-api-bridge.js – נשתמש בה
+  if (window.markDocTrashed && window.markDocTrashed !== markDocTrashed) {
+    console.log("➡️ Delegating to api-bridge markDocTrashed");
+    return await window.markDocTrashed(id, trashed);
+  }
+
+  // --- גיבוי לוקלי (הקוד הישן) ---
   const allDocsData = window.allDocsData || [];
   const userNow = getCurrentUserEmail();
   const allUsersData = window.allUsersData || {};
-  
+
   const i = allDocsData.findIndex(d => d.id === id);
   if (i === -1) {
-    showNotification("המסמך לא נמצא", true);
+    if (typeof showNotification === "function") {
+      showNotification("המסמך לא נמצא", true);
+    }
     return;
   }
-  
+
   try {
-    // Update local
+    // עדכון מקומי
     allDocsData[i]._trashed = !!trashed;
     window.allDocsData = allDocsData;
-    
+
     if (typeof setUserDocs === "function") {
       setUserDocs(userNow, allDocsData, allUsersData);
     }
-    
-    // Update Firestore (NO Storage access needed!)
-    if (isFirebaseAvailable()) {
+
+    // עדכון Firestore (אם זמין)
+    if (typeof isFirebaseAvailable === "function" && isFirebaseAvailable()) {
       const docRef = window.fs.doc(window.db, "documents", id);
       await window.fs.updateDoc(docRef, {
         _trashed: !!trashed,
@@ -1890,14 +1901,18 @@ async function markDocTrashed(id, trashed) {
       });
       console.log("✅ Document trash status updated in Firestore");
     }
-    
-    showNotification(trashed ? "הועבר לסל המחזור" : "שוחזר מהסל");
-    
+
+    if (typeof showNotification === "function") {
+      showNotification(trashed ? "הועבר לסל המחזור" : "שוחזר מהסל");
+    }
   } catch (error) {
     console.error("❌ Error updating trash status:", error);
-    showNotification("שגיאה בעדכון המסמך", true);
+    if (typeof showNotification === "function") {
+      showNotification("שגיאה בעדכון המסמך", true);
+    }
   }
 }
+
 
 // async function deleteDocForever(id) {
 //   const allDocsData = window.allDocsData || [];
