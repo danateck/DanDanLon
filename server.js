@@ -1,7 +1,4 @@
-// ===== server.js - Backend מלא ל-Render =====
-// התקנה: npm install express cors multer pg dotenv
-// הרצה: node server.js
-
+// ===== server.js - Backend מתוקן עם logging טוב יותר =====
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -17,51 +14,61 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Test DB connection
 pool.connect((err, client, release) => {
   if (err) {
-    console.error('❌ Error connecting to PostgreSQL:', err.stack);
+    console.error('❌ PostgreSQL error:', err.stack);
   } else {
-    console.log('✅ Connected to PostgreSQL');
+    console.log('✅ PostgreSQL connected');
     release();
   }
 });
 
 // ===== Middleware =====
 app.use(cors({
-  origin: ['https://danateck.github.io', 'http://localhost:3000'],
+  origin: ['https://danateck.github.io'],
   credentials: true
 }));
 app.use(express.json());
 
-// ===== File Upload Configuration =====
-const storage = multer.memoryStorage(); // Store files in memory (or use diskStorage for local files)
+// ===== Logging middleware =====
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path}`);
+  console.log('📋 Headers:', {
+    'x-dev-email': req.headers['x-dev-email'],
+    'authorization': req.headers.authorization ? 'Bearer ...' : 'none'
+  });
+  next();
+});
+
+// ===== File Upload =====
+const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+  limits: { fileSize: 50 * 1024 * 1024 }
 });
 
 // ===== Helper: Get user from request =====
 function getUserFromRequest(req) {
-  // Option 1: Firebase token (production)
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    // TODO: Verify Firebase token here
-    // const token = authHeader.substring(7);
-    // const decodedToken = await admin.auth().verifyIdToken(token);
-    // return decodedToken.email;
-  }
-  
-  // Option 2: Dev mode - email in header
+  // Dev mode - email in header (priority!)
   const devEmail = req.headers['x-dev-email'];
   if (devEmail) {
-    return devEmail.toLowerCase().trim();
+    const email = devEmail.toLowerCase().trim();
+    console.log('✅ User from X-Dev-Email:', email);
+    return email;
   }
   
+  // Firebase token (future)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    console.log('⚠️ Firebase token found but not verified yet');
+    // TODO: Verify token
+  }
+  
+  console.log('❌ No user found in request');
   return null;
 }
 
-// ===== Create Tables (run once) =====
+// ===== Create Tables =====
 async function initDB() {
   try {
     await pool.query(`
@@ -94,9 +101,9 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_shared ON documents USING GIN(shared_with);
       CREATE INDEX IF NOT EXISTS idx_trashed ON documents(trashed);
     `);
-    console.log('✅ Database tables initialized');
+    console.log('✅ Database initialized');
   } catch (error) {
-    console.error('❌ Error initializing database:', error);
+    console.error('❌ Database init error:', error);
   }
 }
 
@@ -104,13 +111,38 @@ initDB();
 
 // ===== API ENDPOINTS =====
 
-// 1️⃣ GET /api/docs - Load all documents for user
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: Date.now(),
+    database: pool ? 'connected' : 'disconnected'
+  });
+});
+
+// Test auth endpoint
+app.get('/api/test-auth', (req, res) => {
+  const user = getUserFromRequest(req);
+  res.json({
+    authenticated: !!user,
+    user: user,
+    headers: {
+      'x-dev-email': req.headers['x-dev-email'],
+      'authorization': req.headers.authorization ? 'present' : 'missing'
+    }
+  });
+});
+
+// 1️⃣ GET /api/docs - Load documents
 app.get('/api/docs', async (req, res) => {
   try {
     const userEmail = getUserFromRequest(req);
     if (!userEmail) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      console.log('❌ Unauthorized: no user email');
+      return res.status(401).json({ error: 'Unauthenticated' });
     }
+
+    console.log('📂 Loading docs for:', userEmail);
 
     const result = await pool.query(`
       SELECT 
@@ -125,25 +157,30 @@ app.get('/api/docs', async (req, res) => {
       ORDER BY uploaded_at DESC
     `, [userEmail]);
 
+    console.log(`✅ Found ${result.rows.length} documents`);
     res.json(result.rows);
   } catch (error) {
-    console.error('❌ Error loading docs:', error);
+    console.error('❌ Load error:', error);
     res.status(500).json({ error: 'Failed to load documents' });
   }
 });
 
-// 2️⃣ POST /api/docs - Upload new document
+// 2️⃣ POST /api/docs - Upload document
 app.post('/api/docs', upload.single('file'), async (req, res) => {
   try {
     const userEmail = getUserFromRequest(req);
     if (!userEmail) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      console.log('❌ Upload unauthorized: no user');
+      return res.status(401).json({ error: 'Unauthenticated' });
     }
 
     const file = req.file;
     if (!file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
+
+    console.log('📤 Upload from:', userEmail);
+    console.log('📄 File:', file.originalname, file.size, 'bytes');
 
     const id = require('crypto').randomUUID();
     const now = Date.now();
@@ -176,7 +213,7 @@ app.post('/api/docs', upload.single('file'), async (req, res) => {
       now, now, userEmail, false
     ]);
 
-    console.log(`✅ Document uploaded: ${id} by ${userEmail}`);
+    console.log(`✅ Uploaded: ${id}`);
     
     res.json({
       id,
@@ -188,8 +225,8 @@ app.post('/api/docs', upload.single('file'), async (req, res) => {
       uploaded_at: now
     });
   } catch (error) {
-    console.error('❌ Error uploading document:', error);
-    res.status(500).json({ error: 'Failed to upload document' });
+    console.error('❌ Upload error:', error);
+    res.status(500).json({ error: 'Upload failed' });
   }
 });
 
@@ -198,7 +235,7 @@ app.get('/api/docs/:id/download', async (req, res) => {
   try {
     const userEmail = getUserFromRequest(req);
     if (!userEmail) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthenticated' });
     }
 
     const { id } = req.params;
@@ -210,45 +247,43 @@ app.get('/api/docs/:id/download', async (req, res) => {
     `, [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Document not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
 
     const doc = result.rows[0];
-    
-    // Check permissions
     const sharedWith = doc.shared_with || [];
+    
     if (doc.owner !== userEmail && !sharedWith.includes(userEmail)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
     if (!doc.file_data) {
-      return res.status(404).json({ error: 'File data not found' });
+      return res.status(404).json({ error: 'No file data' });
     }
 
     res.setHeader('Content-Type', doc.mime_type);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(doc.file_name)}"`);
     res.send(doc.file_data);
   } catch (error) {
-    console.error('❌ Error downloading file:', error);
-    res.status(500).json({ error: 'Failed to download file' });
+    console.error('❌ Download error:', error);
+    res.status(500).json({ error: 'Download failed' });
   }
 });
 
-// 4️⃣ PUT /api/docs/:id - Update document metadata
+// 4️⃣ PUT /api/docs/:id - Update document
 app.put('/api/docs/:id', async (req, res) => {
   try {
     const userEmail = getUserFromRequest(req);
     if (!userEmail) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthenticated' });
     }
 
     const { id } = req.params;
     const updates = req.body;
 
-    // Check ownership
     const checkResult = await pool.query('SELECT owner FROM documents WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Document not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
     if (checkResult.rows[0].owner !== userEmail) {
       return res.status(403).json({ error: 'Access denied' });
@@ -268,7 +303,7 @@ app.put('/api/docs/:id', async (req, res) => {
     });
 
     if (fields.length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
+      return res.status(400).json({ error: 'No fields to update' });
     }
 
     fields.push(`last_modified = $${paramIndex}`);
@@ -287,11 +322,11 @@ app.put('/api/docs/:id', async (req, res) => {
       WHERE id = $${paramIndex}
     `, values);
 
-    console.log(`✅ Document updated: ${id}`);
+    console.log(`✅ Updated: ${id}`);
     res.json({ success: true, id });
   } catch (error) {
-    console.error('❌ Error updating document:', error);
-    res.status(500).json({ error: 'Failed to update document' });
+    console.error('❌ Update error:', error);
+    res.status(500).json({ error: 'Update failed' });
   }
 });
 
@@ -300,7 +335,7 @@ app.put('/api/docs/:id/trash', async (req, res) => {
   try {
     const userEmail = getUserFromRequest(req);
     if (!userEmail) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthenticated' });
     }
 
     const { id } = req.params;
@@ -314,23 +349,23 @@ app.put('/api/docs/:id/trash', async (req, res) => {
     `, [trashed, Date.now(), userEmail, id, userEmail]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Document not found or access denied' });
+      return res.status(404).json({ error: 'Not found or access denied' });
     }
 
-    console.log(`✅ Document ${trashed ? 'trashed' : 'restored'}: ${id}`);
+    console.log(`✅ ${trashed ? 'Trashed' : 'Restored'}: ${id}`);
     res.json({ success: true, id, trashed });
   } catch (error) {
-    console.error('❌ Error updating trash status:', error);
-    res.status(500).json({ error: 'Failed to update trash status' });
+    console.error('❌ Trash error:', error);
+    res.status(500).json({ error: 'Trash operation failed' });
   }
 });
 
-// 6️⃣ DELETE /api/docs/:id - Permanently delete
+// 6️⃣ DELETE /api/docs/:id - Delete permanently
 app.delete('/api/docs/:id', async (req, res) => {
   try {
     const userEmail = getUserFromRequest(req);
     if (!userEmail) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthenticated' });
     }
 
     const { id } = req.params;
@@ -342,24 +377,20 @@ app.delete('/api/docs/:id', async (req, res) => {
     `, [id, userEmail]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Document not found or access denied' });
+      return res.status(404).json({ error: 'Not found or access denied' });
     }
 
-    console.log(`✅ Document permanently deleted: ${id}`);
+    console.log(`✅ Deleted: ${id}`);
     res.json({ success: true, id });
   } catch (error) {
-    console.error('❌ Error deleting document:', error);
-    res.status(500).json({ error: 'Failed to delete document' });
+    console.error('❌ Delete error:', error);
+    res.status(500).json({ error: 'Delete failed' });
   }
-});
-
-// ===== Health check =====
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: Date.now() });
 });
 
 // ===== Start server =====
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ Ready to accept requests`);
 });
