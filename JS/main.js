@@ -4173,6 +4173,10 @@ document.addEventListener('click', function(e) {
 
 
 
+
+
+
+
 console.log("✅ All functions fixed and loaded!");
 
 

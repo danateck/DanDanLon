@@ -94,26 +94,33 @@ async function loadDocuments() {
     console.log(`✅ Loaded ${list.length} documents from Render`);
     
     return list.map(d => ({
-      id: d.id,
-      title: d.title || d.file_name,
-      fileName: d.file_name,
-      fileType: d.mime_type,
-      fileSize: d.file_size,
-      category: d.category || 'אחר',
-      year: d.year || '',
-      org: d.org || '',
-      recipient: Array.isArray(d.recipient) ? d.recipient : [],
-      sharedWith: d.shared_with || [],
-      uploadedAt: d.uploaded_at,
-      lastModified: d.last_modified,
-      lastModifiedBy: d.last_modified_by,
-      owner: d.owner,
-      _trashed: d.trashed || false,
-      deletedAt: d.deleted_at,
-      deletedBy: d.deleted_by,
-      hasFile: true,
-      downloadURL: `${API_BASE}/api/docs/${d.id}/download`
-    }));
+  id: d.id,
+  title: d.title || d.file_name,
+  fileName: d.file_name,
+  fileType: d.mime_type,
+  fileSize: d.file_size,
+  category: d.category || 'אחר',
+  year: d.year || '',
+  org: d.org || '',
+  recipient: Array.isArray(d.recipient) ? d.recipient : [],
+  sharedWith: d.shared_with || [],
+  uploadedAt: d.uploaded_at,
+  lastModified: d.last_modified,
+  lastModifiedBy: d.last_modified_by,
+  owner: d.owner,
+  _trashed: d.trashed || false,
+  deletedAt: d.deleted_at,
+  deletedBy: d.deleted_by,
+
+  // ✅ השדות החדשים:
+  warrantyStart: d.warranty_start || null,
+  warrantyExpiresAt: d.warranty_expires_at || null,
+  autoDeleteAfter: d.auto_delete_after || null,
+
+  hasFile: true,
+  downloadURL: `${API_BASE}/api/docs/${d.id}/download`
+}));
+
     
   } catch (error) {
     console.error('❌ Render API failed:', error.message);
@@ -201,25 +208,31 @@ async function uploadDocument(file, metadata = {}) {
     
     const result = await res.json();
     console.log('✅ Uploaded:', result.id);
-    
     const doc = {
-      id: result.id,
-      title: result.title || result.file_name,
-      fileName: result.file_name,
-      fileSize: result.file_size,
-      fileType: result.mime_type,
-      category: metadata.category ?? 'אחר',
-      year: metadata.year ?? String(new Date().getFullYear()),
-      org: metadata.org ?? '',
-      recipient: metadata.recipient || [],
-      sharedWith: metadata.sharedWith || [],
-      owner: me,
-      uploadedAt: result.uploaded_at || Date.now(),
-      lastModified: result.uploaded_at || Date.now(),
-      _trashed: false,
-      hasFile: true,
-      downloadURL: `${API_BASE}/api/docs/${result.id}/download`
-    };
+  id: result.id,
+  title: result.title || result.file_name,
+  fileName: result.file_name,
+  fileSize: result.file_size,
+  fileType: result.mime_type,
+  category: metadata.category ?? 'אחר',
+  year: metadata.year ?? String(new Date().getFullYear()),
+  org: metadata.org ?? '',
+  recipient: metadata.recipient || [],
+  sharedWith: metadata.sharedWith || [],
+  owner: me,
+  uploadedAt: result.uploaded_at || Date.now(),
+  lastModified: result.uploaded_at || Date.now(),
+  _trashed: false,
+
+  // ✅ שדות אחריות מה-metadata:
+  warrantyStart: metadata.warrantyStart ?? null,
+  warrantyExpiresAt: metadata.warrantyExpiresAt ?? null,
+  autoDeleteAfter: metadata.autoDeleteAfter ?? null,
+
+  hasFile: true,
+  downloadURL: `${API_BASE}/api/docs/${result.id}/download`
+};
+
     
     // Sync to Firestore
     if (window.db && window.fs) {
