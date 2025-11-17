@@ -25,8 +25,12 @@ pool.connect((err, client, release) => {
 
 // ===== Middleware =====
 app.use(cors({
-  origin: ['https://danateck.github.io'],
-  credentials: true
+  origin: ['https://danateck.github.io', 'http://localhost:3000', 'http://127.0.0.1:5500'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Dev-Email', 'X-User-Email'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  maxAge: 86400
 }));
 app.use(express.json());
 
@@ -35,6 +39,7 @@ app.use((req, res, next) => {
   console.log(`📨 ${req.method} ${req.path}`);
   console.log('📋 Headers:', {
     'x-dev-email': req.headers['x-dev-email'],
+    'x-user-email': req.headers['x-user-email'],
     'authorization': req.headers.authorization ? 'Bearer ...' : 'none'
   });
   next();
@@ -50,10 +55,10 @@ const upload = multer({
 // ===== Helper: Get user from request =====
 function getUserFromRequest(req) {
   // Dev mode - email in header (priority!)
-  const devEmail = req.headers['x-dev-email'];
+  const devEmail = req.headers['x-dev-email'] || req.headers['x-user-email'];
   if (devEmail) {
     const email = devEmail.toLowerCase().trim();
-    console.log('✅ User from X-Dev-Email:', email);
+    console.log('✅ User from header:', email);
     return email;
   }
   
