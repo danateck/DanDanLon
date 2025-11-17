@@ -293,7 +293,18 @@ app.put('/api/docs/:id', async (req, res) => {
     const values = [];
     let paramIndex = 1;
 
-    const allowedFields = ['title', 'category', 'year', 'org', 'recipient', 'shared_with'];
+    const allowedFields = [
+  'title',
+  'category',
+  'year',
+  'org',
+  'recipient',
+  'shared_with',
+  'warranty_start',
+  'warranty_expires_at',
+  'auto_delete_after'
+];
+
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
         fields.push(`${field} = $${paramIndex}`);

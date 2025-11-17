@@ -2281,10 +2281,18 @@ function extractWarrantyFromText(rawTextInput) {
     }
   }
 
-  // מחיקה אחרי 7 שנים מרגע הקנייה
+    // מחיקה אחרי 7 שנים מתום האחריות
+  // (ואם אין תאריך תוקף, אז 7 שנים מתאריך הקנייה)
   let autoDeleteAfter = null;
-  if (warrantyStart && isValidYMD(warrantyStart)) {
-    const [yS,mS,dS] = warrantyStart.split("-");
+  const baseForDeletion =
+    (warrantyExpiresAt && isValidYMD(warrantyExpiresAt))
+      ? warrantyExpiresAt
+      : (warrantyStart && isValidYMD(warrantyStart))
+        ? warrantyStart
+        : null;
+
+  if (baseForDeletion) {
+    const [yS, mS, dS] = baseForDeletion.split("-");
     const sDate = new Date(`${yS}-${mS}-${dS}T00:00:00`);
     if (!Number.isNaN(sDate.getTime())) {
       const del = new Date(sDate.getTime());
@@ -2295,6 +2303,7 @@ function extractWarrantyFromText(rawTextInput) {
       autoDeleteAfter = `${yy}-${mm}-${dd}`;
     }
   }
+
 
   return {
     warrantyStart:     (warrantyStart     && isValidYMD(warrantyStart))     ? warrantyStart     : null,
@@ -2333,15 +2342,23 @@ function fallbackAskWarrantyDetails() {
     "עד מתי האחריות בתוקף? (למשל 28/10/2026)\nאם אין אחריות/לא רלוונטי אפשר לבטל."
   );
 
-  const warrantyStart = startAns ? normalizeManualDate(startAns) : null;
+   const warrantyStart = startAns ? normalizeManualDate(startAns) : null;
   const warrantyExpiresAt = expAns ? normalizeManualDate(expAns) : null;
 
   let autoDeleteAfter = null;
-  if (warrantyStart && /^\d{4}-\d{2}-\d{2}$/.test(warrantyStart)) {
-    const delDate = new Date(warrantyStart + "T00:00:00");
+  const baseForDeletion =
+    (warrantyExpiresAt && /^\d{4}-\d{2}-\d{2}$/.test(warrantyExpiresAt))
+      ? warrantyExpiresAt
+      : (warrantyStart && /^\d{4}-\d{2}-\d{2}$/.test(warrantyStart))
+        ? warrantyStart
+        : null;
+
+  if (baseForDeletion) {
+    const delDate = new Date(baseForDeletion + "T00:00:00");
     delDate.setFullYear(delDate.getFullYear() + 7);
     autoDeleteAfter = delDate.toISOString().split("T")[0];
   }
+
 
   return {
     warrantyStart,
@@ -3608,7 +3625,7 @@ renderPending();
     });
   }
 
-  if (editForm) {
+if (editForm) {
   editForm.addEventListener("submit", async (ev) => {
     ev.preventDefault();
 
@@ -3633,30 +3650,35 @@ renderPending();
       .map(s => s.trim())
       .filter(s => s !== "");
 
-    // מה שאנחנו רוצים לעדכן
-    const updates = {
-      title:           edit_title.value.trim() || allDocsData[idx].title,
-      org:             edit_org.value.trim(),
-      year:            edit_year.value.trim(),
-      recipient:       updatedRecipients,
-      category:        edit_category.value.trim() || "",
-      shared_with:     updatedShared,   // ל-Render (snake_case)
-      sharedWith:      updatedShared,   // ל-Firestore (camelCase)
-      warrantyStart:   edit_warrantyStart.value || "",
-      warrantyExpiresAt: edit_warrantyExp.value   || "",
-      autoDeleteAfter: edit_autoDelete.value      || ""
+    // מה נשלח לשרת (שמות כמו בעמודות של PostgreSQL)
+    const updatesForBackend = {
+      title:              edit_title.value.trim() || allDocsData[idx].title,
+      org:                edit_org.value.trim(),
+      year:               edit_year.value.trim(),
+      recipient:          updatedRecipients,
+      category:           edit_category.value.trim() || "",
+      shared_with:        updatedShared,
+      warranty_start:     edit_warrantyStart.value || "",
+      warranty_expires_at: edit_warrantyExp.value   || "",
+      auto_delete_after:  edit_autoDelete.value    || ""
     };
 
     try {
       if (window.updateDocument) {
-        await window.updateDocument(currentlyEditingDocId, updates);
-      } else {
-        // גיבוי – אם משום מה אין API, נעדכן רק מקומית
-        Object.assign(allDocsData[idx], updates);
+        await window.updateDocument(currentlyEditingDocId, updatesForBackend);
       }
 
-      // עדכון מבנה הנתונים המקומי (ליתר ביטחון)
-      Object.assign(allDocsData[idx], updates);
+      // לעדכן גם את האובייקט בזיכרון בפורמט שה-UI משתמש בו
+      allDocsData[idx].title             = updatesForBackend.title;
+      allDocsData[idx].org               = updatesForBackend.org;
+      allDocsData[idx].year              = updatesForBackend.year;
+      allDocsData[idx].recipient         = updatedRecipients;
+      allDocsData[idx].category          = updatesForBackend.category;
+      allDocsData[idx].sharedWith        = updatedShared;
+      allDocsData[idx].warrantyStart     = updatesForBackend.warranty_start;
+      allDocsData[idx].warrantyExpiresAt = updatesForBackend.warranty_expires_at;
+      allDocsData[idx].autoDeleteAfter   = updatesForBackend.auto_delete_after;
+
       setUserDocs(userNow, allDocsData, allUsersData);
 
       const currentCat = categoryTitle.textContent;
@@ -3669,14 +3691,15 @@ renderPending();
       }
 
       showNotification("המסמך עודכן בהצלחה");
-    } catch (e) {
-      console.error("❌ שגיאה בעדכון מסמך:", e);
+    } catch (err) {
+      console.error("❌ שגיאה בעדכון מסמך:", err);
       showNotification("שגיאה בעדכון המסמך", true);
     } finally {
       closeEditModal();
     }
   });
 }
+
 
 
   // ניווט
