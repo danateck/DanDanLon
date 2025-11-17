@@ -1476,15 +1476,17 @@ function buildDocCard(doc, mode) {
   const actions = card.querySelector(".doc-actions");
 
   if (mode !== "recycle") {
-    const editBtn = document.createElement("button");
-    editBtn.className = "doc-action-btn";
-    editBtn.textContent = "עריכה ✏️";
-    editBtn.addEventListener("click", () => {
-      if (typeof openEditModal === "function") {
-        openEditModal(doc);
-      }
-    });
-    actions.appendChild(editBtn);
+  const editBtn = document.createElement("button");
+  editBtn.className = "doc-action-btn";
+  editBtn.textContent = "עריכה ✏️";
+  editBtn.addEventListener("click", () => {
+    if (typeof window.openEditModal === "function") {
+      window.openEditModal(doc);
+    } else {
+      console.warn("openEditModal not available on window");
+    }
+  });
+  actions.appendChild(editBtn);
 
     const trashBtn = document.createElement("button");
     trashBtn.className = "doc-action-btn danger";
@@ -3588,11 +3590,17 @@ renderPending();
     editModal.classList.remove("hidden");
   }
 
+    window.openEditModal = openEditModal;
+
+
   function closeEditModal() {
     currentlyEditingDocId = null;
     editModal.classList.add("hidden");
   }
 
+
+  window.closeEditModal = closeEditModal;
+  
   if (editCancelBtn) {
     editCancelBtn.addEventListener("click", () => {
       closeEditModal();
