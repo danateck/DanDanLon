@@ -112,7 +112,7 @@ async function loadDocuments() {
         // אם זה כבר תאריך בפורמט YYYY-MM-DD – פשוט להחזיר כמו שזה
         if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
           return v;
-        }
+        }console.log(`✅ תאריך`);
 
         // אם זה מספר מילישניות (כמו 1763412519863) – להפוך לתאריך
         const ms = Number(v);
