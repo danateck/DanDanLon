@@ -455,28 +455,43 @@ async function deleteDocForever(docId) {
 async function downloadDocument(docId, fileName) {
   const me = getCurrentUser();
   if (!me) throw new Error("Not logged in");
-  
+
   try {
     const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/docs/${docId}/download`, { headers });
-    
+
     if (!res.ok) {
-      throw new Error('Download failed');
+      const text = await res.text().catch(() => "");
+      console.error(`❌ Download failed ${res.status}:`, text);
+      throw new Error("Download failed");
     }
-    
+
+    const contentType = res.headers.get("Content-Type") || "";
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName || 'document';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+
+    // אם זה PDF – נפתח בטאב חדש (מציג יפה)
+    if (contentType.includes("pdf")) {
+      window.open(url, "_blank");
+    } else {
+      // לכל מקרה, נשים סיומת .pdf אם אין סיומת
+      let safeName = fileName || "document.pdf";
+      if (!safeName.toLowerCase().includes(".")) {
+        safeName += ".pdf";
+      }
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = safeName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
     window.URL.revokeObjectURL(url);
-    
-    console.log('✅ Downloaded:', docId);
+    console.log("✅ Downloaded:", docId);
   } catch (error) {
-    console.error('❌ Download error:', error);
+    console.error("❌ Download error:", error);
     throw error;
   }
 }

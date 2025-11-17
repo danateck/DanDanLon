@@ -3600,40 +3600,54 @@ renderPending();
   }
 
   if (editForm) {
-    editForm.addEventListener("submit", (ev) => {
-      ev.preventDefault();
+  editForm.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
 
-      if (!currentlyEditingDocId) {
-        closeEditModal();
-        return;
+    if (!currentlyEditingDocId) {
+      closeEditModal();
+      return;
+    }
+
+    const idx = allDocsData.findIndex(d => d.id === currentlyEditingDocId);
+    if (idx === -1) {
+      closeEditModal();
+      return;
+    }
+
+    const updatedRecipients = edit_recipient.value
+      .split(",")
+      .map(s => s.trim())
+      .filter(s => s !== "");
+
+    const updatedShared = edit_sharedWith.value
+      .split(",")
+      .map(s => s.trim())
+      .filter(s => s !== "");
+
+    // מה שאנחנו רוצים לעדכן
+    const updates = {
+      title:           edit_title.value.trim() || allDocsData[idx].title,
+      org:             edit_org.value.trim(),
+      year:            edit_year.value.trim(),
+      recipient:       updatedRecipients,
+      category:        edit_category.value.trim() || "",
+      shared_with:     updatedShared,   // ל-Render (snake_case)
+      sharedWith:      updatedShared,   // ל-Firestore (camelCase)
+      warrantyStart:   edit_warrantyStart.value || "",
+      warrantyExpiresAt: edit_warrantyExp.value   || "",
+      autoDeleteAfter: edit_autoDelete.value      || ""
+    };
+
+    try {
+      if (window.updateDocument) {
+        await window.updateDocument(currentlyEditingDocId, updates);
+      } else {
+        // גיבוי – אם משום מה אין API, נעדכן רק מקומית
+        Object.assign(allDocsData[idx], updates);
       }
 
-      const idx = allDocsData.findIndex(d => d.id === currentlyEditingDocId);
-      if (idx === -1) {
-        closeEditModal();
-        return;
-      }
-
-      const updatedRecipients = edit_recipient.value
-        .split(",")
-        .map(s => s.trim())
-        .filter(s => s !== "");
-
-      const updatedShared = edit_sharedWith.value
-        .split(",")
-        .map(s => s.trim())
-        .filter(s => s !== "");
-
-      allDocsData[idx].title             = edit_title.value.trim() || allDocsData[idx].title;
-      allDocsData[idx].org               = edit_org.value.trim();
-      allDocsData[idx].year              = edit_year.value.trim();
-      allDocsData[idx].recipient         = updatedRecipients;
-      allDocsData[idx].warrantyStart     = edit_warrantyStart.value || "";
-      allDocsData[idx].warrantyExpiresAt = edit_warrantyExp.value   || "";
-      allDocsData[idx].autoDeleteAfter   = edit_autoDelete.value    || "";
-      allDocsData[idx].category          = edit_category.value.trim() || "";
-      allDocsData[idx].sharedWith        = updatedShared;
-
+      // עדכון מבנה הנתונים המקומי (ליתר ביטחון)
+      Object.assign(allDocsData[idx], updates);
       setUserDocs(userNow, allDocsData, allUsersData);
 
       const currentCat = categoryTitle.textContent;
@@ -3646,9 +3660,15 @@ renderPending();
       }
 
       showNotification("המסמך עודכן בהצלחה");
+    } catch (e) {
+      console.error("❌ שגיאה בעדכון מסמך:", e);
+      showNotification("שגיאה בעדכון המסמך", true);
+    } finally {
       closeEditModal();
-    });
-  }
+    }
+  });
+}
+
 
   // ניווט
   window.App = {
