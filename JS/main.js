@@ -4037,21 +4037,28 @@ async function viewDocument(doc) {
   console.log("👁️ Viewing:", doc.title);
   
   try {
-    // אם זה לינק ישיר של Firebase (storage) – נפתח בטאב חדש כרגיל
-    if (doc.downloadURL && !doc.downloadURL.includes("eco-files.onrender.com")) {
-      window.open(doc.downloadURL, '_blank');
+    // תמיד קודם מנסים דרך Render (עם headers)
+    if (window.downloadDocument && typeof window.downloadDocument === "function") {
+      await window.downloadDocument(
+        doc.id,
+        doc.fileName || doc.title || "document"
+      );
       return;
     }
-    
-    // לקבצים ששמורים ב-Render - תמיד להשתמש ב-downloadDocument (שולח headers)
-    if (window.downloadDocument && typeof window.downloadDocument === 'function') {
-      await window.downloadDocument(doc.id, doc.file_name || doc.title);
+
+    // אם משום מה אין downloadDocument – ננסה ישירות מה-URL (פיירבייס ישן)
+    if (doc.downloadURL) {
+      const a = document.createElement("a");
+      a.href = doc.downloadURL;
+      a.target = "_blank";
+      a.download = doc.fileName || doc.title || "document";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       return;
     }
-    
-    // No file available
+
     showNotification("הקובץ לא זמין לצפייה", true);
-    
   } catch (error) {
     console.error("❌ View error:", error);
     showNotification("שגיאה בפתיחת הקובץ", true);
