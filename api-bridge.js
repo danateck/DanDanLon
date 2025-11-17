@@ -104,7 +104,29 @@ async function loadDocuments() {
   org: d.org || '',
   recipient: Array.isArray(d.recipient) ? d.recipient : [],
   sharedWith: d.shared_with || [],
-  uploadedAt: d.uploaded_at,
+        uploadedAt: (() => {
+        const v = d.uploaded_at;
+
+        if (!v) return null;
+
+        // אם זה כבר תאריך בפורמט YYYY-MM-DD – פשוט להחזיר כמו שזה
+        if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+          return v;
+        }
+
+        // אם זה מספר מילישניות (כמו 1763412519863) – להפוך לתאריך
+        const ms = Number(v);
+        if (!Number.isNaN(ms)) {
+          const dObj = new Date(ms);
+          if (!Number.isNaN(dObj.getTime())) {
+            return dObj.toISOString().split("T")[0]; // ‎YYYY-MM-DD
+          }
+        }
+
+        // אם אין לנו מושג – לפחות להציג כמחרוזת
+        return String(v);
+      })(),
+
   lastModified: d.last_modified,
   lastModifiedBy: d.last_modified_by,
   owner: d.owner,
@@ -270,56 +292,87 @@ async function syncToFirestore(docId, docData) {
 
 // ═══ 3. Update Document ═══
 
+// ═══ 3. Update Document ═══
+
 async function updateDocument(docId, updates) {
   const me = getCurrentUser();
   if (!me) throw new Error("Not logged in");
-  
+
+  console.log("✏️ Updating doc", docId, updates);
+
   try {
+    // ---- בקאנד (Render) ----
     const headers = await getAuthHeaders();
-    headers['Content-Type'] = 'application/json';
-    
+    headers["Content-Type"] = "application/json";
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
+
     const res = await fetch(`${API_BASE}/api/docs/${docId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers,
       body: JSON.stringify(updates),
       signal: controller.signal
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Update failed: ${text}`);
+      console.warn("⚠️ Backend update failed:", text);
     }
-    
-    console.log('✅ Updated:', docId);
-    
-    // Update Firestore
+
+    // ---- Firestore (אם זמין) ----
     if (window.db && window.fs) {
+      const fsFields = {};
+
+      if ("title" in updates)               fsFields.title             = updates.title;
+      if ("org" in updates)                 fsFields.org               = updates.org;
+      if ("year" in updates)                fsFields.year              = updates.year;
+      if ("recipient" in updates)          fsFields.recipient         = updates.recipient;
+      if ("category" in updates)           fsFields.category          = updates.category;
+      if ("shared_with" in updates)        fsFields.sharedWith        = updates.shared_with;
+      if ("warranty_start" in updates)     fsFields.warrantyStart     = updates.warranty_start;
+      if ("warranty_expires_at" in updates)fsFields.warrantyExpiresAt = updates.warranty_expires_at;
+      if ("auto_delete_after" in updates)  fsFields.autoDeleteAfter   = updates.auto_delete_after;
+
+      fsFields.lastModified   = Date.now();
+      fsFields.lastModifiedBy = me;
+
       const docRef = window.fs.doc(window.db, "documents", docId);
-      await window.fs.updateDoc(docRef, {
-        ...updates,
-        lastModified: Date.now()
-      }).catch(err => console.warn("⚠️ Firestore update failed:", err));
+      await window.fs.updateDoc(docRef, fsFields)
+        .catch(err => console.warn("⚠️ Firestore update failed:", err));
     }
-    
-    // Update local cache
+
+    // ---- עדכון במערך המקומי ל-UI ----
     if (Array.isArray(window.allDocsData)) {
       const idx = window.allDocsData.findIndex(d => d.id === docId);
       if (idx >= 0) {
-        Object.assign(window.allDocsData[idx], updates, { lastModified: Date.now() });
+        const cur = window.allDocsData[idx];
+
+        Object.assign(cur, {
+          title:             updates.title             ?? cur.title,
+          org:               updates.org               ?? cur.org,
+          year:              updates.year              ?? cur.year,
+          recipient:         updates.recipient         ?? cur.recipient,
+          category:          updates.category          ?? cur.category,
+          sharedWith:        updates.shared_with       ?? cur.sharedWith,
+          warrantyStart:     updates.warranty_start    ?? cur.warrantyStart,
+          warrantyExpiresAt: updates.warranty_expires_at ?? cur.warrantyExpiresAt,
+          autoDeleteAfter:   updates.auto_delete_after ?? cur.autoDeleteAfter,
+          lastModified:      Date.now(),
+          lastModifiedBy:    me
+        });
       }
     }
-    
-    return await res.json();
+
+    return res.ok ? await res.json() : null;
   } catch (error) {
-    console.error('❌ Update error:', error);
+    console.error("❌ Update error:", error);
     throw error;
   }
 }
+
 
 // ═══ 4. Trash/Restore ═══
 
