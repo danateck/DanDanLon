@@ -4037,26 +4037,27 @@ async function viewDocument(doc) {
   console.log("👁️ Viewing:", doc.title);
   
   try {
-    // If has downloadURL - open in new tab
-    if (doc.downloadURL) {
+    // אם זה לינק ישיר של Firebase (storage) – נפתח בטאב חדש כרגיל
+    if (doc.downloadURL && !doc.downloadURL.includes("eco-files.onrender.com")) {
       window.open(doc.downloadURL, '_blank');
       return;
     }
     
-    // Try to download from backend
+    // לקבצים ששמורים ב-Render - תמיד להשתמש ב-downloadDocument (שולח headers)
     if (window.downloadDocument && typeof window.downloadDocument === 'function') {
-      await window.downloadDocument(doc.id);
+      await window.downloadDocument(doc.id, doc.file_name || doc.title);
       return;
     }
     
     // No file available
-    showNotification("הקובץ לא זמין לצפייה (metadata בלבד)", true);
+    showNotification("הקובץ לא זמין לצפייה", true);
     
   } catch (error) {
     console.error("❌ View error:", error);
     showNotification("שגיאה בפתיחת הקובץ", true);
   }
 }
+
 
 
 // ═══ תיקון 4: הורדת קובץ ═══
