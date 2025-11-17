@@ -1567,7 +1567,7 @@ function buildDocCard(doc, mode) {
 
   const openFileButtonHtml = `
     <button class="doc-open-link" data-open-id="${doc.id}">
-      📥 הורדת קובץ
+      👁️ פתיחת קובץ
     </button>
   `;
 
@@ -3922,13 +3922,23 @@ console.log("🔧 Loading Shared Folders Fix...");
 function saveSharedFoldersToCache(folders) {
   try {
     const me = getCurrentUserEmail();
-    if (!me) return;
+    console.log("💾 Attempting to save folders to cache for:", me);
+    console.log("💾 Number of folders to save:", folders?.length || 0);
+    
+    if (!me) {
+      console.warn("⚠️ No user email, cannot save to cache");
+      return;
+    }
     
     const key = `sharedFolders_${me}`;
     localStorage.setItem(key, JSON.stringify(folders));
-    console.log("✅ Saved", folders.length, "shared folders to cache");
+    console.log("✅ Saved", folders.length, "shared folders to cache with key:", key);
+    
+    // בדיקה שזה באמת נשמר
+    const verify = localStorage.getItem(key);
+    console.log("🔍 Verification - data in localStorage:", verify ? "EXISTS" : "MISSING");
   } catch (err) {
-    console.warn("⚠️ Could not save to cache:", err);
+    console.error("❌ Failed to save to cache:", err);
   }
 }
 

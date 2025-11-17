@@ -536,10 +536,11 @@ async function downloadDocument(docId, fileName) {
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
 
-    // 💾 תמיד נוריד את הקובץ (גם PDF) - עובד טוב יותר במובייל!
-    let safeName = fileName || "document";
+    // זיהוי מכשיר: האם זה מובייל?
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // אם אין סיומת, נוסיף לפי סוג הקובץ
+    // קביעת שם קובץ עם סיומת נכונה
+    let safeName = fileName || "document";
     if (!safeName.includes(".")) {
       if (contentType.includes("pdf")) {
         safeName += ".pdf";
@@ -553,15 +554,37 @@ async function downloadDocument(docId, fileName) {
       }
     }
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = safeName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (isMobile) {
+      // 📱 במובייל: ננסה לפתוח, ואם לא עובד - נוריד
+      console.log("📱 Mobile device detected");
+      
+      // ניסיון ראשון: פתיחה בטאב חדש
+      const newWindow = window.open(url, "_blank");
+      
+      // אם החסימה חסמה popup, ננסה הורדה
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        console.log("📥 Popup blocked, downloading instead");
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = safeName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        console.log("✅ Opened in new tab");
+      }
+    } else {
+      // 💻 במחשב: פתיחה בטאב חדש (לא הורדה!)
+      console.log("💻 Desktop device detected, opening in new tab");
+      window.open(url, "_blank");
+    }
 
-    window.URL.revokeObjectURL(url);
-    console.log("✅ Downloaded:", docId);
+    // ניקוי ה-URL אחרי 5 שניות (תן זמן לטאב להיפתח)
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+    }, 5000);
+    
+    console.log("✅ File opened/downloaded:", docId);
   } catch (error) {
     console.error("❌ Download error:", error);
     throw error;
