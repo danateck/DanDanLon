@@ -2651,8 +2651,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let currentlyEditingDocId = null;
 
-  let allUsersData = loadAllUsersDataFromStorage();
-  let allDocsData = getUserDocs(userNow, allUsersData);
+window.allUsersData = loadAllUsersDataFromStorage();
+window.allDocsData = getUserDocs(userNow, allUsersData);
 
   ensureUserSharedFields(allUsersData, userNow);
   saveAllUsersDataToStorage(allUsersData);
@@ -3705,8 +3705,7 @@ if (editForm) {
       return;
     }
 
-    const idx = allDocsData.findIndex(d => d.id === currentlyEditingDocId);
-    if (idx === -1) {
+const idx = window.allDocsData.findIndex(d => d.id === currentlyEditingDocId);    if (idx === -1) {
       closeEditModal();
       return;
     }
@@ -3740,8 +3739,8 @@ if (editForm) {
       }
 
       // לעדכן גם את האובייקט בזיכרון בפורמט שה-UI משתמש בו
-      allDocsData[idx].title             = updatesForBackend.title;
-      allDocsData[idx].org               = updatesForBackend.org;
+      window.allDocsData[idx].title = updatesForBackend.title;
+window.allDocsData[idx].org = updatesForBackend.org;
       allDocsData[idx].year              = updatesForBackend.year;
       allDocsData[idx].recipient         = updatedRecipients;
       allDocsData[idx].category          = updatesForBackend.category;
