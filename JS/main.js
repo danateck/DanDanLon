@@ -511,6 +511,8 @@ async function loadSharedFolders() {
 // FIX 4: Create shared folder with owner info
 // ============================================
 async function createSharedFolder(folderName, invitedEmails = []) {
+  console.log("📁 createSharedFolder called:", folderName);
+  
   const currentUser = getCurrentUserEmail();
   if (!currentUser || !isFirebaseAvailable()) throw new Error("User not logged in");
 
@@ -530,7 +532,32 @@ async function createSharedFolder(folderName, invitedEmails = []) {
 
   const col = window.fs.collection(window.db, "sharedFolders");
   const ref = await window.fs.addDoc(col, folderData);
-  return { id: ref.id, ...folderData };
+  const newFolder = { id: ref.id, ...folderData };
+  
+  console.log("✅ Folder saved to Firestore:", newFolder.id);
+  
+  // ✅ שמור גם ב-cache המקומי
+  if (!window.mySharedFolders) {
+    window.mySharedFolders = [];
+    console.log("🆕 Initialized window.mySharedFolders");
+  }
+  window.mySharedFolders.push(newFolder);
+  console.log("✅ Added to window.mySharedFolders, total:", window.mySharedFolders.length);
+  
+  // שמור ב-localStorage
+  try {
+    const me = getCurrentUserEmail();
+    if (me) {
+      const key = `sharedFolders_${me}`;
+      localStorage.setItem(key, JSON.stringify(window.mySharedFolders));
+      console.log("✅ Saved to localStorage with key:", key);
+      console.log("💾 localStorage value:", localStorage.getItem(key));
+    }
+  } catch (err) {
+    console.warn("⚠️ Could not save to cache:", err);
+  }
+  
+  return newFolder;
 }
 
 
@@ -649,6 +676,10 @@ window.AppFunctions = {
   getDocumentsByCategory,
   getCurrentUserEmail
 };
+
+// ✅ הגדרה ישירה גם על window
+window.createSharedFolder = createSharedFolder;
+window.loadSharedFolders = loadSharedFolders;
 
 console.log("✅ User-scoped Firebase functions loaded");
 
@@ -3905,14 +3936,24 @@ function saveSharedFoldersToCache(folders) {
 function loadSharedFoldersFromCache() {
   try {
     const me = getCurrentUserEmail();
-    if (!me) return [];
+    console.log("📂 Loading shared folders from cache for:", me);
+    
+    if (!me) {
+      console.warn("⚠️ No user email, cannot load from cache");
+      return [];
+    }
     
     const key = `sharedFolders_${me}`;
     const data = localStorage.getItem(key);
+    console.log("💾 localStorage key:", key);
+    console.log("💾 localStorage data:", data);
+    
     if (data) {
       const folders = JSON.parse(data);
       console.log("✅ Loaded", folders.length, "shared folders from cache");
       return folders;
+    } else {
+      console.log("📭 No cached folders found");
     }
   } catch (err) {
     console.warn("⚠️ Could not load from cache:", err);
@@ -3956,9 +3997,9 @@ if (typeof window.updateInviteStatus === "function") {
     // אם אישרנו הזמנה, רענן את התיקיות ושמור
     if (status === "accepted") {
       setTimeout(async () => {
-        if (typeof loadSharedFoldersFromFirestore === "function") {
+        if (typeof loadSharedFolders === "function") {
           try {
-            const folders = await loadSharedFoldersFromFirestore();
+            const folders = await loadSharedFolders();
             if (folders && folders.length > 0) {
               window.mySharedFolders = folders;
               saveSharedFoldersToCache(folders);
@@ -3975,33 +4016,6 @@ if (typeof window.updateInviteStatus === "function") {
   };
   
   console.log("✅ updateInviteStatus overridden");
-}
-
-// ═══ Override createSharedFolder ═══
-
-if (typeof createSharedFolder === "function") {
-  const originalCreateSharedFolder = createSharedFolder;
-  
-  window.createSharedFolder = async function(folderName, invitedEmails = []) {
-    console.log("📁 Creating shared folder:", folderName);
-    
-    // קרא לפונקציה המקורית
-    const newFolder = await originalCreateSharedFolder(folderName, invitedEmails);
-    
-    // הוסף לרשימה המקומית
-    if (!window.mySharedFolders) window.mySharedFolders = [];
-    window.mySharedFolders.push(newFolder);
-    
-    // שמור ב-cache
-    saveSharedFoldersToCache(window.mySharedFolders);
-    console.log("✅ Saved new folder to cache");
-    
-    return newFolder;
-  };
-  
-  console.log("✅ createSharedFolder overridden");
-} else {
-  console.warn("⚠️ createSharedFolder not found, cannot override");
 }
 
 // ═══ טעינה אוטומטית בהתחלה ═══
@@ -4030,8 +4044,8 @@ if (typeof window.bootFromCloud !== "undefined") {
     // נסה לטעון מ-Firestore ברקע (לא נחכה)
     setTimeout(async () => {
       try {
-        if (typeof loadSharedFoldersFromFirestore === "function") {
-          const folders = await loadSharedFoldersFromFirestore();
+        if (typeof loadSharedFolders === "function") {
+          const folders = await loadSharedFolders();
           if (folders && folders.length > 0) {
             window.mySharedFolders = folders;
             saveSharedFoldersToCache(folders);
