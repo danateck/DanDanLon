@@ -3593,6 +3593,19 @@ async function renderPending() {
       categoryTitle.textContent = me.sharedFolders[openId]?.name || "תיקייה משותפת";
       docsList.innerHTML = "";
 
+      // 🔥 יצירת Container עבור שלושת הבלוקים הראשונים
+      const topBlocksContainer = document.createElement("div");
+      topBlocksContainer.className = "shared-top-blocks";
+      topBlocksContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto 20px;
+      `;
+      docsList.appendChild(topBlocksContainer);
+
       // שורת "משתתפים" + הוספה
       const membersBar = document.createElement("div");
       membersBar.className = "cozy-head";
@@ -3604,7 +3617,7 @@ async function renderPending() {
           <button id="detail_inv_btn" class="btn-cozy">הוסף משתתף</button>
         </div>
       `;
-      docsList.appendChild(membersBar);
+      topBlocksContainer.appendChild(membersBar);
 
       // רשימת משתתפים
      // רשימת משתתפים (Firestore live)
@@ -3612,7 +3625,7 @@ const membersList = document.createElement("div");
 membersList.className = "pending-wrap";
 membersList.style.gap = "6px";
 membersList.innerHTML = `<div id="members_chips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>`;
-docsList.appendChild(membersList);
+topBlocksContainer.appendChild(membersList);
 
 const ownerEmailForThisFolder = (me.sharedFolders[openId]?.owner || "").toLowerCase();
 const chips = membersList.querySelector("#members_chips");
@@ -3672,7 +3685,7 @@ docsHead.innerHTML = `
     <button id="refresh_docs_btn" class="btn-cozy">🔄 רענן רשימה</button>
   </div>
 `;
-docsList.appendChild(docsHead);
+topBlocksContainer.appendChild(docsHead);
 
 // טיפול בהעלאת מסמך לתיקייה משותפת
 const uploadToSharedBtn = docsHead.querySelector("#upload_to_shared_btn");
@@ -3730,7 +3743,7 @@ uploadToSharedBtn.addEventListener("click", async () => {
   input.click();
 });
 
-// קונטיינר הכרטיסיות – גריד רספונסיבי
+// קונטיינר הכרטיסיות – גריד רספונסיבי (מחוץ ל-topBlocksContainer!)
 const docsBox = document.createElement("div");
 docsBox.className = "docs-grid";
 docsList.appendChild(docsBox);
