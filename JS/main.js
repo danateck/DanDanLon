@@ -4034,43 +4034,43 @@ if (typeof window.bootFromCloud !== "undefined") {
   const originalBoot = window.bootFromCloud;
   
   window.bootFromCloud = async function() {
-    console.log("🚀 Boot with shared folders cache");
+    console.log("🚀 Boot with shared folders - ALWAYS LOAD FROM FIRESTORE");
     
     // טען מסמכים רגילים
     await originalBoot();
     
-    // טען תיקיות משותפות מ-cache
-    const cachedFolders = loadSharedFoldersFromCache();
-    if (cachedFolders && cachedFolders.length > 0) {
-      window.mySharedFolders = cachedFolders;
-      console.log("✅ Restored", cachedFolders.length, "shared folders from cache");
-      
-      // עדכן את ה-UI אם אפשר
-      if (typeof renderSharedFoldersUI === "function") {
-        renderSharedFoldersUI(cachedFolders);
-      }
-    }
-    
-    // נסה לטעון מ-Firestore ברקע (לא נחכה)
-    setTimeout(async () => {
-      try {
-        if (typeof loadSharedFolders === "function") {
-          const folders = await loadSharedFolders();
-          if (folders && folders.length > 0) {
-            window.mySharedFolders = folders;
-            saveSharedFoldersToCache(folders);
-            console.log("✅ Updated shared folders from Firestore");
-            
-            // עדכן UI
-            if (typeof renderSharedFoldersUI === "function") {
-              renderSharedFoldersUI(folders);
-            }
+    // 🔥 טען תיקיות משותפות ישירות מ-Firestore (לא מ-cache!)
+    console.log("📂 Loading shared folders from Firestore...");
+    try {
+      if (typeof loadSharedFolders === "function") {
+        const folders = await loadSharedFolders();
+        console.log("📥 Loaded from Firestore:", folders?.length || 0, "folders");
+        
+        if (folders && folders.length > 0) {
+          window.mySharedFolders = folders;
+          console.log("✅ Set window.mySharedFolders:", folders.length);
+          
+          // שמור גם ב-cache (לעתיד)
+          saveSharedFoldersToCache(folders);
+          
+          // עדכן UI
+          if (typeof renderSharedFoldersUI === "function") {
+            console.log("🎨 Rendering UI...");
+            renderSharedFoldersUI(folders);
+          } else {
+            console.warn("⚠️ renderSharedFoldersUI not found");
           }
+        } else {
+          console.log("📭 No shared folders found in Firestore");
+          window.mySharedFolders = [];
         }
-      } catch (err) {
-        console.warn("⚠️ Could not sync from Firestore:", err);
+      } else {
+        console.error("❌ loadSharedFolders function not found!");
       }
-    }, 2000);
+    } catch (err) {
+      console.error("❌ Failed to load shared folders:", err);
+      window.mySharedFolders = [];
+    }
   };
   
   console.log("✅ bootFromCloud overridden for shared folders");
