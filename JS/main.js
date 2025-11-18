@@ -1262,6 +1262,32 @@ async function addMemberToSharedFolder(folderId, memberEmail, folderName, ownerE
     const key = memberEmail.trim().toLowerCase();
     const ownerKey = ownerEmail.trim().toLowerCase();
 
+    // 🔥 עדכון ה-sharedFolders collection (זה הדבר החשוב!)
+    const folderRef = window.fs.doc(window.db, "sharedFolders", folderId);
+    
+    // בדוק אם התיקייה קיימת
+    const folderSnap = await window.fs.getDoc(folderRef);
+    
+    if (folderSnap.exists()) {
+      // אם התיקייה קיימת, הוסף את החבר למערך
+      await window.fs.updateDoc(folderRef, {
+        members: window.fs.arrayUnion(key)
+      });
+      console.log("✅ Added member to sharedFolders collection:", key);
+    } else {
+      // אם התיקייה לא קיימת, צור אותה
+      await window.fs.setDoc(folderRef, {
+        id: folderId,
+        name: folderName,
+        owner: ownerKey,
+        members: [ownerKey, key],
+        createdAt: Date.now(),
+        createdBy: ownerKey
+      });
+      console.log("✅ Created folder in sharedFolders collection:", folderId);
+    }
+
+    // גם שמור ב-users collection (לתאימות לאחור)
     const userRef  = window.fs.doc(window.db, "users", key);
     const ownerRef = window.fs.doc(window.db, "users", ownerKey);
 
