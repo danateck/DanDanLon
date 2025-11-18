@@ -1065,6 +1065,8 @@ body.dark-mode .sidebar {
   max-width: 100%;
   margin: 0 auto;
   padding: 0 16px;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Container עבור שלושת הבלוקים העליונים */
@@ -1075,21 +1077,38 @@ body.dark-mode .sidebar {
   width: 100%;
   max-width: 900px;
   margin: 0 auto 20px;
+  box-sizing: border-box;
 }
 
 /* מסמכים משותפים - Grid רספונסיבי */
 .docs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 20px;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0;
+  box-sizing: border-box;
 }
 
-/* במובייל - עמודה אחת */
+/* במובייל - התאמות */
+@media (max-width: 768px) {
+  .docs-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+  
+  .shared-top-blocks {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 640px) {
+  .docs-list.shared-mode {
+    padding: 0 8px;
+  }
+  
   .docs-grid {
     grid-template-columns: 1fr;
   }
@@ -1120,8 +1139,11 @@ body.dark-mode .sidebar {
   .sf-actions {
     flex-wrap: wrap;
     justify-content: flex-start;
+ flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
+   
 
 
 /* SF List - רשימת תיקיות */
