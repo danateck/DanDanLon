@@ -918,9 +918,10 @@ body.dark-mode .sidebar {
 .sf-card {
   width: 100%;
   max-width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 14px;
   background: #2e2512;
   color: #cfe2df;
   border: 1px solid #515e56;
@@ -928,6 +929,7 @@ body.dark-mode .sidebar {
   padding: 14px;
   box-shadow: 0 16px 34px rgba(0,0,0,.25);
   margin: 6px 0;
+  box-sizing: border-box;
 }
 
 .sf-ico {
@@ -950,22 +952,40 @@ body.dark-mode .sidebar {
 }
 
 .sf-title {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #e8f3f1;
   margin: 0;
+  word-break: break-word;
 }
 
 .sf-meta {
-  font-size: .8rem;
+  font-size: .85rem;
   color: #98b1ad;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sf-actions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* במובייל - שנה לעמודה */
+@media (max-width: 640px) {
+  .sf-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .sf-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
 }
 
 .btn-min {
@@ -1042,10 +1062,22 @@ body.dark-mode .sidebar {
     width: 100%;
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
   }
   
   .btn-cozy {
     flex: 1;
+    min-width: 120px;
+  }
+  
+  .sf-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .sf-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 
