@@ -33,6 +33,8 @@
     .doc-action-btn.restore{border-color:#a3d6c1;color:#95a39f;background:#eefaf4}
 
     :root {
+
+   
       --bg-app: #e1dbcf;
       --bg-card: #e1dbcf;
       --bg-sidebar-from: #2e2512;
@@ -50,8 +52,13 @@
       --shadow-btn: 0 6px 16px rgba(0,0,0,0.18);
       --grad-btn: linear-gradient(to right, #3a7f5d, #5dbb8d);
     }
+     *, *::before, *::after {
+      box-sizing: border-box;
+    }
 
     body {
+      overflow-x: hidden;
+      max-width: 100%;
       margin: 0;
       background: var(--bg-app);
       font-family: "Rubik", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -558,7 +565,17 @@ select, .btn{
       justify-items: center;
     }
 
-
+.docs-list.shared-mode {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 100vw;
+      margin: 0 auto;
+      padding: 0 clamp(8px, 2vw, 16px);
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
     
     .doc-card {
       background: var(--bg-card);
@@ -1057,7 +1074,7 @@ body.dark-mode .sidebar {
 }
 
 /* כשנמצאים בתצוגת תיקייה משותפת ספציפית */
-.docs-list.shared-mode {
+/* .docs-list.shared-mode {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1067,7 +1084,7 @@ body.dark-mode .sidebar {
   padding: 0 16px;
   box-sizing: border-box;
   overflow-x: hidden;
-}
+} */
 
 /* Container עבור שלושת הבלוקים העליונים */
 .shared-top-blocks {
@@ -1481,6 +1498,75 @@ element.style {
 .theme-dark .pill:has(input:checked) {
   background: #d67a7a;
   border-color: #e8d4b4;
+}
+
+
+
+
+
+/* ===== תיקונים לאחסון משותף ===== */
+
+/* Container עבור שלושת הבלוקים העליונים */
+.shared-top-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: min(900px, 95vw);
+  margin: 0 auto 20px;
+  box-sizing: border-box;
+}
+
+/* כל הבלוקים החומים */
+.cozy-head,
+.pending-wrap {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* מסמכים משותפים - Grid רספונסיבי */
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, calc(100% - 40px)), 1fr));
+  gap: clamp(12px, 2vw, 20px);
+  width: 100%;
+  max-width: min(1200px, 95vw);
+  margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.doc-card {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* במובייל - התאמות */
+@media (max-width: 768px) {
+  .docs-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    gap: 16px;
+  }
+  
+  .shared-top-blocks {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .docs-list.shared-mode {
+    padding: 0 8px;
+  }
+  
+  .docs-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
 
