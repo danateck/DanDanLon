@@ -1468,7 +1468,6 @@ async function upsertSharedDocRecord(docObj, folderId) {
   }
 
   try {
-    // Get current user safely
     const currentUser = getCurrentUser() || "defaultUser";
     const allUsers = loadAllUsersDataFromStorage();
     const ownerEmail = (allUsers[currentUser]?.email || currentUser).toLowerCase();
@@ -1478,7 +1477,8 @@ async function upsertSharedDocRecord(docObj, folderId) {
       recId,
       folderId,
       ownerEmail,
-      fileName: docObj.title || docObj.fileName
+      fileName: docObj.title || docObj.fileName,
+      fileUrl: docObj.fileUrl || docObj.file_url  // 🔥 חשוב לוג!
     });
 
     const ref = window.fs.doc(window.db, "sharedDocs", recId);
@@ -1488,6 +1488,7 @@ async function upsertSharedDocRecord(docObj, folderId) {
       id: docObj.id,
       title: docObj.title || docObj.fileName || docObj.name || "מסמך",
       fileName: docObj.fileName || docObj.title || docObj.name || "מסמך",
+      fileUrl: docObj.fileUrl || docObj.file_url || "",  // 🔥🔥🔥 זה הקריטי!!!
       category: docObj.category || [],
       uploadedAt: docObj.uploadedAt || Date.now(),
       warrantyStart: docObj.warrantyStart || null,
@@ -1498,10 +1499,10 @@ async function upsertSharedDocRecord(docObj, folderId) {
       lastUpdated: Date.now()
     }, { merge: true });
     
-    console.log("✅ Successfully synced shared doc to Firestore");
+    console.log("✅ Successfully synced shared doc with fileUrl!");
     return true;
   } catch (e) {
-    console.error("❌ Error syncing shared doc to Firestore:", e);
+    console.error("❌ Error syncing shared doc:", e);
     return false;
   }
 }
@@ -1741,32 +1742,55 @@ if (mode !== "recycle") {
   const trashBtn = document.createElement("button");
   trashBtn.className = "doc-action-btn danger";
   trashBtn.textContent = mode === "shared" ? "הסר מהתיקייה 🗑️" : "העבר לסל מחזור 🗑️";
-  trashBtn.addEventListener("click", async () => {
+   trashBtn.addEventListener("click", async () => {
+    // 🔥 אם זה בתיקייה משותפת - הסר רק מהתיקייה!
     if (mode === "shared") {
-      // 🔥 מחיקה מתיקייה משותפת
-      const confirmDel = confirm("האם להסיר מסמך זה מהתיקייה המשותפת?");
+      const confirmDel = confirm("האם להסיר מסמך זה מהתיקייה המשותפת?\n(המסמך המקורי לא יימחק)");
       if (!confirmDel) return;
       
       try {
-        showLoading("מסיר מסמך...");
+        showLoading("מסיר מסמך מהתיקייה...");
         
         const urlParams = new URLSearchParams(window.location.search);
         const folderId = urlParams.get('sharedFolder');
         
-        if (folderId && isFirebaseAvailable()) {
-          const docRef = window.fs.doc(window.db, "sharedDocs", `${folderId}_${doc.id}`);
-          await window.fs.deleteDoc(docRef);
-          console.log("✅ Document removed from shared folder");
+        if (!folderId) {
+          hideLoading();
+          showNotification("שגיאה: לא נמצא מזהה תיקייה", true);
+          return;
         }
         
-        hideLoading();
-        showNotification("המסמך הוסר מהתיקייה המשותפת");
-        
-        // רענן
-        if (typeof loadAndDisplayDocs === "function") {
-          await loadAndDisplayDocs();
+        if (isFirebaseAvailable()) {
+          // מצא את כל הרשומות של המסמך הזה בתיקייה
+          const col = window.fs.collection(window.db, "sharedDocs");
+          const q = window.fs.query(
+            col,
+            window.fs.where("folderId", "==", folderId),
+            window.fs.where("id", "==", doc.id)
+          );
+          const snap = await window.fs.getDocs(q);
+          
+          // מחק את כל הרשומות
+          const deletePromises = [];
+          snap.forEach(docSnap => {
+            deletePromises.push(window.fs.deleteDoc(docSnap.ref));
+          });
+          
+          await Promise.all(deletePromises);
+          console.log("✅ Removed from sharedDocs, kept in personal docs");
+          
+          hideLoading();
+          showNotification("המסמך הוסר מהתיקייה המשותפת ✅");
+          
+          // רענן את התצוגה
+          if (typeof window.openSharedFolder === "function") {
+            await window.openSharedFolder(folderId);
+          } else {
+            window.location.reload();
+          }
         } else {
-          window.location.reload();
+          hideLoading();
+          showNotification("Firebase לא זמין", true);
         }
         return;
       } catch (err) {
@@ -1777,7 +1801,7 @@ if (mode !== "recycle") {
       }
     }
     
-    // מסמכים רגילים - העבר לסל מחזור
+    // 🔥 מסמכים רגילים (לא משותפים) - העבר לסל מחזור
     try {
       if (window.markDocTrashed && window.markDocTrashed !== markDocTrashed) {
         await window.markDocTrashed(doc.id, true);
@@ -4216,10 +4240,64 @@ if (editForm) {
       window.allDocsData[idx].warrantyExpiresAt = updatesForBackend.warranty_expires_at;
       window.allDocsData[idx].autoDeleteAfter   = updatesForBackend.auto_delete_after;
 
-      setUserDocs(userNow, window.allDocsData, allUsersData);
+       setUserDocs(userNow, window.allDocsData, allUsersData);
       console.log("✅ Local data updated");
 
+      // 🔥 בדוק אם זה תיקייה משותפת ועדכן ב-Firestore
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentSharedFolder = urlParams.get('sharedFolder');
+      
+      if (currentSharedFolder && isFirebaseAvailable()) {
+        try {
+          // מצא את המסמך המעודכן
+          const updatedDoc = window.allDocsData[idx];
+          
+          // מצא את כל הרשומות של המסמך הזה ב-sharedDocs
+          const col = window.fs.collection(window.db, "sharedDocs");
+          const q = window.fs.query(
+            col,
+            window.fs.where("folderId", "==", currentSharedFolder),
+            window.fs.where("id", "==", currentlyEditingDocId)
+          );
+          const snap = await window.fs.getDocs(q);
+          
+          // עדכן את כל הרשומות (יכול להיות יותר מאחת אם כמה משתמשים הוסיפו)
+          const updatePromises = [];
+          snap.forEach(doc => {
+            updatePromises.push(
+              window.fs.updateDoc(doc.ref, {
+                title: updatesForBackend.title,
+                org: updatesForBackend.org,
+                year: updatesForBackend.year,
+                recipient: updatedRecipients,
+                category: updatesForBackend.category,
+                lastUpdated: Date.now()
+              })
+            );
+          });
+          
+          await Promise.all(updatePromises);
+          console.log("✅ Updated in Firestore sharedDocs");
+        } catch (err) {
+          console.error("⚠️ Failed to update Firestore:", err);
+        }
+      }
+
       const currentCat = categoryTitle.textContent;
+      
+      // 🔥 אם זה תיקייה משותפת - חזור אליה!
+      if (currentSharedFolder) {
+        console.log("🔄 Returning to shared folder:", currentSharedFolder);
+        closeEditModal();
+        if (typeof window.openSharedFolder === "function") {
+          await window.openSharedFolder(currentSharedFolder);
+        } else {
+          window.location.reload();
+        }
+        return; // ← חשוב! עצור כאן
+      }
+      
+      // תיקיות רגילות
       if (currentCat === "אחסון משותף") {
         openSharedView();
       } else if (currentCat === "סל מחזור") {
@@ -4227,7 +4305,6 @@ if (editForm) {
       } else {
         openCategoryView(currentCat);
       }
-
       showNotification("המסמך עודכן בהצלחה");
     } catch (err) {
       console.error("❌ שגיאה בעדכון מסמך:", err);
@@ -4852,3 +4929,84 @@ console.log("✅ All functions fixed and loaded!");
 
 
 
+// 🔥 פתיחת מסמכים בתיקייה משותפת - עובד לכל החברים!
+(function setupSharedDocOpener() {
+  console.log("📂 Installing shared doc opener...");
+  
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.doc-open-link');
+    if (!btn) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const docId = btn.dataset.openId;
+    if (!docId) {
+      showNotification("שגיאה: לא נמצא מזהה", true);
+      return;
+    }
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedFolderId = urlParams.get('sharedFolder');
+    
+    if (!sharedFolderId) return; // לא בתיקייה משותפת
+    
+    console.log("🔍 Opening shared doc:", docId, "from folder:", sharedFolderId);
+    
+    try {
+      showLoading("טוען מסמך...");
+      
+      // חפש ב-Firestore
+      if (isFirebaseAvailable()) {
+        const col = window.fs.collection(window.db, "sharedDocs");
+        const q = window.fs.query(
+          col,
+          window.fs.where("folderId", "==", sharedFolderId),
+          window.fs.where("id", "==", docId)
+        );
+        const snap = await window.fs.getDocs(q);
+        
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          console.log("✅ Found doc:", docData);
+          
+          if (docData.fileUrl) {
+            window.open(docData.fileUrl, '_blank');
+            hideLoading();
+            showNotification("פותח מסמך... 📄");
+            return;
+          } else {
+            console.warn("⚠️ No fileUrl in doc");
+          }
+        } else {
+          console.warn("⚠️ Doc not found in sharedDocs");
+        }
+      }
+      
+      // אם לא מצאנו - נסה API
+      const response = await fetch(`${API_BASE}/api/docs/${docId}`, {
+        headers: { "X-Dev-Email": getCurrentUserEmail() }
+      });
+      
+      if (response.ok) {
+        const doc = await response.json();
+        const fileUrl = doc.fileUrl || doc.file_url;
+        if (fileUrl) {
+          window.open(fileUrl, '_blank');
+          hideLoading();
+          return;
+        }
+      }
+      
+      hideLoading();
+      showNotification("לא נמצא קישור לקובץ", true);
+      
+    } catch (err) {
+      console.error("❌ Error:", err);
+      hideLoading();
+      showNotification("שגיאה בפתיחת המסמך", true);
+    }
+  }, true);
+  
+  console.log("✅ Shared doc opener ready");
+})();
