@@ -1,16 +1,11 @@
 function normalizeEmail(e) { return (e || "").trim().toLowerCase(); }
-
 import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-
 const auth = getAuth();
-
 // API Base URL for backend
 const API_BASE = (location.hostname === 'localhost')
   ? 'http://localhost:8787'
   : 'https://eco-files.onrender.com';
-
 console.log("📍 API URL:", API_BASE);
-
 // Wait for Firebase globals
 function waitForFirebase() {
   return new Promise((resolve) => {
@@ -26,12 +21,10 @@ function waitForFirebase() {
     }
   });
 }
-
 // ---- Global safety net ----
 window.allDocsData = Array.isArray(window.allDocsData) ? window.allDocsData : [];
 window.allUsersData = window.allUsersData || {};
 window.userNow = window.userNow || "";
-
 // ---- Minimal pending-invites renderer ----
 window.paintPending = window.paintPending || function(invites = []) {
   const box = document.getElementById("sf_pending");
@@ -50,7 +43,6 @@ window.paintPending = window.paintPending || function(invites = []) {
       </div>
     </div>
   `).join("");
-
   box.onclick = async (e) => {
     const t = e.target;
     const id = t?.dataset?.id;
@@ -63,8 +55,6 @@ window.paintPending = window.paintPending || function(invites = []) {
     }
   };
 };
-
-
 /******** NO-LOCAL-STORAGE SHIM (Firebase-only) ********/
 function getCurrentUserFirebaseOnly() {
   if (typeof getCurrentUserEmail === "function") {
@@ -72,49 +62,34 @@ function getCurrentUserFirebaseOnly() {
   }
   return "";
 }
-
 const memoryUsers = Object.create(null);
-
 function loadAllUsersDataFromStorage() {
   return memoryUsers;
 }
-
 function saveAllUsersDataToStorage(allUsersData) {
   Object.assign(memoryUsers, allUsersData || {});
 }
-
-
 function getCurrentUser() {
   return getCurrentUserFirebaseOnly();
 }
 function getUserDocs(username, _allUsersData) {
   return (memoryUsers[username]?.docs) || [];
 }
-
 function setUserDocs(username, docsArray, _allUsersData) {
   if (!memoryUsers[username]) memoryUsers[username] = { password: "", docs: [] };
   memoryUsers[username].docs = Array.isArray(docsArray) ? docsArray : [];
 }
-
-
-
-
 let stopWatching = null;
 // Add this helper function at the top of your main.js
 function getCurrentUserEmail() {
   const raw = auth.currentUser?.email?.toLowerCase() ?? "";
   return raw.trim().toLowerCase();
 }
-
-
 // ═══ פונקציות עיצוב תאריכים ═══
-
 function formatDate(dateValue) {
   if (!dateValue) return "-";
-  
   try {
     let date;
-    
     // המרה לאובייקט Date
     if (typeof dateValue === 'number') {
       date = new Date(dateValue);
@@ -125,32 +100,26 @@ function formatDate(dateValue) {
     } else {
       return "-";
     }
-    
     // בדיקת תקינות
     if (isNaN(date.getTime())) {
       return "-";
     }
-    
     // פורמט: DD/MM/YYYY HH:MM
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   } catch (e) {
     console.error("Error formatting date:", e);
     return "-";
   }
 }
-
 function formatDateShort(dateValue) {
   if (!dateValue) return "-";
-  
   try {
     let date;
-    
     if (typeof dateValue === 'number') {
       date = new Date(dateValue);
     } else if (typeof dateValue === 'string') {
@@ -160,27 +129,22 @@ function formatDateShort(dateValue) {
     } else {
       return "-";
     }
-    
     if (isNaN(date.getTime())) {
       return "-";
     }
-    
     // פורמט: DD/MM/YYYY (בלי שעה)
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
-    
     return `${day}/${month}/${year}`;
   } catch (e) {
     console.error("Error formatting date:", e);
     return "-";
   }
-
 }
 function isFirebaseAvailable() {
   return !!(window.db && window.fs && typeof window.fs.collection === "function");
 }
-
 // ============================================
 // FIX 1: Load documents with user filtering
 // ============================================
@@ -189,33 +153,27 @@ function isFirebaseAvailable() {
 // async function loadDocuments() {
 //   const me = getCurrentUserEmail();
 //   console.log("📥 loadDocuments called for:", me);
-  
 //   if (!me) {
 //     console.warn("❌ No user email, cannot load documents");
 //     return [];
 //   }
-  
 //   if (!isFirebaseAvailable()) {
 //     console.warn("❌ Firebase unavailable, cannot load documents");
 //     return [];
 //   }
-
 //   const col = window.fs.collection(window.db, "documents");
 //   const qOwned  = window.fs.query(col, window.fs.where("owner", "==", me));
 //   const qShared = window.fs.query(col, window.fs.where("sharedWith", "array-contains", me));
-
 //   const [ownedSnap, sharedSnap] = await Promise.all([
 //     window.fs.getDocs(qOwned),
 //     window.fs.getDocs(qShared),
 //   ]);
-
 //   const map = new Map();
 //   ownedSnap.forEach(d => {
 //     const data = { id: d.id, ...d.data() };
 //     console.log("📄 Owned document:", data.title || data.fileName, "ID:", d.id);
 //     map.set(d.id, data);
 //   });
-  
 //   sharedSnap.forEach(d => { 
 //     if (!map.has(d.id)) {
 //       const data = { id: d.id, ...d.data() };
@@ -223,44 +181,33 @@ function isFirebaseAvailable() {
 //       map.set(d.id, data);
 //     }
 //   });
-
 //   const result = Array.from(map.values());
 //   console.log("✅ Total documents loaded:", result.length);
 //   return result;
 // }
-
-
 window.bootFromCloud = async function() {
   console.log("🚀 bootFromCloud called");
-  
   // ❌ REMOVE THIS – it can block forever
   // await waitForFirebase();
-  
   const me = getCurrentUserEmail();
   console.log("👤 Boot user:", me);
-  
   if (!me || !isFirebaseAvailable()) {
     console.warn("❌ Cannot boot: no user or Firebase unavailable");
     return;
   }
-
   try {
     if (typeof showLoading === "function") {
       showLoading("טוען מסמכים מהענן...");
     }
-    
     const docs = await loadDocuments();
     console.log("📦 Loaded", docs.length, "documents from Firestore");
-    
     window.allDocsData = docs || [];
-    
     const userNow = me;
     if (typeof setUserDocs === "function") {
       // make sure allUsersData exists
       if (!window.allUsersData) window.allUsersData = {};
       setUserDocs(userNow, window.allDocsData, window.allUsersData);
     }
-    
     // Render home view
     console.log("🎨 Calling renderHome");
     if (typeof window.renderHome === "function") {
@@ -270,25 +217,17 @@ window.bootFromCloud = async function() {
     } else {
       console.error("❌ renderHome function not found!");
     }
-    
     console.log("✅ Boot complete:", window.allDocsData.length, "documents");
   } catch (error) {
     console.error("❌ Boot failed:", error);
   } finally {
     if (typeof hideLoading === "function") hideLoading();
   }
-
   // if (typeof watchMyDocs === "function") {
   //   watchMyDocs();
   // }
 };
-
-
 console.log("✅ bootFromCloud defined globally");
-
-
-
-
 // ============================================
 // FIX 2: Upload document with owner info
 // ============================================
@@ -296,27 +235,21 @@ console.log("✅ bootFromCloud defined globally");
 //   // ✅ who is the owner
 //   const raw = getCurrentUserEmail();
 //   const currentUser = raw ? normalizeEmail(raw) : null;
-  
 //   console.log("📤 Uploading document for user:", currentUser);
-  
 //   if (!currentUser) {
 //     console.error("❌ No current user for upload");
 //     throw new Error("User not logged in");
 //   }
-
 //   // ✅ stable doc id used by both UI & Firestore
 //   const newId = crypto.randomUUID();
-
 //   // ✅ sanitize filename for Storage path safety (no weird chars/slashes)
 //   const safeName = (file?.name || "file")
 //     .replace(/[\\/]+/g, "_")
 //     .replace(/[^\w.\-() \u0590-\u05FF]/g, "_"); // allow Hebrew too
-
 //   // ✅ normalize & de-dupe sharedWith, and never include owner
 //   const sharedWith = Array.isArray(metadata.sharedWith)
 //     ? [...new Set(metadata.sharedWith.map(normalizeEmail).filter(e => e && e !== currentUser))]
 //     : [];
-
 //   let downloadURL = null;
 //   // Around line 237-252 in uploadDocument
 // // Around line 237-252 in uploadDocument
@@ -324,17 +257,13 @@ console.log("✅ bootFromCloud defined globally");
 //   if (window.storage) {
 //     const encodedName = encodeURIComponent(safeName);
 //     const storagePath = `documents/${currentUser}/${newId}/${encodedName}`;
-    
 //     console.log("📤 Attempting Storage upload to:", storagePath);
-    
 //     const storageRef = window.fs.ref(window.storage, storagePath);
-    
 //     // Increase timeout to 30 seconds for larger files
 //     const uploadPromise = window.fs.uploadBytes(storageRef, file);
 //     const timeoutPromise = new Promise((_, reject) => 
 //       setTimeout(() => reject(new Error('Upload timeout')), 30000)
 //     );
-    
 //     const snap = await Promise.race([uploadPromise, timeoutPromise]);
 //     downloadURL = await window.fs.getDownloadURL(snap.ref);
 //     console.log("✅ File uploaded to Storage:", downloadURL);
@@ -343,11 +272,8 @@ console.log("✅ bootFromCloud defined globally");
 //   console.warn("⚠️ Storage upload failed (will save metadata only):", e.message);
 //   downloadURL = null;
 // }
-
 // // Continue even if storage fails - save to Firestore with metadata
-
 //   const docRef = window.fs.doc(window.db, "documents", newId);
-
 //   // ✅ write canonical fields (avoid letting incoming metadata override owner/ids)
 //   const docData = {
 //   title: metadata.title ?? safeName,
@@ -355,19 +281,15 @@ console.log("✅ bootFromCloud defined globally");
 //   year: metadata.year ?? String(new Date().getFullYear()),
 //   org: metadata.org ?? "",
 //   recipient: Array.isArray(metadata.recipient) ? metadata.recipient : [],
-  
 //   warrantyStart: metadata.warrantyStart ?? null,
 //   warrantyExpiresAt: metadata.warrantyExpiresAt ?? null,
 //   autoDeleteAfter: metadata.autoDeleteAfter ?? null,
-  
 //   owner: currentUser,
 //   sharedWith,
-  
 //   downloadURL: downloadURL || null,
 //   fileName: safeName,
 //   fileSize: file?.size ?? null,
 //   fileType: file?.type ?? "application/octet-stream",
-  
 //   uploadedAt: (window.fs.serverTimestamp?.() ?? Date.now()),
 //   lastModified: (window.fs.serverTimestamp?.() ?? Date.now()),
 //   lastModifiedBy: currentUser,
@@ -375,34 +297,24 @@ console.log("✅ bootFromCloud defined globally");
 //   deletedBy: null
 //   // Make sure NO undefined fields are here
 // };
-
 // // Remove any undefined fields before saving
 // Object.keys(docData).forEach(key => {
 //   if (docData[key] === undefined) {
 //     delete docData[key];
 //   }
 // });
-
 //   await window.fs.setDoc(docRef, docData, { merge: true });
 //   console.log("✅ Document metadata saved to Firestore:", newId);
-  
 //   return { id: newId, ...docData };
 // }
-
-
-
-
 function watchMyDocs() {
   if (!isFirebaseAvailable()) return () => {};
   if (stopWatching) { try { stopWatching(); } catch (_) {} }
-
   const me = getCurrentUserEmail();
   if (!me) return () => {};
-
   const col = window.fs.collection(window.db, "documents");
   const qOwned  = window.fs.query(col, window.fs.where("owner", "==", me));
   const qShared = window.fs.query(col, window.fs.where("sharedWith", "array-contains", me));
-
   const applySnap = (snap) => {
     // Merge into global allDocsData (owned + shared)
     const byId = new Map((allDocsData || []).map(d => [d.id, d]));
@@ -415,11 +327,9 @@ function watchMyDocs() {
     if (typeof setUserDocs === "function" && typeof allUsersData !== "undefined" && typeof userNow !== "undefined") {
       setUserDocs(userNow, allDocsData, allUsersData);
     }
-    
     // ✅ Re-render ONLY if we're NOT on home view
     const homeView = document.getElementById("homeView");
     const isOnHomeView = homeView && !homeView.classList.contains("hidden");
-    
     if (isOnHomeView) {
       // אנחנו במסך הבית - רק נרענן את התיקיות אם צריך, אבל לא נעבור למסך אחר
       console.log("🏠 On home view, staying here");
@@ -428,7 +338,6 @@ function watchMyDocs() {
       }
       return;
     }
-    
     // Re-render the current view (רק אם לא במסך הבית)
     if (typeof categoryTitle !== "undefined" && categoryTitle?.textContent) {
       const current = categoryTitle.textContent;
@@ -441,88 +350,66 @@ function watchMyDocs() {
       }
     }
   };
-
   const unsubOwned  = window.fs.onSnapshot(qOwned,  (snap) => applySnap(snap));
   const unsubShared = window.fs.onSnapshot(qShared, (snap) => applySnap(snap));
-
   stopWatching = () => { unsubOwned(); unsubShared(); };
   return stopWatching;
 }
-
-
-
-
 async function bootFromCloud() {
   const me = getCurrentUserEmail();
   console.log("🚀 bootFromCloud called for:", me);
-  
   if (!me || !isFirebaseAvailable()) {
     console.warn("❌ Cannot boot from cloud: no user or Firebase unavailable");
     return;
   }
-
   try {
     if (typeof showLoading === "function") showLoading("טוען מסמכים מהענן...");
-    
     // Load documents from Firestore
     const docs = await loadDocuments();
     console.log("📦 Loaded", docs.length, "documents from Firestore for", me);
-    
     // IMPORTANT: Replace allDocsData completely with cloud data
     // This ensures each user sees only their documents
     allDocsData = docs || [];
-    
     // Update the user's local cache
     if (typeof setUserDocs === "function" && typeof allUsersData !== "undefined" && typeof userNow !== "undefined") {
       setUserDocs(userNow, allDocsData, allUsersData);
     }
-    
     // Render the home view
     if (typeof renderHome === "function") renderHome();
-    
     console.log("✅ Boot from cloud complete:", allDocsData.length, "documents loaded");
   } catch (error) {
     console.error("❌ Boot from cloud failed:", error);
   } finally {
     if (typeof hideLoading === "function") hideLoading();
   }
-
   // Start live updates
   watchMyDocs();
 }
-
-
 // ============================================
 // FIX 3: Load shared folders with user filtering
 // ============================================
 async function loadSharedFolders() {
   const currentUser = getCurrentUserEmail();
   if (!currentUser || !isFirebaseAvailable()) return [];
-
   const col = window.fs.collection(window.db, "sharedFolders");
   const qOwned  = window.fs.query(col, window.fs.where("owner", "==", currentUser));
   const qMember = window.fs.query(col, window.fs.where("members", "array-contains", currentUser));
-
   const [ownedSnap, memberSnap] = await Promise.all([
     window.fs.getDocs(qOwned),
     window.fs.getDocs(qMember),
   ]);
-
   const out = [];
   ownedSnap.forEach(d => out.push({ id: d.id, ...d.data() }));
   memberSnap.forEach(d => { if (!out.find(f => f.id === d.id)) out.push({ id: d.id, ...d.data() }); });
   return out;
 }
-
 // ============================================
 // FIX 4: Create shared folder with owner info
 // ============================================
 async function createSharedFolder(folderName, invitedEmails = []) {
   console.log("📁 createSharedFolder called:", folderName);
-  
   const currentUser = getCurrentUserEmail();
   if (!currentUser || !isFirebaseAvailable()) throw new Error("User not logged in");
-
   const folderData = {
     name: folderName,
     owner: currentUser,
@@ -536,13 +423,10 @@ async function createSharedFolder(folderName, invitedEmails = []) {
     createdAt: Date.now(),
     createdBy: currentUser,
   };
-
   const col = window.fs.collection(window.db, "sharedFolders");
   const ref = await window.fs.addDoc(col, folderData);
   const newFolder = { id: ref.id, ...folderData };
-  
   console.log("✅ Folder saved to Firestore:", newFolder.id);
-  
   // ✅ שמור גם ב-cache המקומי
   if (!window.mySharedFolders) {
     window.mySharedFolders = [];
@@ -550,7 +434,6 @@ async function createSharedFolder(folderName, invitedEmails = []) {
   }
   window.mySharedFolders.push(newFolder);
   console.log("✅ Added to window.mySharedFolders, total:", window.mySharedFolders.length);
-  
   // שמור ב-localStorage
   try {
     const me = getCurrentUserEmail();
@@ -563,66 +446,51 @@ async function createSharedFolder(folderName, invitedEmails = []) {
   } catch (err) {
     console.warn("⚠️ Could not save to cache:", err);
   }
-  
   return newFolder;
 }
-
-
 // ============================================
 // FIX 5: Share document with proper ownership check
 // ============================================
 async function shareDocument(docId, recipientEmails) {
   const me = getCurrentUserEmail();
   if (!me || !isFirebaseAvailable()) throw new Error("User not logged in");
-
   const ref  = window.fs.doc(window.db, "documents", docId);
   const snap = await window.fs.getDoc(ref);
   if (!snap.exists()) throw new Error("Document not found");
-
   const data = snap.data();
   if (data.owner !== me) throw new Error("Only the owner can share this document");
-
   const newShared = [...new Set([...(data.sharedWith || []), ...recipientEmails.map(normalizeEmail)])];
   await window.fs.updateDoc(ref, { sharedWith: newShared, lastModified: Date.now(), lastModifiedBy: me });
   return { success: true };
 }
-
 // Add document to shared folder
 async function addDocumentToSharedFolder(docId, folderId) {
   const me = getCurrentUserEmail();
   console.log("📂 addDocumentToSharedFolder called:", { docId, folderId, me });
-  
   if (!me || !isFirebaseAvailable()) {
     console.error("❌ User not logged in or Firebase not available");
     throw new Error("User not logged in");
   }
-
   // Get the folder
   const folderRef = window.fs.doc(window.db, "sharedFolders", folderId);
   const folderSnap = await window.fs.getDoc(folderRef);
-  
   if (!folderSnap.exists()) {
     console.error("❌ Folder not found:", folderId);
     throw new Error("Folder not found");
   }
-  
   const folderData = folderSnap.data();
   console.log("📁 Folder data:", folderData);
-  
   // Check if user is a member
   if (!folderData.members?.includes(me)) {
     console.error("❌ User not a member:", { me, members: folderData.members });
     throw new Error("You are not a member of this folder");
   }
-  
   // 🔥 חשוב! נסה למצוא את המסמך - קודם ב-documents, אחר כך ב-localStorage
   let docData = null;
-  
   // נסה ב-Firestore documents collection
   try {
     const docRef = window.fs.doc(window.db, "documents", docId);
     const docSnap = await window.fs.getDoc(docRef);
-    
     if (docSnap.exists()) {
       docData = docSnap.data();
       console.log("✅ Found document in Firestore:", docData);
@@ -632,14 +500,12 @@ async function addDocumentToSharedFolder(docId, folderId) {
   } catch (err) {
     console.warn("⚠️ Error fetching from Firestore:", err);
   }
-  
   // אם לא מצאנו ב-Firestore, נסה ב-localStorage
   if (!docData) {
     console.log("🔍 Searching in localStorage...");
     const allUsers = loadAllUsersDataFromStorage();
     const currentUser = getCurrentUser();
     const userData = allUsers[currentUser];
-    
     if (userData && userData.docs) {
       const localDoc = userData.docs.find(d => d.id === docId);
       if (localDoc) {
@@ -648,19 +514,16 @@ async function addDocumentToSharedFolder(docId, folderId) {
       }
     }
   }
-  
   if (!docData) {
     console.error("❌ Document not found anywhere:", docId);
     throw new Error("Document not found");
   }
-  
   // Only owner can add to folder
   const docOwner = normalizeEmail(docData.owner || me);
   if (docOwner !== me) {
     console.error("❌ Not document owner:", { docOwner, me });
     throw new Error("Only the document owner can add it to folders");
   }
-  
   // 🔥 חשוב! צור רשומה ב-sharedDocs collection ישירות
   console.log("📤 Creating sharedDocs record...");
   try {
@@ -676,18 +539,15 @@ async function addDocumentToSharedFolder(docId, folderId) {
       year: docData.year || "",
       recipient: docData.recipient || []
     }, folderId);
-    
     console.log("✅ sharedDocs record created successfully");
   } catch (err) {
     console.error("❌ Failed to create sharedDocs record:", err);
     throw err;
   }
-  
   // Update document in Firestore if it exists there
   try {
     const docRef = window.fs.doc(window.db, "documents", docId);
     const docSnap = await window.fs.getDoc(docRef);
-    
     if (docSnap.exists()) {
       const folders = docSnap.data().sharedFolders || [];
       if (!folders.includes(folderId)) {
@@ -703,7 +563,6 @@ async function addDocumentToSharedFolder(docId, folderId) {
   } catch (err) {
     console.warn("⚠️ Could not update document in Firestore:", err);
   }
-  
   // Update folder with document reference
   try {
     const docs = folderData.documents || [];
@@ -719,20 +578,15 @@ async function addDocumentToSharedFolder(docId, folderId) {
   } catch (err) {
     console.warn("⚠️ Could not update folder:", err);
   }
-  
   console.log("✅ Document added to shared folder successfully");
-  
   return { success: true };
 }
-
-
 // ============================================
 // FIX 6: Get documents for specific category with user filter
 // ============================================
 async function getDocumentsByCategory(category) {
   const me = getCurrentUserEmail();
   if (!me || !isFirebaseAvailable()) return [];
-
   const col = window.fs.collection(window.db, "documents");
   const qOwned  = window.fs.query(col,
     window.fs.where("owner", "==", me),
@@ -744,14 +598,12 @@ async function getDocumentsByCategory(category) {
     window.fs.where("category", "==", category),
     window.fs.where("deletedAt", "==", null)
   );
-
   const [a, b] = await Promise.all([window.fs.getDocs(qOwned), window.fs.getDocs(qShared)]);
   const out = [];
   a.forEach(d => out.push({ id: d.id, ...d.data() }));
   b.forEach(d => { if (!out.find(x => x.id === d.id)) out.push({ id: d.id, ...d.data() }); });
   return out;
 }
-
 // ============================================
 // EXPORT ALL FUNCTIONS
 // ============================================
@@ -765,55 +617,32 @@ window.AppFunctions = {
   getDocumentsByCategory,
   getCurrentUserEmail
 };
-
 // ✅ הגדרה ישירה גם על window
 window.createSharedFolder = createSharedFolder;
 window.loadSharedFolders = loadSharedFolders;
-
 console.log("✅ User-scoped Firebase functions loaded");
-
-
-
-
-
-
-
 document.getElementById("closeMenuBtn")?.addEventListener("click", () => {
   // change '.sidebar' to your actual drawer element selector if different
   document.querySelector(".sidebar")?.classList.remove("open");
 });
-
-
-
 const sidebar = document.querySelector(".sidebar");
 const openBtn = document.getElementById("openMenuBtn");  // your button that opens the menu
 const closeBtn = document.getElementById("closeMenuBtn"); // the ✕ button inside the menu
-
 openBtn?.addEventListener("click", () => {
   sidebar.classList.add("open");
 });
-
 closeBtn?.addEventListener("click", () => {
   sidebar.classList.remove("open");
 });
-
-
 document.getElementById("premiumBtn")?.addEventListener("click", () => {
   document.getElementById("premiumPanel")?.classList.remove("hidden");
 });
-
-
-
-
-
 /*************************
  * 0. IndexedDB helpers  *
  *************************/
-
 // נפתח/ניצור DB בשם "docArchiveDB" עם טבלה "files"
 // בקי לכל קובץ: id (המזהה של הדוקומנט)
 // value שמור זה ה-base64 (dataURL)
-
 // בדיקה אם Firebase זמין
 window.isFirebaseAvailable = function() {
   try {
@@ -824,26 +653,17 @@ window.isFirebaseAvailable = function() {
     return false;
   }
 };
-
-
-
-
-
 async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
-  
   const currentUser = normalizeEmail(getCurrentUserEmail());
   if (!currentUser) throw new Error("User not logged in");
-
   const id = forcedId || crypto.randomUUID();
   let downloadURL = null;
-
   // (optional) upload bytes to Storage
   if (window.storage && isFirebaseAvailable()) {
     const storageRef = window.fs.ref(window.storage, `documents/${currentUser}/${id}_${file.name}`);
     const snap = await window.fs.uploadBytes(storageRef, file);
     downloadURL = await window.fs.getDownloadURL(snap.ref);
   }
-
   // write metadata to Firestore
   const docRef = window.fs.doc(window.db, "documents", id);
   const docData = {
@@ -861,29 +681,18 @@ uploadedAt: new Date().toISOString(),
   await window.fs.setDoc(docRef, docData, { merge: true });
   return { id, ...docData };
 }
-
-
-
-
-
-
-
 function handleLogout() {
     console.log("🚪 Logging out...");
-
     const auth = getAuth();
-
     // Stop any active listeners
     try { if (stopWatching) stopWatching(); } catch (_) {}
     try { if (window._stopMembersWatch) window._stopMembersWatch(); } catch (_) {}
     try { if (window._stopSharedDocsWatch) window._stopSharedDocsWatch(); } catch (_) {}
-
     // Clear in-memory caches (optional)
     try { 
         allDocsData = [];
         Object.keys(memoryUsers).forEach(key => delete memoryUsers[key]);
     } catch (_) {}
-
     // Sign out the user via Firebase
     signOut(auth)
         .then(() => {
@@ -894,32 +703,21 @@ function handleLogout() {
             console.error("❌ Error signing out:", error);
         });
 }
-
-
-
-
-
-
 async function syncAllLocalDocsToCloud() {
   if (!isFirebaseAvailable()) {
     showNotification("Firebase לא זמין", true);
     return;
   }
-  
   showLoading("מסנכרן מסמכים לענן...");
-  
   let synced = 0;
   let failed = 0;
-  
   for (const doc of allDocsData) {
     if (doc._trashed) continue;
-    
     // Check if already has downloadURL
     if (doc.downloadURL) {
       synced++;
       continue;
     }
-    
     // Try to get file from IndexedDB
     const dataUrl = await loadFileFromDB(doc.id).catch(() => null);
     if (!dataUrl) {
@@ -927,65 +725,44 @@ async function syncAllLocalDocsToCloud() {
       failed++;
       continue;
     }
-    
     // Convert dataURL to Blob
     try {
       const response = await fetch(dataUrl);
       const blob = await response.blob();
-      
       // Create File object
       const file = new File(
         [blob], 
         doc.originalFileName || doc.fileName || "file", 
         { type: doc.mimeType || "application/octet-stream" }
       );
-      
       // Upload to Storage
       const currentUser = normalizeEmail(getCurrentUserEmail() || userNow);
       const storageRef = window.fs.ref(
         window.storage, 
         `documents/${currentUser}/${doc.id}_${file.name}`
       );
-      
       const snapshot = await window.fs.uploadBytes(storageRef, file);
       const downloadURL = await window.fs.getDownloadURL(snapshot.ref);
-      
       // Update Firestore
       const docRef = window.fs.doc(window.db, "documents", doc.id);
       await window.fs.updateDoc(docRef, { downloadURL });
-      
       // Update local
       doc.downloadURL = downloadURL;
       synced++;
-      
       console.log(`✅ Synced doc ${doc.id}`);
-      
     } catch (e) {
       console.error(`❌ Failed to sync doc ${doc.id}:`, e);
       failed++;
     }
   }
-  
   setUserDocs(userNow, allDocsData, allUsersData);
   hideLoading();
-  
   showNotification(`✅ ס×•× ×›×¨× ×• ${synced} ×ž×¡×ž×›×™×${failed > 0 ? `, ${failed} × ×›×©×œ×•` : ''}`);
 }
-
 // Make functions globally accessible
 window.syncAllLocalDocsToCloud = syncAllLocalDocsToCloud;
 window.handleLogout = handleLogout;
-
 console.log("✅ Enhanced Firebase persistence loaded");
-
-
-
-
-
-
-
-
-
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("docArchiveDB", 1);
@@ -1003,7 +780,6 @@ function openDB() {
     };
   });
 }
-
 // שמירת קובץ (base64) ב-IndexedDB
 async function saveFileToDB(docId, dataUrl) {
   const db = await openDB();
@@ -1015,7 +791,6 @@ async function saveFileToDB(docId, dataUrl) {
     tx.onerror = (e) => reject(e.target.error);
   });
 }
-
 // שליפה של קובץ מה-DB לפי docId
 async function loadFileFromDB(docId) {
   const db = await openDB();
@@ -1032,7 +807,6 @@ async function loadFileFromDB(docId) {
     };
   });
 }
-
 // מחיקה של קובץ מה-DB (אם מוחקים לצמיתות)
 async function deleteFileFromDB(docId) {
   const db = await openDB();
@@ -1044,37 +818,29 @@ async function deleteFileFromDB(docId) {
     tx.onerror = (e) => reject(e.target.error);
   });
 }
-
 // סנכרון משתמש חדש ל-Firestore
-
 // סנכרון משתמש חדש ל-Firestore
 async function syncUserToFirestore(email, password = "") {
   console.log("🔄 מנסה לסנכרן משתמש:", email);
-  
   // בדיקה פשוטה יותר
   if (!window.db || !window.fs) {
     console.warn("❌ Firebase לא זמין - חסר DB או FS");
     return false;
   }
-  
   if (!navigator.onLine) {
     console.warn("❌ אין חיבור לאינטרנט");
     return false;
   }
-  
   try {
     const key = email.trim().toLowerCase();
     console.log("🔑 Creating user document for:", key);
-    
     const userRef = window.fs.doc(window.db, "users", key);
-    
     await window.fs.setDoc(userRef, {
       email: key,
       password: password,
       sharedFolders: {},
       createdAt: Date.now()
     }, { merge: true });
-    
     console.log("✅ משתמש סונכרן ל-Firestore:", key);
     return true;
   } catch (e) {
@@ -1083,18 +849,14 @@ async function syncUserToFirestore(email, password = "") {
     return false;
   }
 }
-
 async function checkUserExistsInFirestore(email) {
   const key = email.trim().toLowerCase();
-  
   // בדיקה שיש email תקין
   if (!key || key === "") {
     console.warn("checkUserExistsInFirestore: empty email");
     return false;
   }
-  
   console.log("בודק משתמש ב-Firestore:", key);
-  
   // אם Firebase לא זמין, בדוק ב-localStorage
   if (!isFirebaseAvailable()) {
     console.warn("Firebase לא זמין, בודק ב-localStorage");
@@ -1109,22 +871,18 @@ async function checkUserExistsInFirestore(email) {
     console.log("❌ משתמש לא נמצא ב-localStorage");
     return false;
   }
-  
   // בדיקה ב-Firestore
   try {
     const userRef = window.fs.doc(window.db, "users", key);
     const docSnap = await window.fs.getDoc(userRef);
-    
     if (docSnap.exists()) {
       console.log("✅ משתמש נמצא ב-Firestore:", key);
       return true;
     }
-    
     console.log("❌ משתמש לא נמצא ב-Firestore");
     return false;
   } catch (e) {
     console.error("שגיאה בבדיקת משתמש ב-Firestore:", e);
-    
     // Fallback ל-localStorage במקרה של שגיאה
     console.warn("עובר ל-localStorage בגלל שגיאה");
     const allUsers = loadAllUsersDataFromStorage();
@@ -1138,9 +896,6 @@ async function checkUserExistsInFirestore(email) {
     return false;
   }
 }
-
-
-
 window.syncAllUsers = async function() {
   if (!isFirebaseAvailable()) {
     console.warn("❌ Firebase unavailable");
@@ -1156,51 +911,37 @@ window.syncAllUsers = async function() {
   }
   console.log(`✅ Synced ${successCount} users to Firestore`);
 };
-
-
-
 // הוסף פונקציה זו איפשהו בקוד
 async function syncAllLocalUsersToFirestore() {
   if (!isFirebaseAvailable()) {
     //showNotification("Firebase לא זמין", true);
     return;
   }
-  
   const allUsers = loadAllUsersDataFromStorage();
   let count = 0;
-  
   for (const [username, userData] of Object.entries(allUsers)) {
     const email = userData.email || username;
     const success = await syncUserToFirestore(email, userData.password || "");
     if (success) count++;
   }
-  
   //showNotification(`✅ ${count} משתמשים סונכרנו ל-Firestore`);
 }
-
  syncAllLocalUsersToFirestore();
-
-
-
 async function sendShareInviteToFirestore(fromEmail, toEmail, folderId, folderName) {
   // נורמליזציה של אימיילים אחידה
   fromEmail = normalizeEmail(fromEmail);
   toEmail   = normalizeEmail(toEmail);
-  
   console.log("📤 Sending invite from", fromEmail, "to", toEmail);
-  
   // אם Firebase לא זמין, שמור ב-localStorage
   if (!isFirebaseAvailable()) {
     console.warn("Firebase לא זמין, שומר הזמנה ב-localStorage");
     try {
       const allUsers = loadAllUsersDataFromStorage();
       const targetUser = findUsernameByEmail(allUsers, toEmail);
-      
       if (!targetUser) {
         console.error("משתמש היעד לא נמצא:", toEmail);
         return false;
       }
-      
       ensureUserSharedFields(allUsers, targetUser);
       allUsers[targetUser].incomingShareRequests.push({
         folderId,
@@ -1210,7 +951,6 @@ async function sendShareInviteToFirestore(fromEmail, toEmail, folderId, folderNa
         status: "pending",
         createdAt: Date.now()
       });
-      
       saveAllUsersDataToStorage(allUsers);
       console.log("✅ הזמנה נשמרה ב-localStorage");
       return true;
@@ -1219,7 +959,6 @@ async function sendShareInviteToFirestore(fromEmail, toEmail, folderId, folderNa
       return false;
     }
   }
-  
   // אם Firebase זמין, נסה לשלוח
   try {
     const inviteRef = window.fs.collection(window.db, "shareInvites");
@@ -1235,14 +974,11 @@ async function sendShareInviteToFirestore(fromEmail, toEmail, folderId, folderNa
     return true;
   } catch (e) {
     console.error("שגיאה בשליחת הזמנה ל-Firestore, עובר ל-localStorage:", e);
-    
     // Fallback ל-localStorage (בלי רקורסיה!)
     try {
       const allUsers = loadAllUsersDataFromStorage();
       const targetUser = findUsernameByEmail(allUsers, toEmail);
-      
       if (!targetUser) return false;
-      
       ensureUserSharedFields(allUsers, targetUser);
       allUsers[targetUser].incomingShareRequests.push({
         folderId,
@@ -1252,7 +988,6 @@ async function sendShareInviteToFirestore(fromEmail, toEmail, folderId, folderNa
         status: "pending",
         createdAt: Date.now()
       });
-      
       saveAllUsersDataToStorage(allUsers);
       return true;
     } catch (localErr) {
@@ -1261,23 +996,17 @@ async function sendShareInviteToFirestore(fromEmail, toEmail, folderId, folderNa
     }
   }
 }
-
-
-
-
 // קבלת הזמנות ממתינות למשתמש (Firestore)
 // קבלת הזמנות ממתינות למשתמש (Firestore)
 // קבלת הזמנות ממתינות למשתמש (Firestore)
 async function getPendingInvitesFromFirestore(userEmail) {
   const allUsers = loadAllUsersDataFromStorage();
  const myEmail = normalizeEmail(userEmail || getCurrentUserEmail() || "");
-
   if (!isFirebaseAvailable()) {
     console.warn("Firebase לא זמין, בודק ב-localStorage");
     const me = allUsers[currentUserKey];
     return (me?.incomingShareRequests || []).filter(r => r.status === "pending");
   }
-
   try {
     const invitesRef = window.fs.collection(window.db, "shareInvites");
     const q = window.fs.query(
@@ -1296,24 +1025,18 @@ async function getPendingInvitesFromFirestore(userEmail) {
     return (me?.incomingShareRequests || []).filter(r => r.status === "pending");
   }
 }
-
-
 // At the very top of main.
-
 // Later, just reassign it — never redeclare
 if (stopWatching) stopWatching();
 stopWatching = watchPendingInvites(async (invites) => {
   console.log("🔔 Real-time update:", invites.length, "invites");
   paintPending(invites);
 });
-
-
 function watchPendingInvites(onChange) {
   const allUsers = loadAllUsersDataFromStorage();
   const currentUserKey = getCurrentUser();
   const email = normalizeEmail((allUsers[currentUserKey]?.email) || currentUserKey || "");
   if (!isFirebaseAvailable() || !email) return () => {};
-
   const invitesRef = window.fs.collection(window.db, "shareInvites");
   const q = window.fs.query(
     invitesRef,
@@ -1329,8 +1052,6 @@ function watchPendingInvites(onChange) {
   });
   return unsub;
 }
-
-
 // עדכון סטטוס הזמנה (Firestore)
 async function updateInviteStatus(inviteId, newStatus) {
   try {
@@ -1342,21 +1063,16 @@ async function updateInviteStatus(inviteId, newStatus) {
     return false;
   }
 }
-
-
 // הוספת חבר לתיקייה משותפת (Firestore)
 // הוספת חבר לתיקייה משותפת (Firestore) - גרסה עמידה
 async function addMemberToSharedFolder(folderId, memberEmail, folderName, ownerEmail) {
   try {
     const key = memberEmail.trim().toLowerCase();
     const ownerKey = ownerEmail.trim().toLowerCase();
-
     // 🔥 עדכון ה-sharedFolders collection (זה הדבר החשוב!)
     const folderRef = window.fs.doc(window.db, "sharedFolders", folderId);
-    
     // בדוק אם התיקייה קיימת
     const folderSnap = await window.fs.getDoc(folderRef);
-    
     if (folderSnap.exists()) {
       // אם התיקייה קיימת, הוסף את החבר למערך
       await window.fs.updateDoc(folderRef, {
@@ -1375,15 +1091,12 @@ async function addMemberToSharedFolder(folderId, memberEmail, folderName, ownerE
       });
       console.log("✅ Created folder in sharedFolders collection:", folderId);
     }
-
     // גם שמור ב-users collection (לתאימות לאחור)
     const userRef  = window.fs.doc(window.db, "users", key);
     const ownerRef = window.fs.doc(window.db, "users", ownerKey);
-
     // 1) ודא שקיימים מסמכי המשתמשים (יוצר אם חסר)
     await window.fs.setDoc(userRef,  { email: key },   { merge: true });
     await window.fs.setDoc(ownerRef, { email: ownerKey }, { merge: true });
-
     // 2) ודא שקיים אובייקט התיקייה אצל שני הצדדים
     const baseFolderObj = {
       name: folderName,
@@ -1391,46 +1104,38 @@ async function addMemberToSharedFolder(folderId, memberEmail, folderName, ownerE
       // נתחיל במערך ריק; נמלא עם arrayUnion בהמשך
       members: []
     };
-
     await window.fs.setDoc(
       userRef,
       { [`sharedFolders.${folderId}`]: baseFolderObj },
       { merge: true }
     );
-
     await window.fs.setDoc(
       ownerRef,
       { [`sharedFolders.${folderId}`]: baseFolderObj },
       { merge: true }
     );
-
     // 3) הוסף את החבר החדש למערך החברים אצל שני הצדדים (יוצר את השדה אם אינו קיים)
     await window.fs.updateDoc(userRef, {
       [`sharedFolders.${folderId}.members`]: window.fs.arrayUnion(key, ownerKey)
     });
-
     await window.fs.updateDoc(ownerRef, {
       [`sharedFolders.${folderId}.members`]: window.fs.arrayUnion(key, ownerKey)
     });
-
     return true;
   } catch (e) {
     console.error("שגיאה בהוספת חבר:", e);
     return false;
   }
 }
-
 // --- Fetch and watch members for a shared folder from Firestore (owner's doc) ---
 async function fetchFolderMembersFromOwner(ownerEmail, folderId) {
   if (!isFirebaseAvailable()) return [];
   const ownerKey = normalizeEmail(ownerEmail || "");
-  
   // בדיקה שיש owner email תקין
   if (!ownerKey || ownerKey.trim() === "") {
     console.warn("fetchFolderMembersFromOwner: no valid owner email");
     return [];
   }
-  
   const ownerRef = window.fs.doc(window.db, "users", ownerKey);
   const snap = await window.fs.getDoc(ownerRef);
   if (!snap.exists()) return [];
@@ -1438,18 +1143,15 @@ async function fetchFolderMembersFromOwner(ownerEmail, folderId) {
   const members = (data.sharedFolders && data.sharedFolders[folderId] && data.sharedFolders[folderId].members) || [];
   return Array.isArray(members) ? members : [];
 }
-
 // --- Members: live watch on owner's doc
 function watchFolderMembersFromOwner(ownerEmail, folderId, onChange) {
   if (!isFirebaseAvailable()) return () => {};
   const ownerKey = normalizeEmail(ownerEmail || "");
-  
   // בדיקה שיש owner email תקין
   if (!ownerKey || ownerKey.trim() === "") {
     console.warn("watchFolderMembersFromOwner: no valid owner email");
     return () => {};
   }
-  
   const ownerRef = window.fs.doc(window.db, "users", ownerKey);
   const unsub = window.fs.onSnapshot(ownerRef, (snap) => {
     const data = snap.data() || {};
@@ -1458,21 +1160,17 @@ function watchFolderMembersFromOwner(ownerEmail, folderId, onChange) {
   }, (err) => console.error("watchFolderMembersFromOwner error", err));
   return unsub;
 }
-
-
 // --- Shared docs: write one record per doc in a folder
 async function upsertSharedDocRecord(docObj, folderId) {
   if (!isFirebaseAvailable()) {
     console.warn("Firebase not available, cannot sync shared doc");
     return false;
   }
-
   try {
     const currentUser = getCurrentUser() || "defaultUser";
     const allUsers = loadAllUsersDataFromStorage();
     const ownerEmail = (allUsers[currentUser]?.email || currentUser).toLowerCase();
     const recId = `${docObj.id}_${ownerEmail}`;
-
     console.log("📤 Syncing shared doc to Firestore:", {
       recId,
       folderId,
@@ -1480,7 +1178,6 @@ async function upsertSharedDocRecord(docObj, folderId) {
       fileName: docObj.title || docObj.fileName,
       fileUrl: docObj.fileUrl || docObj.file_url  // 🔥 חשוב לוג!
     });
-
     const ref = window.fs.doc(window.db, "sharedDocs", recId);
     await window.fs.setDoc(ref, {
       folderId,
@@ -1498,7 +1195,6 @@ async function upsertSharedDocRecord(docObj, folderId) {
       recipient: docObj.recipient || [],
       lastUpdated: Date.now()
     }, { merge: true });
-    
     console.log("✅ Successfully synced shared doc with fileUrl!");
     return true;
   } catch (e) {
@@ -1516,7 +1212,6 @@ async function fetchSharedFolderDocsFromFirestore(folderId) {
   snap.forEach(d => out.push({ id: d.id, ...d.data(), _ownerEmail: d.data().ownerEmail }));
   return out;
 }
-
 // --- Shared docs: live watch by folder
 function watchSharedFolderDocs(folderId, onChange) {
   if (!isFirebaseAvailable()) return () => {};
@@ -1529,12 +1224,10 @@ function watchSharedFolderDocs(folderId, onChange) {
   }, (err) => console.error("watchSharedFolderDocs error", err));
   return unsub;
 }
-
 // --- (Optional) sync my local docs that are in a shared folder -> Firestore
 // --- Shared docs: mirror my locally-tagged docs into Firestore (self-contained)
 async function syncMySharedDocsToFirestore() {
   if (!isFirebaseAvailable()) return;
-
   // pull fresh data from storage + current user safely (no outer-scope vars)
   const meKey = (getCurrentUser && getCurrentUser()) || "defaultUser";
   const allUsers = (typeof loadAllUsersDataFromStorage === "function")
@@ -1542,20 +1235,12 @@ async function syncMySharedDocsToFirestore() {
     : {};
   const me = allUsers[meKey] || {};
   const myDocs = Array.isArray(me.docs) ? me.docs : [];
-
   for (const d of myDocs) {
     if (!d._trashed && d.sharedFolderId) {
       await upsertSharedDocRecord(d, d.sharedFolderId);
     }
   }
 }
-
-
-
-
-
-
-
 async function migrateLocalDocsToDocuments() {
   if (!isFirebaseAvailable()) { console.warn("Firebase unavailable"); return; }
   const me = normalizeEmail(getCurrentUserEmail());
@@ -1568,28 +1253,13 @@ async function migrateLocalDocsToDocuments() {
   }
   console.log("Migrated", pushed, "docs");
 }
-
-
 window.isFirebaseAvailable = function () {
   try { return !!(window.db && window.fs && typeof window.fs.getDoc === "function"); }
   catch { return false; }
 };
-
-
-
-
-
-
-
-
-
-
-
-
 /*************************
  * 1. קטגוריות / מילות מפתח
  *************************/
-
 const CATEGORY_KEYWORDS = {
   "כלכלה": [
     "חשבון","חשבונית","חשבונית מס","חשבוניתמס","חשבוניתמס קבלה","קבלה","קבלות",
@@ -1672,7 +1342,6 @@ const CATEGORY_KEYWORDS = {
   ],
   "אחר": []
 };
-
 const CATEGORIES = [
   "כלכלה",
   "רפואה",
@@ -1683,13 +1352,11 @@ const CATEGORIES = [
   "עסק",
   "אחר"
 ];
-
 // ===== buildDocCard and helper functions =====
 // ===== buildDocCard and helper functions =====
 function buildDocCard(doc, mode) {
   const card = document.createElement("div");
   card.className = "doc-card";
-
   const warrantyBlock =
     (doc.category && doc.category.includes("אחריות")) ?
     `
@@ -1701,15 +1368,12 @@ function buildDocCard(doc, mode) {
     : `
       <span>הועלה ב: ${doc.uploadedAt || "-"}</span>
     `;
-
   const openFileButtonHtml = `
     <button class="doc-open-link" data-open-id="${doc.id}">
       👁️ פתיחת קובץ
     </button>
   `;
-
   const displayTitle = doc.title || doc.fileName || doc.originalFileName || "מסמך";
-
   card.innerHTML = `
     <p class="doc-card-title">${displayTitle}</p>
     <div class="doc-card-meta">
@@ -1721,9 +1385,7 @@ function buildDocCard(doc, mode) {
     ${openFileButtonHtml}
     <div class="doc-actions"></div>
   `;
-
   const actions = card.querySelector(".doc-actions");
-
 if (mode !== "recycle") {
   // כפתור עריכה
   const editBtn = document.createElement("button");
@@ -1737,7 +1399,6 @@ if (mode !== "recycle") {
     }
   });
   actions.appendChild(editBtn);
-
   // כפתור מחיקה/סל מחזור
   const trashBtn = document.createElement("button");
   trashBtn.className = "doc-action-btn danger";
@@ -1747,19 +1408,15 @@ if (mode !== "recycle") {
     if (mode === "shared") {
       const confirmDel = confirm("האם להסיר מסמך זה מהתיקייה המשותפת?\n(המסמך המקורי לא יימחק)");
       if (!confirmDel) return;
-      
       try {
         showLoading("מסיר מסמך מהתיקייה...");
-        
         const urlParams = new URLSearchParams(window.location.search);
         const folderId = urlParams.get('sharedFolder');
-        
         if (!folderId) {
           hideLoading();
           showNotification("שגיאה: לא נמצא מזהה תיקייה", true);
           return;
         }
-        
         if (isFirebaseAvailable()) {
           // מצא את כל הרשומות של המסמך הזה בתיקייה
           const col = window.fs.collection(window.db, "sharedDocs");
@@ -1769,19 +1426,15 @@ if (mode !== "recycle") {
             window.fs.where("id", "==", doc.id)
           );
           const snap = await window.fs.getDocs(q);
-          
           // מחק את כל הרשומות
           const deletePromises = [];
           snap.forEach(docSnap => {
             deletePromises.push(window.fs.deleteDoc(docSnap.ref));
           });
-          
           await Promise.all(deletePromises);
           console.log("✅ Removed from sharedDocs, kept in personal docs");
-          
           hideLoading();
           showNotification("המסמך הוסר מהתיקייה המשותפת ✅");
-          
           // רענן את התצוגה
           if (typeof window.openSharedFolder === "function") {
             await window.openSharedFolder(folderId);
@@ -1800,7 +1453,6 @@ if (mode !== "recycle") {
         return;
       }
     }
-    
     // 🔥 מסמכים רגילים (לא משותפים) - העבר לסל מחזור
     try {
       if (window.markDocTrashed && window.markDocTrashed !== markDocTrashed) {
@@ -1813,10 +1465,8 @@ if (mode !== "recycle") {
       showNotification("שגיאה בהעברה לסל מחזור", true);
       return;
     }
-
     const categoryTitle = document.getElementById("categoryTitle");
     const currentCat = categoryTitle?.textContent || "";
-
     if (!currentCat || currentCat === "ראשי" || currentCat === "הכל") {
       if (typeof renderHome === "function") renderHome();
     } else if (currentCat === "סל מחזור") {
@@ -1826,7 +1476,6 @@ if (mode !== "recycle") {
     }
   });
   actions.appendChild(trashBtn);
-
   // כפתור העברה לתיקייה משותפת - רק אם לא כבר בתיקייה משותפת
   if (mode !== "shared") {
     const shareBtn = document.createElement("button");
@@ -1839,7 +1488,6 @@ if (mode !== "recycle") {
           showNotification("אין לך תיקיות משותפות");
           return;
         }
-
         const modalHTML = `
           <div class="modal-backdrop" id="shareFolderModal" style="display: flex; align-items: center; justify-content: center;">
             <div class="modal" style="max-width: 500px; width: 90%;">
@@ -1870,9 +1518,7 @@ if (mode !== "recycle") {
             </div>
           </div>
         `;
-
         document.body.insertAdjacentHTML("beforeend", modalHTML);
-
         document.querySelectorAll(".folder-select-btn").forEach(btn => {
           btn.addEventListener("click", async () => {
             const folderId = btn.dataset.folderId;
@@ -1899,7 +1545,6 @@ if (mode !== "recycle") {
     const restoreBtn = document.createElement("button");
     restoreBtn.className = "doc-action-btn restore";
     restoreBtn.textContent = "שחזור ♻️";
-
     restoreBtn.addEventListener("click", async () => {
       console.log("♻️ Restore clicked for:", doc.id);
       try {
@@ -1911,7 +1556,6 @@ if (mode !== "recycle") {
           console.error("❌ אין markDocTrashed מוגדר");
           return;
         }
-
         if (typeof openRecycleView === "function") {
           openRecycleView();
         } else {
@@ -1924,14 +1568,12 @@ if (mode !== "recycle") {
         }
       }
     });
-
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "doc-action-btn danger";
     deleteBtn.textContent = "מחיקה לצמיתות 🗑️";
     deleteBtn.addEventListener("click", async () => {
       const confirmDelete = localStorage.getItem("confirmDelete") !== "false";
       if (confirmDelete && !confirm("למחוק לצמיתות? אי אפשר לשחזר.")) return;
-
       try {
         if (window.deleteDocForever && window.deleteDocForever !== deleteDocForever) {
           await window.deleteDocForever(doc.id);
@@ -1941,7 +1583,6 @@ if (mode !== "recycle") {
           console.error("❌ deleteDocForever function not found");
           return;
         }
-
         if (typeof openRecycleView === "function") {
           openRecycleView();
         } else {
@@ -1954,29 +1595,22 @@ if (mode !== "recycle") {
         }
       }
     });
-
     actions.appendChild(restoreBtn);
     actions.appendChild(deleteBtn);
   }
-
   return card;
 }
-
-
 async function markDocTrashed(id, trashed) {
   console.log("♻️ markDocTrashed called from main.js:", id, trashed);
-
   // אם יש גרסה "אמיתית" מ-api-bridge.js – נשתמש בה
   if (window.markDocTrashed && window.markDocTrashed !== markDocTrashed) {
     console.log("➡️ Delegating to api-bridge markDocTrashed");
     return await window.markDocTrashed(id, trashed);
   }
-
   // --- גיבוי לוקלי (הקוד הישן) ---
   const allDocsData = window.allDocsData || [];
   const userNow = getCurrentUserEmail();
   const allUsersData = window.allUsersData || {};
-
   const i = allDocsData.findIndex(d => d.id === id);
   if (i === -1) {
     if (typeof showNotification === "function") {
@@ -1984,16 +1618,13 @@ async function markDocTrashed(id, trashed) {
     }
     return;
   }
-
   try {
     // עדכון מקומי
     allDocsData[i]._trashed = !!trashed;
     window.allDocsData = allDocsData;
-
     if (typeof setUserDocs === "function") {
       setUserDocs(userNow, allDocsData, allUsersData);
     }
-
     // עדכון Firestore (אם זמין)
     if (typeof isFirebaseAvailable === "function" && isFirebaseAvailable()) {
       const docRef = window.fs.doc(window.db, "documents", id);
@@ -2004,7 +1635,6 @@ async function markDocTrashed(id, trashed) {
       });
       console.log("✅ Document trash status updated in Firestore");
     }
-
     if (typeof showNotification === "function") {
       showNotification(trashed ? "הועבר לסל המחזור" : "שוחזר מהסל");
     }
@@ -2015,32 +1645,25 @@ async function markDocTrashed(id, trashed) {
     }
   }
 }
-
-
 // async function deleteDocForever(id) {
 //   const allDocsData = window.allDocsData || [];
 //   const userNow = getCurrentUserEmail();
 //   const allUsersData = window.allUsersData || {};
-  
 //   const i = allDocsData.findIndex(d => d.id === id);
 //   if (i === -1) {
 //     showNotification("המסמך לא נמצא", true);
 //     return;
 //   }
-  
 //   const doc = allDocsData[i];
-  
 //   try {
 //     // Delete from IndexedDB (local)
 //     await deleteFileFromDB(id).catch(() => {});
-    
 //     // Delete from Firestore
 //     if (isFirebaseAvailable()) {
 //       const docRef = window.fs.doc(window.db, "documents", id);
 //       await window.fs.deleteDoc(docRef);
 //       console.log("✅ Document deleted from Firestore:", id);
 //     }
-    
 //     // Delete from Storage (if has downloadURL)
 //     if (doc.downloadURL && window.storage) {
 //       try {
@@ -2051,47 +1674,34 @@ async function markDocTrashed(id, trashed) {
 //         console.warn("⚠️ Could not delete from Storage (might not exist):", storageError.message);
 //       }
 //     }
-    
 //     // Remove from local array
 //     allDocsData.splice(i, 1);
 //     window.allDocsData = allDocsData;
-    
 //     if (typeof setUserDocs === "function") {
 //       setUserDocs(userNow, allDocsData, allUsersData);
 //     }
-    
 //     showNotification("הקובץ נמחק לצמיתות");
-    
 //   } catch (error) {
 //     console.error("❌ Error deleting document:", error);
 //     showNotification("שגיאה במחיקת המסמך", true);
 //   }
 // }
-
 console.log("✅ buildDocCard and helpers defined");
-
 // ===== END buildDocCard and helpers =====
-
-
 window.renderHome = function() {
   console.log("🎨 renderHome called");
-  
   const homeView = document.getElementById("homeView");
   const categoryView = document.getElementById("categoryView");
   const folderGrid = document.getElementById("folderGrid");
-  
   if (!homeView || !folderGrid) {
     console.error("❌ Home view elements not found");
     return;
   }
-
   folderGrid.innerHTML = "";
-  
   const CATEGORIES = [
     "כלכלה", "רפואה", "עבודה", "בית",
     "אחריות", "תעודות", "עסק", "אחר"
   ];
-  
   CATEGORIES.forEach(cat => {
     const folder = document.createElement("button");
     folder.className = "folder-card";
@@ -2106,38 +1716,29 @@ window.renderHome = function() {
     });
     folderGrid.appendChild(folder);
   });
-
   homeView.classList.remove("hidden");
   if (categoryView) categoryView.classList.add("hidden");
-  
   console.log("✅ renderHome complete");
 };
-
 // 2. CATEGORY VIEW
 window.openCategoryView = function(categoryName) {
   console.log("📂 Opening category:", categoryName);
-  
   const categoryTitle = document.getElementById("categoryTitle");
   const docsList = document.getElementById("docsList");
   const homeView = document.getElementById("homeView");
   const categoryView = document.getElementById("categoryView");
-  
   if (!categoryTitle || !docsList) {
     console.error("❌ Category view elements not found");
     return;
   }
-
   categoryTitle.textContent = categoryName;
-
   // Filter docs for this category
   let docsForThisCategory = (window.allDocsData || []).filter(doc =>
     doc.category &&
     doc.category.includes(categoryName) &&
     !doc._trashed
   );
-
   docsList.innerHTML = "";
-  
   if (docsForThisCategory.length === 0) {
     docsList.innerHTML = `<div style="padding:2rem;text-align:center;opacity:0.6;">אין מסמכים בתיקייה זו</div>`;
   } else {
@@ -2147,35 +1748,26 @@ window.openCategoryView = function(categoryName) {
       docsList.appendChild(card);
     });
   }
-
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
-  
   console.log("✅ Category view opened with", docsForThisCategory.length, "documents");
 };
-
 // 3. RECYCLE VIEW – משתמש ב-buildDocCard
 // 3. RECYCLE VIEW – בלי renderDocsList
 window.openRecycleView = function () {
   console.log("🗑️ Opening recycle view");
-
   const categoryTitle = document.getElementById("categoryTitle");
   const docsList = document.getElementById("docsList");
   const homeView = document.getElementById("homeView");
   const categoryView = document.getElementById("categoryView");
-
   if (!categoryTitle || !docsList) {
     console.error("❌ Recycle view elements not found");
     return;
   }
-
   categoryTitle.textContent = "סל מחזור";
-
   // לוקחים רק מסמכים שמסומנים כ־_trashed = true
   const trashedDocs = (window.allDocsData || []).filter(d => d._trashed === true);
-
   docsList.innerHTML = "";
-
   if (trashedDocs.length === 0) {
     docsList.innerHTML = `<div style="padding:2rem;text-align:center;opacity:0.6;">סל המחזור ריק</div>`;
   } else {
@@ -2184,37 +1776,27 @@ window.openRecycleView = function () {
       docsList.appendChild(card);
     });
   }
-
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
-
   console.log("✅ Recycle view opened with", trashedDocs.length, "documents");
 };
-
-
-
 // 4. SHARED VIEW
 window.openSharedView = function() {
   console.log("🤝 Opening shared view");
-  
   const categoryTitle = document.getElementById("categoryTitle");
   const docsList = document.getElementById("docsList");
   const homeView = document.getElementById("homeView");
   const categoryView = document.getElementById("categoryView");
-  
   if (!categoryTitle || !docsList) {
     console.error("❌ Shared view elements not found");
     return;
   }
-
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
   docsList.classList.add("shared-mode");
-
   const wrap = document.createElement("div");
   wrap.className = "shared-container";
-  
   wrap.innerHTML = `
     <div class="pending-wrap">
       <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -2225,47 +1807,36 @@ window.openSharedView = function() {
         <div style="opacity:.7">אין בקשות ממתינות</div>
       </div>
     </div>
-
     <div class="cozy-head">
       <h3 style="margin:0;">תיקיות משותפות</h3>
       <button id="sf_create_open" class="btn-cozy">+ צור תיקייה</button>
     </div>
-
     <div class="sf-list" id="sf_list">
       <div style="opacity:.7">אין עדיין תיקיות משותפות</div>
     </div>
   `;
-  
   docsList.appendChild(wrap);
-
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
-  
   // ✅ הוסף event listener לכפתור יצירת תיקייה
   setTimeout(() => {
     const createBtn = document.getElementById("sf_create_open");
     if (createBtn) {
       console.log("✅ Adding event listener to create button");
-      
       createBtn.addEventListener("click", async () => {
         console.log("🔵 Create folder button clicked");
-        
         const name = prompt("שם התיקייה החדשה:");
         if (!name || !name.trim()) {
           console.log("⚠️ No name provided");
           return;
         }
-        
         console.log("🔵 Creating folder:", name);
-        
         try {
           if (typeof window.createSharedFolder === "function") {
             const newFolder = await window.createSharedFolder(name.trim(), []);
             console.log("✅ Folder created:", newFolder);
             console.log("✅ window.mySharedFolders:", window.mySharedFolders);
-            
             alert(`התיקייה "${name}" נוצרה בהצלחה! ✅`);
-            
             // רענן את התצוגה
             window.openSharedView();
           } else {
@@ -2281,14 +1852,12 @@ window.openSharedView = function() {
       console.error("❌ Create button not found");
     }
   }, 100);
-  
   // הצג תיקיות קיימות
   setTimeout(() => {
     const listDiv = document.getElementById("sf_list");
     if (listDiv && window.mySharedFolders && window.mySharedFolders.length > 0) {
       console.log("📂 Rendering", window.mySharedFolders.length, "folders");
       listDiv.innerHTML = "";
-      
       window.mySharedFolders.forEach(folder => {
         const folderCard = document.createElement("div");
         folderCard.style.cssText = "padding:15px; border:1px solid #2b3c3c; border-radius:8px; margin-bottom:10px; background:#101a1a; cursor:pointer;";
@@ -2303,10 +1872,8 @@ window.openSharedView = function() {
       console.log("📭 No folders to display");
     }
   }, 150);
-  
   console.log("✅ Shared view rendered");
 };
-
 // Export to window.App for backward compatibility
 window.App = {
   renderHome: window.renderHome,
@@ -2314,60 +1881,33 @@ window.App = {
   openRecycleView: window.openRecycleView,
   openSharedView: window.openSharedView
 };
-
 console.log("✅ All navigation functions defined globally");
-
-
-
-
-
 function renderFolderItem(categoryName) {
   const folderGrid = document.getElementById("folderGrid");
   if (!folderGrid) return;
-
   const folder = document.createElement("button");
   folder.className = "folder-card";
   folder.setAttribute("data-category", categoryName);
-
   folder.innerHTML = `
     <div class="folder-icon"></div>
     <div class="folder-label">${categoryName}</div>
   `;
-
   folder.addEventListener("click", () => {
     if (typeof window.openCategoryView === "function") {
       window.openCategoryView(categoryName);
     }
   });
-
   folderGrid.appendChild(folder);
 }
-
-
-
 let currentSortField = "uploadedAt";
 let currentSortDir = "desc";
-
-
-
 // buildDocCard already defined above, duplicate removed
-
 console.log("✅ Document card builder defined globally");
-
-
-
-
-
-
-
-
-
 /*********************
  * 2. LocalStorage   *
 /*********************
  * 3. Utilities      *
  *********************/
-
 function normalizeWord(word) {
   if (!word) return "";
   let w = word.trim().toLowerCase();
@@ -2377,12 +1917,10 @@ function normalizeWord(word) {
   w = w.replace(/[",.():\[\]{}]/g, "");
   return w;
 }
-
 function guessCategoryForFileNameOnly(fileName) {
   const base = fileName.replace(/\.[^/.]+$/, "");
   const parts = base.split(/[\s_\-]+/g);
   const scores = {};
-
   for (const rawWord of parts) {
     const cleanWord = normalizeWord(rawWord);
     for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
@@ -2395,7 +1933,6 @@ function guessCategoryForFileNameOnly(fileName) {
       }
     }
   }
-
   let best = "אחר";
   let bestScore = 0;
   for (const [cat, sc] of Object.entries(scores)) {
@@ -2406,7 +1943,6 @@ function guessCategoryForFileNameOnly(fileName) {
   }
   return best;
 }
-
 // OCR PDF
 // OCR PDF (עם מסך טעינה)
 async function extractTextFromPdfWithOcr(file) {
@@ -2416,17 +1952,14 @@ async function extractTextFromPdfWithOcr(file) {
     const arrayBuf = await file.arrayBuffer();
     const pdf = await window.pdfjsLib.getDocument({ data: arrayBuf }).promise;
     const page = await pdf.getPage(1);
-
     const viewport = page.getViewport({ scale: 2 });
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: ctx, viewport }).promise;
-
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     if (!window.Tesseract) return "";
-
     const { data } = await window.Tesseract.recognize(blob, "heb+eng", {
       tessedit_pageseg_mode: 6,
     });
@@ -2435,10 +1968,6 @@ async function extractTextFromPdfWithOcr(file) {
     hideLoading();
   }
 }
-
-
-
-
 // חילוץ אחריות אוטומטי
 function extractWarrantyFromText(rawTextInput) {
   let rawText = "";
@@ -2446,11 +1975,9 @@ function extractWarrantyFromText(rawTextInput) {
   else if (rawTextInput instanceof ArrayBuffer)
     rawText = new TextDecoder("utf-8").decode(rawTextInput);
   else rawText = String(rawTextInput || "");
-
   const rawLower = rawText.toLowerCase();
   const cleaned  = rawText.replace(/\s+/g, " ").trim();
   const lower    = cleaned.toLowerCase();
-
   function isValidYMD(ymd) {
     if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return false;
     const [Y, M, D] = ymd.split("-").map(n => parseInt(n, 10));
@@ -2459,7 +1986,6 @@ function extractWarrantyFromText(rawTextInput) {
     const dt = new Date(`${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")}T00:00:00`);
     return !Number.isNaN(dt.getTime());
   }
-
   const monthMap = {
     jan:"01", january:"01", feb:"02", february:"02", mar:"03", march:"03",
     apr:"04", april:"04", may:"05", jun:"06", june:"06", jul:"07", july:"07",
@@ -2469,7 +1995,6 @@ function extractWarrantyFromText(rawTextInput) {
     יוני:"06", יולי:"07", אוגוסט:"08", ספטמבר:"09", אוקטובר:"10",
     נובמבר:"11", דצמבר:"12",
   };
-
   function normalizeDateGuess(str) {
     if (!str) return null;
     let s = str
@@ -2478,7 +2003,6 @@ function extractWarrantyFromText(rawTextInput) {
       .replace(/[^0-9a-zA-Zא-ת]+/g, "-")
       .replace(/-+/g, "-")
       .toLowerCase();
-
     const tokens = s.split("-");
     if (tokens.some(t => monthMap[t])) {
       let day = null, mon = null, year = null;
@@ -2499,7 +2023,6 @@ function extractWarrantyFromText(rawTextInput) {
         return isValidYMD(ymd) ? ymd : null;
       }
     }
-
     {
       const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
       if (m) {
@@ -2510,7 +2033,6 @@ function extractWarrantyFromText(rawTextInput) {
         if (isValidYMD(ymd)) return ymd;
       }
     }
-
     {
       const m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
       if (m) {
@@ -2521,7 +2043,6 @@ function extractWarrantyFromText(rawTextInput) {
         if (isValidYMD(ymd)) return ymd;
       }
     }
-
     {
       const m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{2})$/);
       if (m) {
@@ -2533,10 +2054,8 @@ function extractWarrantyFromText(rawTextInput) {
         if (isValidYMD(ymd)) return ymd;
       }
     }
-
     return null;
   }
-
   function findDateAfterKeywords(keywords, textToSearch) {
     for (const kw of keywords) {
       const pattern =
@@ -2560,7 +2079,6 @@ function extractWarrantyFromText(rawTextInput) {
     }
     return null;
   }
-
   let warrantyStart = findDateAfterKeywords([
     "תאריך\\s*ק.?נ.?י.?ה",
     "תאריך\\s*רכישה",
@@ -2581,7 +2099,6 @@ function extractWarrantyFromText(rawTextInput) {
     "invoice\\s*date",
     "buy\\s*date"
   ], lower);
-
   let warrantyExpiresAt = findDateAfterKeywords([
     "תוקף\\s*אחריות",
     "תוקף\\s*האחריות",
@@ -2595,7 +2112,6 @@ function extractWarrantyFromText(rawTextInput) {
     "expiry\\s*date",
     "expiration\\s*date"
   ], lower);
-
   if (!warrantyStart) {
     const headChunkRaw = rawLower.slice(0, 500);
     const headLines = headChunkRaw.split(/\r?\n/);
@@ -2610,7 +2126,6 @@ function extractWarrantyFromText(rawTextInput) {
       }
     }
   }
-
   if (!warrantyStart) {
     const anyDateRegex = /(\d{1,2}[^0-9a-zA-Zא-ת]\d{1,2}[^0-9a-zA-Zא-ת]\d{2,4}|\d{4}[^0-9a-zA-Zא-ת]\d{1,2}[^0-9a-zA-Zא-ת]\d{1,2}|\d{1,2}\s+[a-zא-ת]+\s+\d{2,4})/ig;
     const matches = [...rawLower.matchAll(anyDateRegex)].map(m => m[1]);
@@ -2624,7 +2139,6 @@ function extractWarrantyFromText(rawTextInput) {
       warrantyStart = unique[0];
     }
   }
-
   if (!warrantyExpiresAt && warrantyStart && isValidYMD(warrantyStart)) {
     const [Y,M,D] = warrantyStart.split("-");
     const startDate = new Date(`${Y}-${M}-${D}T00:00:00`);
@@ -2637,7 +2151,6 @@ function extractWarrantyFromText(rawTextInput) {
       warrantyExpiresAt = `${yyyy}-${mm}-${dd}`;
     }
   }
-
     // מחיקה אחרי 7 שנים מתום האחריות
   // (ואם אין תאריך תוקף, אז 7 שנים מתאריך הקנייה)
   let autoDeleteAfter = null;
@@ -2647,7 +2160,6 @@ function extractWarrantyFromText(rawTextInput) {
       : (warrantyStart && isValidYMD(warrantyStart))
         ? warrantyStart
         : null;
-
   if (baseForDeletion) {
     const [yS, mS, dS] = baseForDeletion.split("-");
     const sDate = new Date(`${yS}-${mS}-${dS}T00:00:00`);
@@ -2660,15 +2172,12 @@ function extractWarrantyFromText(rawTextInput) {
       autoDeleteAfter = `${yy}-${mm}-${dd}`;
     }
   }
-
-
   return {
     warrantyStart:     (warrantyStart     && isValidYMD(warrantyStart))     ? warrantyStart     : null,
     warrantyExpiresAt: (warrantyExpiresAt && isValidYMD(warrantyExpiresAt)) ? warrantyExpiresAt : null,
     autoDeleteAfter
   };
 }
-
 // fallback ידני לתאריכים
 function fallbackAskWarrantyDetails() {
   const normalizeManualDate = (str) => {
@@ -2691,17 +2200,14 @@ function fallbackAskWarrantyDetails() {
     }
     return s;
   };
-
   const startAns = prompt(
     "לא הצלחתי לזהות אוטומטית.\nמה תאריך הקנייה? (למשל 28/10/2025)"
   );
   const expAns = prompt(
     "עד מתי האחריות בתוקף? (למשל 28/10/2026)\nאם אין אחריות/לא רלוונטי אפשר לבטל."
   );
-
    const warrantyStart = startAns ? normalizeManualDate(startAns) : null;
   const warrantyExpiresAt = expAns ? normalizeManualDate(expAns) : null;
-
   let autoDeleteAfter = null;
   const baseForDeletion =
     (warrantyExpiresAt && /^\d{4}-\d{2}-\d{2}$/.test(warrantyExpiresAt))
@@ -2709,21 +2215,17 @@ function fallbackAskWarrantyDetails() {
       : (warrantyStart && /^\d{4}-\d{2}-\d{2}$/.test(warrantyStart))
         ? warrantyStart
         : null;
-
   if (baseForDeletion) {
     const delDate = new Date(baseForDeletion + "T00:00:00");
     delDate.setFullYear(delDate.getFullYear() + 7);
     autoDeleteAfter = delDate.toISOString().split("T")[0];
   }
-
-
   return {
     warrantyStart,
     warrantyExpiresAt,
     autoDeleteAfter
   };
 }
-
 // טוסט
 function showNotification(message, isError = false) {
   const box = document.getElementById("notification");
@@ -2734,8 +2236,6 @@ function showNotification(message, isError = false) {
     box.className = "notification hidden";
   }, 4000);
 }
-
-
 // --- Loading overlay helpers ---
 function showLoading(msg = "מזהה טקסט... אנא המתיני") {
   const el = document.getElementById("loading-overlay");
@@ -2749,7 +2249,6 @@ function hideLoading() {
   if (!el) return;
   el.classList.add("hidden");
 }
-
 // ניקוי אוטומטי לאחר שפג תאריך המחיקה
 function purgeExpiredWarranties(docsArray) {
   const today = new Date();
@@ -2768,14 +2267,11 @@ function purgeExpiredWarranties(docsArray) {
   }
   return changed;
 }
-
-
 function sortDocs(docsArray) {
   const arr = [...docsArray];
   arr.sort((a, b) => {
     let av = a[currentSortField];
     let bv = b[currentSortField];
-
     if (
       currentSortField === "uploadedAt" ||
       currentSortField === "warrantyExpiresAt" ||
@@ -2788,7 +2284,6 @@ function sortDocs(docsArray) {
       if (ad > bd) return currentSortDir === "asc" ? 1 : -1;
       return 0;
     }
-
     if (currentSortField === "year") {
       const an = parseInt(av ?? 0, 10);
       const bn = parseInt(bv ?? 0, 10);
@@ -2796,7 +2291,6 @@ function sortDocs(docsArray) {
       if (an > bn) return currentSortDir === "asc" ? 1 : -1;
       return 0;
     }
-
     av = (av ?? "").toString().toLowerCase();
     bv = (bv ?? "").toString().toLowerCase();
     if (av < bv) return currentSortDir === "asc" ? -1 : 1;
@@ -2805,9 +2299,6 @@ function sortDocs(docsArray) {
   });
   return arr;
 }
-
-
-
 function findUsernameByEmail(allUsersData, email) {
   const target = normalizeEmail(email);
   for (const [uname, u] of Object.entries(allUsersData)) {
@@ -2816,68 +2307,51 @@ function findUsernameByEmail(allUsersData, email) {
   }
   return null;
 }
-
 function ensureUserSharedFields(allUsersData, username) {
   if (!allUsersData[username]) {
     allUsersData[username] = { password: "", docs: [], email: username };
   }
   const u = allUsersData[username];
-
   if (!u.email) {
     const looksLikeEmail = /.+@.+\..+/.test(username);
     u.email = looksLikeEmail ? username : username;
   }
-
   if (!u.sharedFolders) u.sharedFolders = {};
   if (!u.incomingShareRequests) u.incomingShareRequests = [];
   if (!u.outgoingShareRequests) u.outgoingShareRequests = [];
 }
-
-
-
-
-
 /*********************
  * 4. אפליקציה / UI  *
  *********************/
-
 document.addEventListener("DOMContentLoaded", async () => {
-
  console.log("📄 DOM Content Loaded");
-
   // Premium panel setup
   const panel = document.getElementById("premiumPanel");
   const modal = panel?.querySelector(".modal");
   const btnOpen = document.getElementById("premiumBtn");
   const btnClose = document.getElementById("premiumCloseBtn");
   const btnLater = document.getElementById("premiumLaterBtn");
-
   function openPremiumPanel() {
     panel?.classList.remove("hidden");
     panel?.setAttribute("aria-hidden", "false");
     document.documentElement.style.overflow = "hidden";
     modal?.focus();
   }
-
   function closePremiumPanel() {
     panel?.classList.add("hidden");
     panel?.setAttribute("aria-hidden", "true");
     document.documentElement.style.overflow = "";
     btnOpen?.focus();
   }
-
   btnOpen?.addEventListener("click", openPremiumPanel);
   btnClose?.addEventListener("click", closePremiumPanel);
   btnLater?.addEventListener("click", closePremiumPanel);
-
   panel?.addEventListener("click", (e) => {
     if (e.target === panel) closePremiumPanel();
   });
-
   panel?.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closePremiumPanel();
   });
-
   panel?.querySelectorAll("[data-select-plan]").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       const plan = e.currentTarget.getAttribute("data-select-plan");
@@ -2885,7 +2359,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       closePremiumPanel();
     });
   });
-
   await new Promise(resolve => {
     if (window.userNow) {
       resolve();
@@ -2895,10 +2368,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       setTimeout(resolve, 5000);
     }
   });
-
   // Check if user is logged in
   const currentUser = getCurrentUser();
-
   if (!currentUser) {
     console.warn("⚠️ No user logged in on DOM load, waiting for auth...");
     // Don’t return here – let the rest of the UI set itself up.
@@ -2907,24 +2378,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("👤 Current user on DOM load:", currentUser);
     window.userNow = currentUser;
   }
-
-
   // Get UI elements
   const homeView = document.getElementById("homeView");
   const folderGrid = document.getElementById("folderGrid");
   const categoryView = document.getElementById("categoryView");
   const categoryTitle = document.getElementById("categoryTitle");
   const docsList = document.getElementById("docsList");
-  
   const backButton = document.getElementById("backButton");
   const uploadBtn = document.getElementById("uploadBtn");
   const fileInput = document.getElementById("fileInput");
   const sortSelect = document.getElementById("sortSelect");
-
   const editModal = document.getElementById("editModal");
   const editForm = document.getElementById("editForm");
   const editCancelBtn = document.getElementById("editCancelBtn");
-
   const edit_title = document.getElementById("edit_title");
   const edit_org = document.getElementById("edit_org");
   const edit_year = document.getElementById("edit_year");
@@ -2934,48 +2400,34 @@ document.addEventListener("DOMContentLoaded", async () => {
   const edit_autoDelete = document.getElementById("edit_autoDeleteAfter");
   const edit_category = document.getElementById("edit_category");
   const edit_sharedWith = document.getElementById("edit_sharedWith");
-
   let currentlyEditingDocId = null;
-
 window.allUsersData = loadAllUsersDataFromStorage();
 window.allDocsData = getUserDocs(userNow, allUsersData);
-
   ensureUserSharedFields(allUsersData, userNow);
   saveAllUsersDataToStorage(allUsersData);
-
   if (!allDocsData || allDocsData.length === 0) {
     allDocsData = [];
     setUserDocs(userNow, allDocsData, allUsersData);
   }
-
   const removed = purgeExpiredWarranties(allDocsData);
   if (removed) {
     setUserDocs(userNow, allDocsData, allUsersData);
     showNotification("מסמכי אחריות ישנים הוסרו אוטומטית");
   }
-
   // ===== RENDER FUNCTIONS =====
   function renderFolderItem(categoryName) {
     const folder = document.createElement("button");
     folder.className = "folder-card";
     folder.setAttribute("data-category", categoryName);
-
     folder.innerHTML = `
       <div class="folder-icon"></div>
       <div class="folder-label">${categoryName}</div>
     `;
-
     folder.addEventListener("click", () => {
       openCategoryView(categoryName);
     });
-
     folderGrid.appendChild(folder);
   }
-
-
-
-
-
 if (fileInput) {
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];
@@ -2983,10 +2435,8 @@ if (fileInput) {
       showNotification("❌ לא נבחר קובץ", true);
       return;
     }
-
     try {
       const fileName = file.name.trim();
-
       // בדיקת כפילויות לפי שם קובץ (ולא בסל מחזור)
       const alreadyExists = (window.allDocsData || []).some(doc => {
         return (
@@ -2999,7 +2449,6 @@ if (fileInput) {
         fileInput.value = "";
         return;
       }
-
       // ניחוש קטגוריה
       let guessedCategory = guessCategoryForFileNameOnly(file.name);
       if (!guessedCategory || guessedCategory === "אחר") {
@@ -3014,25 +2463,21 @@ if (fileInput) {
           guessedCategory = "אחר";
         }
       }
-
       // פרטי אחריות אם צריך
       let warrantyStart = null;
       let warrantyExpiresAt = null;
       let autoDeleteAfter = null;
-
       if (guessedCategory === "אחריות") {
         let extracted = {
           warrantyStart: null,
           warrantyExpiresAt: null,
           autoDeleteAfter: null,
         };
-
         if (file.type === "application/pdf") {
           const ocrText = await extractTextFromPdfWithOcr(file);
           const dataFromText = extractWarrantyFromText(ocrText);
           extracted = { ...extracted, ...dataFromText };
         }
-
         if (file.type.startsWith("image/") && window.Tesseract) {
           const { data } = await window.Tesseract.recognize(file, "heb+eng", {
             tessedit_pageseg_mode: 6,
@@ -3041,7 +2486,6 @@ if (fileInput) {
           const dataFromText = extractWarrantyFromText(imgText);
           extracted = { ...extracted, ...dataFromText };
         }
-
         if (!extracted.warrantyStart && !extracted.warrantyExpiresAt) {
           const buf = await file.arrayBuffer().catch(() => null);
           if (buf) {
@@ -3050,7 +2494,6 @@ if (fileInput) {
             extracted = { ...extracted, ...dataFromText };
           }
         }
-
         if (!extracted.warrantyStart && !extracted.warrantyExpiresAt) {
           const manualData = fallbackAskWarrantyDetails();
           if (manualData.warrantyStart) {
@@ -3063,12 +2506,10 @@ if (fileInput) {
             extracted.autoDeleteAfter = manualData.autoDeleteAfter;
           }
         }
-
         warrantyStart     = extracted.warrantyStart     || null;
         warrantyExpiresAt = extracted.warrantyExpiresAt || null;
         autoDeleteAfter   = extracted.autoDeleteAfter   || null;
       }
-
       // קריאה של הקובץ כ-base64 ל-IndexedDB
       const fileDataBase64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -3076,18 +2517,14 @@ if (fileInput) {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-
       const newId = crypto.randomUUID();
-
       // שמירת הקובץ עצמו ל-IndexedDB (לוגי)
       await saveFileToDB(newId, fileDataBase64);
-
       // בניית אובייקט המסמך
       const now = new Date();
       const uploadedAt = now.toISOString().split("T")[0];
       const year = now.getFullYear().toString();
       const ownerEmail = normalizeEmail(getCurrentUserEmail() || "");
-
       const newDoc = {
         id: newId,
         title: fileName,
@@ -3109,7 +2546,6 @@ if (fileInput) {
         lastModified: Date.now(),
         lastModifiedBy: ownerEmail
       };
-
       // שמירה ב-allDocsData + בזיכרון היוזר
       // if (!window.allDocsData) window.allDocsData = [];
       // window.allDocsData.push(newDoc);
@@ -3117,12 +2553,10 @@ if (fileInput) {
       //   if (!window.allUsersData) window.allUsersData = {};
       //   setUserDocs(ownerEmail || userNow, window.allDocsData, window.allUsersData);
       // }
-
       // // 🌩️ מראה לענן – Firestore
       // if (isFirebaseAvailable()) {
       //   try {
       //     const docRef = window.fs.doc(window.db, "documents", newId);
-
       //     const cleanDoc = {
       //       id: newDoc.id,
       //       title: newDoc.title,
@@ -3146,14 +2580,12 @@ if (fileInput) {
       //       lastModifiedBy: ownerEmail,
       //       _trashed: false
       //     };
-
       //     await window.fs.setDoc(docRef, cleanDoc, { merge: true });
       //     console.log("✅ Mirrored owner doc to Firestore:", newId);
       //   } catch (e) {
       //     console.error("❌ Firestore mirror failed:", e);
       //   }
       // }
-
       // 📡 שמירה גם בשרת Render (PostgreSQL)
       try {
         if (window.uploadDocument) {
@@ -3174,14 +2606,11 @@ if (fileInput) {
         console.error("❌ שגיאה בשמירה ל-Render:", e);
         // לא מפילים את כל התהליך – כבר נשמר בפיירבייס
       }
-
-
       // הודעה יפה
       let niceCat = guessedCategory && guessedCategory.trim()
         ? guessedCategory.trim()
         : "התיקייה";
       showNotification(`הקובץ נוסף לתיקייה "${niceCat}" ✅`);
-
       // רענון UI
       const currentCat = categoryTitle.textContent;
       if (currentCat === "אחסון משותף") {
@@ -3193,9 +2622,7 @@ if (fileInput) {
       } else {
         openCategoryView(currentCat);
       }
-
       fileInput.value = "";
-
     } catch (err) {
       console.error("שגיאה בהעלאה:", err);
       showNotification("הייתה בעיה בהעלאה. נסי שוב או קובץ אחר.", true);
@@ -3203,33 +2630,21 @@ if (fileInput) {
     }
   });
 }
-
-
-
-
   // === INIT shared fields (run once after loading allUsersData/allDocsData) ===
 function ensureUserSharedFields(allUsersData, username) {
   if (!allUsersData[username]) {
     allUsersData[username] = { password: "", docs: [], email: username };
   }
   const u = allUsersData[username];
-
   if (!u.email) {
     const looksLikeEmail = /.+@.+\..+/.test(username);
     u.email = looksLikeEmail ? username : username;
   }
-
   if (!u.sharedFolders) u.sharedFolders = {};
   if (!u.incomingShareRequests) u.incomingShareRequests = [];
   if (!u.outgoingShareRequests) u.outgoingShareRequests = [];
 }
-
-
-
-
-
   console.log("📊 Initial local data:", allDocsData.length, "documents");
-  
   // ✅ Boot from cloud immediately after page load
   (async () => {
     try {
@@ -3238,10 +2653,6 @@ function ensureUserSharedFields(allUsersData, username) {
       console.error("❌ Failed to boot from cloud:", e);
     }
   })();
-
-
-
-
 function findUsernameByEmail(allUsersData, email) {
   const target = (email || "").trim().toLowerCase();
   for (const [uname, u] of Object.entries(allUsersData)) {
@@ -3252,57 +2663,40 @@ function findUsernameByEmail(allUsersData, email) {
 }
 ensureUserSharedFields(allUsersData, userNow);
 saveAllUsersDataToStorage(allUsersData);
-          
   if (!allDocsData || allDocsData.length === 0) {
     allDocsData = [];
     setUserDocs(userNow, allDocsData, allUsersData);
   }
-
-
-
   // כפתורי התיקיות בעמוד הבית
   function renderFolderItem(categoryName) {
     const folder = document.createElement("button");
     folder.className = "folder-card";
     folder.setAttribute("data-category", categoryName);
-
     folder.innerHTML = `
       <div class="folder-icon"></div>
       <div class="folder-label">${categoryName}</div>
     `;
-
     folder.addEventListener("click", () => {
       openCategoryView(categoryName);
     });
-
     folderGrid.appendChild(folder);
   }
-
-
-
-
-
   function openCategoryView(categoryName) {
     categoryTitle.textContent = categoryName;
-
     let docsForThisCategory = allDocsData.filter(doc =>
       doc.category &&
       doc.category.includes(categoryName) &&
       !doc._trashed
     );
-
     docsForThisCategory = sortDocs(docsForThisCategory);
-
     docsList.innerHTML = "";
     docsForThisCategory.forEach(doc => {
       const card = buildDocCard(doc, "normal");
       docsList.appendChild(card);
     });
-
     homeView.classList.add("hidden");
     categoryView.classList.remove("hidden");
   }
-
   function renderDocsList(docs, mode = "normal") {
     const sortedDocs = sortDocs(docs);
     docsList.innerHTML = "";
@@ -3310,11 +2704,9 @@ saveAllUsersDataToStorage(allUsersData);
       const card = buildDocCard(doc, mode);
       docsList.appendChild(card);
     });
-
     homeView.classList.add("hidden");
     categoryView.classList.remove("hidden");
   }
-
   // === HELPER: אסוף מסמכים מכל המשתמשים לתיקייה משותפת מסוימת ===
 function collectSharedFolderDocs(allUsersData, folderId) {
   const list = [];
@@ -3329,8 +2721,6 @@ function collectSharedFolderDocs(allUsersData, folderId) {
   }
   return list;
 }
-
-
 // ===== Smart Shared-Folder Picker (modal) =====
 function createEl(tag, attrs = {}, children = []) {
   const el = document.createElement(tag);
@@ -3346,27 +2736,23 @@ function createEl(tag, attrs = {}, children = []) {
   });
   return el;
 }
-
 function openSharedFolderPicker(me, onSelect) {
   const folders = Object.entries(me.sharedFolders || {}); // [ [fid, {name,...}], ... ]
   if (!folders.length) {
     showNotification("אין לך עדיין תיקיות משותפות. צרי אחת במסך 'אחסון משותף'.", true);
     return;
   }
-
   // Overlay
   const overlay = createEl("div", { style: {
     position: "fixed", inset: "0", background: "rgba(0,0,0,.45)",
     display: "flex", alignItems: "center", justifyContent: "center",
     zIndex: "10000", fontFamily: "Rubik,system-ui,sans-serif"
   }});
-
   const panel = createEl("div", { style: {
     background: "#fff", color:"#000", width:"min(520px, 92vw)", maxHeight:"80vh",
     borderRadius:"12px", padding:"12px", boxShadow:"0 18px 44px rgba(0,0,0,.45)",
     display: "grid", gridTemplateRows:"auto auto 1fr auto", gap:"10px"
   }});
-
   const title = createEl("div", { style:{fontWeight:"700"} }, "בחרי תיקייה משותפת");
   const search = createEl("input", { type:"text", placeholder:"חיפוש לפי שם תיקייה...", style:{
     padding:".5rem", border:"1px solid #bbb", borderRadius:"8px", width:"100%"
@@ -3377,20 +2763,16 @@ function openSharedFolderPicker(me, onSelect) {
   const btnRow = createEl("div", { style:{ display:"flex", gap:"8px", justifyContent:"flex-end" }});
   const cancelBtn = createEl("button", { class:"doc-action-btn", style:{background:"#b63a3a", color:"#fff"}}, "בטל");
   const chooseBtn = createEl("button", { class:"doc-action-btn", style:{background:"#0e3535", color:"#fff"}}, "בחרי");
-
   btnRow.append(cancelBtn, chooseBtn);
   panel.append(title, search, listWrap, btnRow);
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
-
   let selectedId = null;
-
   function renderList(filter = "") {
     listWrap.innerHTML = "";
     const norm = (s) => (s||"").toString().toLowerCase().trim();
     const f = norm(filter);
     const filtered = folders.filter(([fid, fobj]) => norm(fobj.name).includes(f));
-
     filtered.forEach(([fid, fobj]) => {
       const row = createEl("label", { style:{
         display:"grid", gridTemplateColumns:"24px 1fr", alignItems:"center",
@@ -3398,23 +2780,18 @@ function openSharedFolderPicker(me, onSelect) {
       }});
       row.addEventListener("mouseover", () => row.style.background = "#f7f7f7");
       row.addEventListener("mouseout",  () => row.style.background = "transparent");
-
       const radio = createEl("input", { type:"radio", name:"sf_pick", value: fid });
       const name  = createEl("div", {}, `${fobj.name}  `);
       row.append(radio, name);
       listWrap.appendChild(row);
-
       radio.addEventListener("change", () => { selectedId = fid; });
     });
-
     if (!filtered.length) {
       listWrap.appendChild(createEl("div", { style:{opacity:.7, padding:"8px"}}, "לא נמצאו תיקיות מתאימות"));
     }
   }
-
   renderList();
   search.addEventListener("input", () => renderList(search.value));
-
   cancelBtn.onclick = () => { overlay.remove(); };
   chooseBtn.onclick = () => {
     if (!selectedId) { showNotification("בחרי תיקייה מהרשימה", true); return; }
@@ -3422,23 +2799,16 @@ function openSharedFolderPicker(me, onSelect) {
     if (typeof onSelect === "function") onSelect(selectedId);
   };
 }
-
-
 openSharedView = function() {
   docsList.classList.remove("shared-mode");
-
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
-
   docsList.classList.add("shared-mode");
-
   const me = allUsersData[userNow];
   const myEmail = (me.email || userNow);
-
   // ===== עטיפת ניהול =====
   const wrap = document.createElement("div");
 wrap.className = "shared-container";
-
   // --- בלוק בקשות ממתינות (למעלה) ---
   const pendingBox = document.createElement("div");
   pendingBox.className = "pending-wrap";
@@ -3450,7 +2820,6 @@ wrap.className = "shared-container";
     <div id="sf_pending"></div>
   `;
   wrap.appendChild(pendingBox);
-
   // --- שורת כותרת + כפתור יצירה (באותה שורה) ---
   const headRow = document.createElement("div");
   headRow.className = "cozy-head";
@@ -3459,15 +2828,12 @@ wrap.className = "shared-container";
     <button id="sf_create_open" class="btn-cozy">+ צור תיקייה</button>
   `;
   wrap.appendChild(headRow);
-
   // --- רשימת תיקיות ---
   const listWrap = document.createElement("div");
   listWrap.className = "sf-list";
   listWrap.id = "sf_list";
   wrap.appendChild(listWrap);
-
   docsList.appendChild(wrap);
-
   // ===== מודאל יצירת תיקייה =====
   function openCreateFolderModal() {
     const overlay = document.createElement("div");
@@ -3496,32 +2862,25 @@ wrap.className = "shared-container";
     `;
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
-
     panel.querySelector("#mk_close").onclick = () => overlay.remove();
     panel.querySelector("#mk_create").onclick = async () => {
       const name = (panel.querySelector("#mk_name").value || "").trim();
       if (!name) { showNotification("צריך שם תיקייה", true); return; }
-      
       console.log("🔵 Creating folder via modal:", name);
-      
       // ✅ השתמש בפונקציה החדשה שלנו!
       try {
         if (typeof window.createSharedFolder === "function") {
           console.log("✅ Using window.createSharedFolder");
           const newFolder = await window.createSharedFolder(name, []);
           console.log("✅ Folder created:", newFolder);
-          
           overlay.remove();
-          
           // רענן את הרשימה
           if (typeof renderSharedFoldersList === "function") {
             renderSharedFoldersList();
           }
-          
           showNotification(`נוצרה תיקייה "${name}"`);
         } else {
           console.error("❌ window.createSharedFolder not found!");
-          
           // Fallback לשיטה הישנה
           const fid = crypto.randomUUID();
           me.sharedFolders[fid] = { name, owner: myEmail, members: [myEmail] };
@@ -3536,23 +2895,18 @@ wrap.className = "shared-container";
       }
     };
   }
-
   headRow.querySelector("#sf_create_open").addEventListener("click", openCreateFolderModal);
-
   // ===== רינדור תיקיות =====
   function renderSharedFoldersList() {
     console.log("🎨 renderSharedFoldersList called");
     listWrap.innerHTML = "";
-
     // ✅ טען מ-window.mySharedFolders (לא מ-me.sharedFolders הישן!)
     const folders = window.mySharedFolders || [];
     console.log("📂 Folders to render:", folders.length);
-    
     if (folders.length === 0) {
       listWrap.innerHTML = `<div style="opacity:.7">אין עדיין תיקיות משותפות</div>`;
       return;
     }
-
     for (const folder of folders) {
       const roleLabel = (folder.owner?.toLowerCase() === (myEmail||"").toLowerCase()) ? "owner" : "member";
       const row = document.createElement("div");
@@ -3571,21 +2925,16 @@ wrap.className = "shared-container";
       `;
       listWrap.appendChild(row);
     }
-    
     console.log("✅ Rendered", folders.length, "folders");
   }
-
-
   // מצייר רק את ה-UI לפי מערך הזמנות שניתן
 function paintPending(invites) {
   const wrap = pendingBox.querySelector("#sf_pending");
   wrap.innerHTML = "";
-
   if (!invites || !invites.length) {
     wrap.innerHTML = `<div style="opacity:.7">אין בקשות ממתינות</div>`;
     return;
   }
-
   for (const inv of invites) {
     const line = document.createElement("div");
     line.className = "pending-row";
@@ -3599,54 +2948,40 @@ function paintPending(invites) {
     wrap.appendChild(line);
   }
 }
-
-
-
   // ===== רינדור בקשות =====
 async function renderPending() {
   const wrap = pendingBox.querySelector("#sf_pending");
   wrap.innerHTML = "<div style='opacity:.7'>טוען הזמנות...</div>";
-  
   const myEmail = normalizeEmail((allUsersData[userNow].email || userNow));
   console.log("📩 Fetching pending invites for:", myEmail);
-  
   const invites = await getPendingInvitesFromFirestore(myEmail);
   console.log("📩 Found", invites.length, "pending invites");
-  
   paintPending(invites);
 }
-
   renderSharedFoldersList();
   renderPending();
-
   // ===== הפעלציה של מקשיב זמן אמת להזמנות =====
   if (stopWatching) stopWatching(); // ניקוי מקשיב קודם
   stopWatching = watchPendingInvites(async (invites) => {
     console.log("🔔 Real-time update: received", invites.length, "invites");
     paintPending(invites);
   });
-
   // ===== אירועים על רשימת התיקיות =====
   listWrap.addEventListener("click", async (ev) => {
     const t = ev.target;
     const openId   = t.getAttribute?.("data-open");
     const renameId = t.getAttribute?.("data-rename");
     const delId    = t.getAttribute?.("data-delete");
-
    // --- פתיחת עמוד תיקייה ---
-   
     if (openId) {
       categoryTitle.textContent = me.sharedFolders[openId]?.name || "תיקייה משותפת";
-      
       // 🔥 נקה והוסף קלאס
       docsList.innerHTML = "";
       docsList.classList.add("shared-mode");
-      
       // 🔥 Container עבור 3 הבלוקים
       const topBlocksContainer = document.createElement("div");
       topBlocksContainer.className = "shared-top-blocks";
       docsList.appendChild(topBlocksContainer);
-
       // בלוק 1: משתתפים
       const membersBar = document.createElement("div");
       membersBar.className = "cozy-head";
@@ -3659,18 +2994,15 @@ async function renderPending() {
         </div>
       `;
       topBlocksContainer.appendChild(membersBar);
-
       // בלוק 2: רשימת משתתפים
       const membersList = document.createElement("div");
       membersList.className = "pending-wrap";
       membersList.innerHTML = `<div id="members_chips" style="display:flex;flex-wrap:wrap;gap:8px;width:100%;"></div>`;
       topBlocksContainer.appendChild(membersList);
-
       const chips = membersList.querySelector("#members_chips");
       const paintMembers = (arr = []) => {
         chips.innerHTML = arr.map(email => `<span class="btn-min" style="cursor:default">${email}</span>`).join("");
       };
-
       // טען חברים
       if (isFirebaseAvailable()) {
         (async () => {
@@ -3691,7 +3023,6 @@ async function renderPending() {
             paintMembers([]);
           }
         })();
-
         if (window._stopMembersWatch) try { window._stopMembersWatch(); } catch(e) {}
         window._stopMembersWatch = (() => {
           const folderRef = window.fs.doc(window.db, "sharedFolders", openId);
@@ -3706,7 +3037,6 @@ async function renderPending() {
       } else {
         paintMembers(me.sharedFolders[openId]?.members || []);
       }
-
       // בלוק 3: כותרת מסמכים משותפים
       const docsHead = document.createElement("div");
       docsHead.className = "cozy-head";
@@ -3718,7 +3048,6 @@ async function renderPending() {
         </div>
       `;
       topBlocksContainer.appendChild(docsHead);
-
       // העלאת מסמך
       const uploadToSharedBtn = docsHead.querySelector("#upload_to_shared_btn");
       uploadToSharedBtn.addEventListener("click", async () => {
@@ -3728,26 +3057,20 @@ async function renderPending() {
         input.onchange = async (e) => {
           const file = e.target.files[0];
           if (!file) return;
-          
           showLoading(`מעלה ${file.name}...`);
-          
           try {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("title", file.name);
             formData.append("sharedFolderId", openId);
-            
             const response = await fetch(`${API_BASE}/api/docs`, {
               method: "POST",
               headers: { "X-Dev-Email": myEmail },
               body: formData
             });
-            
             if (!response.ok) throw new Error("Upload failed");
-            
             const uploadedDoc = await response.json();
             console.log("✅ Document uploaded:", uploadedDoc);
-            
             await upsertSharedDocRecord({
               id: uploadedDoc.id,
               title: file.name,
@@ -3756,7 +3079,6 @@ async function renderPending() {
               category: [],
               recipient: []
             }, openId);
-            
             hideLoading();
             showNotification("המסמך הועלה בהצלחה! ✅");
             await loadAndDisplayDocs();
@@ -3768,21 +3090,17 @@ async function renderPending() {
         };
         input.click();
       });
-
       // ✅ Grid המסמכים - מחוץ ל-topBlocksContainer
       const docsBox = document.createElement("div");
       docsBox.className = "docs-grid";
       docsList.appendChild(docsBox);
-
       // טעינת מסמכים
       async function loadAndDisplayDocs() {
         docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>טוען מסמכים...</div>";
-        
         if (isFirebaseAvailable()) {
           await syncMySharedDocsToFirestore();
           const first = await fetchSharedFolderDocsFromFirestore(openId);
           docsBox.innerHTML = "";
-          
           if (first.length === 0) {
             docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>אין עדיין מסמכים בתיקייה זו</div>";
           } else {
@@ -3797,7 +3115,6 @@ async function renderPending() {
               docsBox.appendChild(card);
             });
           }
-
           if (window._stopSharedDocsWatch) try { window._stopSharedDocsWatch(); } catch(e) {}
           window._stopSharedDocsWatch = watchSharedFolderDocs(openId, (rows) => {
             console.log("🔄 Real-time update:", rows.length, "documents");
@@ -3821,7 +3138,6 @@ async function renderPending() {
           const docs = collectSharedFolderDocs(allUsersData, openId);
           const sorted = sortDocs(docs);
           docsBox.innerHTML = "";
-          
           if (sorted.length === 0) {
             docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>אין עדיין מסמכים בתיקייה זו (מצב לא מקוון)</div>";
           } else {
@@ -3838,54 +3154,43 @@ async function renderPending() {
           }
         }
       }
-
       await loadAndDisplayDocs();
-
       // כפתור רענון
       docsHead.querySelector("#refresh_docs_btn").addEventListener("click", async () => {
         showNotification("מרענן רשימת מסמכים...");
         await loadAndDisplayDocs();
         showNotification("הרשימה עודכנה ✅");
       });
-
       // כפתור הזמנה
       membersBar.querySelector("#detail_inv_btn").addEventListener("click", async () => {
         const emailEl = membersBar.querySelector("#detail_inv_email");
         const targetEmail = (emailEl.value || "").trim().toLowerCase();
-        
         if (!targetEmail) { 
           showNotification("הקלידי מייל של הנמען", true); 
           return; 
         }
-
         const myEmail = (allUsersData[userNow].email || userNow).toLowerCase();
         if (targetEmail === myEmail) { 
           showNotification("את כבר חברה בתיקייה הזו", true); 
           return; 
         }
-
         showLoading("בודק אם המשתמש קיים...");
         const exists = await checkUserExistsInFirestore(targetEmail);
         hideLoading();
-        
         if (!exists) { 
           showNotification("אין משתמש עם המייל הזה במערכת", true); 
           return; 
         }
-
         showLoading("שולח הזמנה...");
         const meUser = allUsersData[userNow];
         const folderName = meUser.sharedFolders[openId]?.name || "";
-        
         const success = await sendShareInviteToFirestore(
           myEmail,
           targetEmail,
           openId,
           folderName
         );
-        
         hideLoading();
-        
         if (success) {
           showNotification("ההזמנה נשלחה בהצלחה! ✉️");
           emailEl.value = "";
@@ -3893,21 +3198,16 @@ async function renderPending() {
           showNotification("שגיאה בשליחת ההזמנה, נסי שוב", true);
         }
       });
-
       return;
     }
-
-
     // --- שינוי שם (לכל החברים) ---
     if (renameId) {
       const folder = window.mySharedFolders?.find(f => f.id === renameId);
       const currentName = folder?.name || me.sharedFolders?.[renameId]?.name || "";
       const newName = prompt("שם חדש לתיקייה:", currentName);
       if (!newName || newName.trim() === "") return;
-
       console.log("✏️ Renaming folder:", { renameId, currentName, newName });
       showLoading("משנה שם...");
-
       try {
         // 🔥 עדכון ב-Firestore
         if (isFirebaseAvailable()) {
@@ -3922,7 +3222,6 @@ async function renderPending() {
         } else {
           console.warn("⚠️ Firebase not available, updating only locally");
         }
-
         // עדכון מקומי
         for (const [, u] of Object.entries(allUsersData)) {
           if (u.sharedFolders && u.sharedFolders[renameId]) {
@@ -3932,7 +3231,6 @@ async function renderPending() {
           (u.outgoingShareRequests || []).forEach(r => { if (r.folderId === renameId) r.folderName = newName; });
         }
         saveAllUsersDataToStorage(allUsersData);
-
         // רענן את window.mySharedFolders
         if (typeof loadSharedFolders === "function") {
           const folders = await loadSharedFolders();
@@ -3940,7 +3238,6 @@ async function renderPending() {
           saveSharedFoldersToCache(folders);
           console.log("✅ Reloaded shared folders from Firestore");
         }
-
         hideLoading();
         renderSharedFoldersList();
         showNotification("שם התיקייה עודכן ✅");
@@ -3951,26 +3248,21 @@ async function renderPending() {
       }
       return;
     }
-
     // --- מחיקה ---
     if (delId) {
       const folder = window.mySharedFolders?.find(f => f.id === delId);
       const fname = folder?.name || me.sharedFolders?.[delId]?.name || "תיקייה";
       if (!confirm(`למחוק לצמיתות את התיקייה "${fname}"? (המסמכים לא יימחקו, רק ינותק השיוך)`)) return;
-
       console.log("🗑️ Deleting folder:", { delId, fname });
       showLoading("מוחק תיקייה...");
-
       try {
         // 🔥 מחיקה מ-Firestore
         if (isFirebaseAvailable()) {
           console.log("📡 Deleting from Firestore...");
-          
           // מחק את התיקייה עצמה
           const folderRef = window.fs.doc(window.db, "sharedFolders", delId);
           await window.fs.deleteDoc(folderRef);
           console.log("✅ Folder deleted from Firestore");
-
           // מחק את כל המסמכים המשותפים בתיקייה
           const sharedDocsCol = window.fs.collection(window.db, "sharedDocs");
           const q = window.fs.query(sharedDocsCol, window.fs.where("folderId", "==", delId));
@@ -3984,7 +3276,6 @@ async function renderPending() {
         } else {
           console.warn("⚠️ Firebase not available, deleting only locally");
         }
-
         // מחיקה מקומית
         if (typeof deleteSharedFolderEverywhere === "function") {
           deleteSharedFolderEverywhere(delId);
@@ -3996,7 +3287,6 @@ async function renderPending() {
           }
           saveAllUsersDataToStorage(allUsersData);
         }
-
         // רענן את window.mySharedFolders
         if (typeof loadSharedFolders === "function") {
           const folders = await loadSharedFolders();
@@ -4004,7 +3294,6 @@ async function renderPending() {
           saveSharedFoldersToCache(folders);
           console.log("✅ Reloaded shared folders after deletion");
         }
-
         hideLoading();
         showNotification("התיקייה נמחקה. המסמכים נשארו בארכיונים של בעליהם. ✅");
         renderSharedFoldersList();
@@ -4016,30 +3305,22 @@ async function renderPending() {
       return;
     }
   });
-
 pendingBox.addEventListener("click", async (ev) => {
   const t = ev.target;
   const accId = t.getAttribute?.("data-accept");
   const rejId = t.getAttribute?.("data-reject");
-  
   if (!accId && !rejId) return;
-
   const myEmail = (allUsersData[userNow].email || userNow).toLowerCase();
-
   if (accId) {
     const folderId = t.getAttribute("data-folder");
     const folderName = t.getAttribute("data-fname");
     const ownerEmail = t.getAttribute("data-owner");
-    
     showLoading("מצטרף לתיקייה...");
-    
     // הוספה לתיקייה המשותפת
     const added = await addMemberToSharedFolder(folderId, myEmail, folderName, ownerEmail);
-    
     if (added) {
       // עדכון סטטוס ההזמנה
       await updateInviteStatus(accId, "accepted");
-      
       // עדכון מקומי
       if (!allUsersData[userNow].sharedFolders) {
         allUsersData[userNow].sharedFolders = {};
@@ -4054,23 +3335,18 @@ pendingBox.addEventListener("click", async (ev) => {
   const acceptedEmail = myEmail;
   const folderId   = t.getAttribute("data-folder");
   const ownerEmail = (t.getAttribute("data-owner") || "").toLowerCase();
-
   const ownerName = findUsernameByEmail(allUsersData, ownerEmail) || ownerEmail;
   ensureUserSharedFields(allUsersData, ownerName);
-
   const ownerSF = allUsersData[ownerName].sharedFolders || {};
   if (!ownerSF[folderId]) ownerSF[folderId] = { name: t.getAttribute("data-fname") || "תיקייה משותפת", owner: ownerEmail, members: [] };
   const arr = ownerSF[folderId].members || (ownerSF[folderId].members = []);
   if (!arr.includes(acceptedEmail)) arr.push(acceptedEmail);
-
   allUsersData[ownerName].sharedFolders = ownerSF;
   saveAllUsersDataToStorage(allUsersData);
-
   if (categoryTitle.textContent === (ownerSF[folderId].name || "תיקייה משותפת")) {
     openSharedView();
   }
 }
-      
       // 🔥 רענן את רשימת התיקיות המשותפות מ-Firestore
       console.log("🔄 Reloading shared folders after accepting invite...");
       if (typeof loadSharedFolders === "function") {
@@ -4080,7 +3356,6 @@ pendingBox.addEventListener("click", async (ev) => {
             window.mySharedFolders = folders;
             saveSharedFoldersToCache(folders);
             console.log("✅ Shared folders reloaded:", folders.length);
-            
             // רענן את ה-UI אם אנחנו בתצוגת תיקיות משותפות
             if (categoryTitle.textContent === "אחסון משותף") {
               openSharedView();
@@ -4090,16 +3365,13 @@ pendingBox.addEventListener("click", async (ev) => {
           console.warn("⚠️ Could not reload folders:", err);
         }
       }
-      
       showNotification("הצטרפת לתיקייה המשותפת ✔️");
     } else {
       showNotification("שגיאה בהצטרפות, נסי שוב", true);
     }
-    
     hideLoading();
     await renderPending();
   }
-
   if (rejId) {
     showLoading("דוחה הזמנה...");
     await updateInviteStatus(rejId, "rejected");
@@ -4108,23 +3380,16 @@ pendingBox.addEventListener("click", async (ev) => {
     await renderPending();
   }
 });
-
 // קריאה ראשונית
 renderPending();
   homeView.classList.add("hidden");
   categoryView.classList.remove("hidden");
-
 };
-
-
-
-
   // function openRecycleView() {
   //   categoryTitle.textContent = "סל מחזור";
   //   const docs = allDocsData.filter(d => d._trashed === true);
   //   renderDocsList(docs, "recycle");
   // }
-
   function markDocTrashed(id, trashed) {
     const i = allDocsData.findIndex(d => d.id === id);
     if (i > -1) {
@@ -4133,7 +3398,6 @@ renderPending();
       showNotification(trashed ? "הועבר לסל המחזור" : "שוחזר מהסל");
     }
   }
-
   function deleteDocForever(id) {
     const i = allDocsData.findIndex(d => d.id === id);
     if (i > -1) {
@@ -4144,11 +3408,9 @@ renderPending();
       showNotification("הקובץ נמחק לצמיתות");
     }
   }
-
   function openEditModal(doc) {
     console.log("🔥 edit");
     currentlyEditingDocId = doc.id;
-
     edit_title.value         = doc.title            || "";
     edit_org.value           = doc.org              || "";
     edit_year.value          = doc.year             || "";
@@ -4158,52 +3420,40 @@ renderPending();
     edit_autoDelete.value    = doc.autoDeleteAfter  || "";
     edit_category.value      = doc.category         || "";
     edit_sharedWith.value    = (doc.sharedWith || []).join(", ") || "";
-
     editModal.classList.remove("hidden");
   }
-
-   
-
   function closeEditModal() {
     currentlyEditingDocId = null;
     editModal.classList.add("hidden");
   }
-
  window.openEditModal = openEditModal;
   window.closeEditModal = closeEditModal;
-
   if (editCancelBtn) {
     editCancelBtn.addEventListener("click", () => {
       closeEditModal();
     });
   }
-
 if (editForm) {
   console.log("✅ editForm found, adding event listener");
   editForm.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-
     if (!currentlyEditingDocId) {
       closeEditModal();
       return;
     }
-
     const idx = window.allDocsData.findIndex(d => d.id === currentlyEditingDocId);
     if (idx === -1) {
       closeEditModal();
       return;
     }
-
     const updatedRecipients = edit_recipient.value
       .split(",")
       .map(s => s.trim())
       .filter(s => s !== "");
-
     const updatedShared = edit_sharedWith.value
       .split(",")
       .map(s => s.trim())
       .filter(s => s !== "");
-
     // מה נשלח לשרת (שמות כמו בעמודות של PostgreSQL)
     const updatesForBackend = {
       title:              edit_title.value.trim() || window.allDocsData[idx].title,
@@ -4216,19 +3466,16 @@ if (editForm) {
       warranty_expires_at: edit_warrantyExp.value   || "",
       auto_delete_after:  edit_autoDelete.value    || ""
     };
-
     try {
       console.log("🔍 Starting update...");
       console.log("🔍 currentlyEditingDocId:", currentlyEditingDocId);
       console.log("🔍 window.allDocsData exists?", !!window.allDocsData);
       console.log("🔍 window.updateDocument exists?", !!window.updateDocument);
       console.log("🔍 updatesForBackend:", updatesForBackend);
-      
       if (window.updateDocument) {
         await window.updateDocument(currentlyEditingDocId, updatesForBackend);
         console.log("✅ Backend update completed");
       }
-
       // לעדכן גם את האובייקט בזיכרון בפורמט שה-UI משתמש בו
       window.allDocsData[idx].title = updatesForBackend.title;
       window.allDocsData[idx].org = updatesForBackend.org;
@@ -4239,19 +3486,15 @@ if (editForm) {
       window.allDocsData[idx].warrantyStart     = updatesForBackend.warranty_start;
       window.allDocsData[idx].warrantyExpiresAt = updatesForBackend.warranty_expires_at;
       window.allDocsData[idx].autoDeleteAfter   = updatesForBackend.auto_delete_after;
-
        setUserDocs(userNow, window.allDocsData, allUsersData);
       console.log("✅ Local data updated");
-
       // 🔥 בדוק אם זה תיקייה משותפת ועדכן ב-Firestore
       const urlParams = new URLSearchParams(window.location.search);
       const currentSharedFolder = urlParams.get('sharedFolder');
-      
       if (currentSharedFolder && isFirebaseAvailable()) {
         try {
           // מצא את המסמך המעודכן
           const updatedDoc = window.allDocsData[idx];
-          
           // מצא את כל הרשומות של המסמך הזה ב-sharedDocs
           const col = window.fs.collection(window.db, "sharedDocs");
           const q = window.fs.query(
@@ -4260,7 +3503,6 @@ if (editForm) {
             window.fs.where("id", "==", currentlyEditingDocId)
           );
           const snap = await window.fs.getDocs(q);
-          
           // עדכן את כל הרשומות (יכול להיות יותר מאחת אם כמה משתמשים הוסיפו)
           const updatePromises = [];
           snap.forEach(doc => {
@@ -4275,16 +3517,13 @@ if (editForm) {
               })
             );
           });
-          
           await Promise.all(updatePromises);
           console.log("✅ Updated in Firestore sharedDocs");
         } catch (err) {
           console.error("⚠️ Failed to update Firestore:", err);
         }
       }
-
       const currentCat = categoryTitle.textContent;
-      
       // 🔥 אם זה תיקייה משותפת - חזור אליה!
       if (currentSharedFolder) {
         console.log("🔄 Returning to shared folder:", currentSharedFolder);
@@ -4296,7 +3535,6 @@ if (editForm) {
         }
         return; // ← חשוב! עצור כאן
       }
-      
       // תיקיות רגילות
       if (currentCat === "אחסון משותף") {
         openSharedView();
@@ -4316,28 +3554,22 @@ if (editForm) {
 } else {
   console.error("❌ editForm NOT FOUND!");
 }
-
-
-
   // ניווט
   window.App = {
     renderHome,
     openSharedView,
     openRecycleView
   };
-
   if (backButton) {
     backButton.addEventListener("click", () => {
       renderHome();
     });
   }
-
   if (uploadBtn && fileInput) {
     uploadBtn.addEventListener("click", () => {
       fileInput.click();
     });
   }
-
   if (sortSelect) {
     sortSelect.addEventListener("change", () => {
       const [field, dir] = sortSelect.value.split("-");
@@ -4348,23 +3580,17 @@ if (editForm) {
       }
     });
   }
-
   // העלאת קובץ ושמירה (Metadata -> localStorage, קובץ -> IndexedDB)
- 
-
   // פתיחת קובץ מה-IndexedDB
   document.addEventListener("click", async (ev) => {
     const btn = ev.target.closest("[data-open-id]");
     if (!btn) return;
-
     const docId = btn.getAttribute("data-open-id");
     const docObj = allDocsData.find(d => d.id === docId);
-
     if (!docObj) {
       showNotification("לא נמצא המסמך", true);
       return;
     }
-
     // נטען את ה-dataURL מתוך IndexedDB
     let dataUrl = null;
     try {
@@ -4372,12 +3598,10 @@ if (editForm) {
     } catch (e) {
       console.error("שגיאה בשליפת קובץ מה-DB:", e);
     }
-
     if (!dataUrl) {
       //showNotification("הקובץ הזה לא שמור / גדול מדי או נמחק מהמכשיר. אבל הפרטים נשמרו.", true);
       return;
     }
-
     const a = document.createElement("a");
     a.href = dataUrl;
     a.download = docObj.originalFileName || "file";
@@ -4386,20 +3610,11 @@ if (editForm) {
     a.click();
     a.remove();
   });
-
-
 });
-
-
 window.addEventListener("firebase-ready", () => {
    console.log("🔥 Firebase ready → booting app");
    bootFromCloud();
 });
-
-
-
-
-
 // ═══════════════════════════════════════════════════════════════════
 //    SHARED-FOLDERS-FIX.js - תיקון לתיקיות משותפות שנעלמות
 // ═══════════════════════════════════════════════════════════════════
@@ -4407,27 +3622,21 @@ window.addEventListener("firebase-ready", () => {
 // הוסיפי את הקוד הזה בסוף main.js
 //
 // ═══════════════════════════════════════════════════════════════════
-
 console.log("🔧 Loading Shared Folders Fix...");
-
 // ═══ פונקציות עזר ═══
-
 // שמירה ב-localStorage
 function saveSharedFoldersToCache(folders) {
   try {
     const me = getCurrentUserEmail();
     console.log("💾 Attempting to save folders to cache for:", me);
     console.log("💾 Number of folders to save:", folders?.length || 0);
-    
     if (!me) {
       console.warn("⚠️ No user email, cannot save to cache");
       return;
     }
-    
     const key = `sharedFolders_${me}`;
     localStorage.setItem(key, JSON.stringify(folders));
     console.log("✅ Saved", folders.length, "shared folders to cache with key:", key);
-    
     // בדיקה שזה באמת נשמר
     const verify = localStorage.getItem(key);
     console.log("🔍 Verification - data in localStorage:", verify ? "EXISTS" : "MISSING");
@@ -4435,23 +3644,19 @@ function saveSharedFoldersToCache(folders) {
     console.error("❌ Failed to save to cache:", err);
   }
 }
-
 // טעינה מ-localStorage
 function loadSharedFoldersFromCache() {
   try {
     const me = getCurrentUserEmail();
     console.log("📂 Loading shared folders from cache for:", me);
-    
     if (!me) {
       console.warn("⚠️ No user email, cannot load from cache");
       return [];
     }
-    
     const key = `sharedFolders_${me}`;
     const data = localStorage.getItem(key);
     console.log("💾 localStorage key:", key);
     console.log("💾 localStorage data:", data);
-    
     if (data) {
       const folders = JSON.parse(data);
       console.log("✅ Loaded", folders.length, "shared folders from cache");
@@ -4464,45 +3669,32 @@ function loadSharedFoldersFromCache() {
   }
   return [];
 }
-
 // ═══ Override openSharedFolder ═══
-
 if (typeof window.openSharedFolder === "function") {
   const originalOpenSharedFolder = window.openSharedFolder;
-  
   window.openSharedFolder = async function(folderId) {
     console.log("📂 Opening shared folder:", folderId);
-    
     // 🔥 עדכן URL עם sharedFolder parameter
     const url = new URL(window.location);
     url.searchParams.set('sharedFolder', folderId);
     window.history.pushState({}, '', url);
-    
     // קרא לפונקציה המקורית
     const result = await originalOpenSharedFolder(folderId);
-    
     // שמור את רשימת התיקיות
     if (window.mySharedFolders && Array.isArray(window.mySharedFolders)) {
       saveSharedFoldersToCache(window.mySharedFolders);
     }
-    
     return result;
   };
-  
   console.log("✅ openSharedFolder overridden");
 }
-
 // ═══ Override acceptShareInvite ═══
-
 if (typeof window.updateInviteStatus === "function") {
   const originalUpdateInvite = window.updateInviteStatus;
-  
   window.updateInviteStatus = async function(inviteId, status) {
     console.log("📬 Updating invite:", inviteId, status);
-    
     // קרא לפונקציה המקורית
     const result = await originalUpdateInvite(inviteId, status);
-    
     // אם אישרנו הזמנה, רענן את התיקיות ושמור
     if (status === "accepted") {
       setTimeout(async () => {
@@ -4520,38 +3712,28 @@ if (typeof window.updateInviteStatus === "function") {
         }
       }, 1000);
     }
-    
     return result;
   };
-  
   console.log("✅ updateInviteStatus overridden");
 }
-
 // ═══ טעינה אוטומטית בהתחלה ═══
-
 if (typeof window.bootFromCloud !== "undefined") {
   const originalBoot = window.bootFromCloud;
-  
   window.bootFromCloud = async function() {
     console.log("🚀 Boot with shared folders - ALWAYS LOAD FROM FIRESTORE");
-    
     // טען מסמכים רגילים
     await originalBoot();
-    
     // 🔥 טען תיקיות משותפות ישירות מ-Firestore (לא מ-cache!)
     console.log("📂 Loading shared folders from Firestore...");
     try {
       if (typeof loadSharedFolders === "function") {
         const folders = await loadSharedFolders();
         console.log("📥 Loaded from Firestore:", folders?.length || 0, "folders");
-        
         if (folders && folders.length > 0) {
           window.mySharedFolders = folders;
           console.log("✅ Set window.mySharedFolders:", folders.length);
-          
           // שמור גם ב-cache (לעתיד)
           saveSharedFoldersToCache(folders);
-          
           // עדכן UI
           if (typeof renderSharedFoldersUI === "function") {
             console.log("🎨 Rendering UI...");
@@ -4571,17 +3753,13 @@ if (typeof window.bootFromCloud !== "undefined") {
       window.mySharedFolders = [];
     }
   };
-  
   console.log("✅ bootFromCloud overridden for shared folders");
 }
-
 // ═══ טעינה ידנית (אם bootFromCloud לא קיים) ═══
-
 if (!window.bootFromCloud) {
   // אם אין bootFromCloud, נסה לטעון כשהדף נטען
   window.addEventListener('load', function() {
     console.log("📂 Loading shared folders on page load...");
-    
     const cachedFolders = loadSharedFoldersFromCache();
     if (cachedFolders && cachedFolders.length > 0) {
       window.mySharedFolders = cachedFolders;
@@ -4589,9 +3767,7 @@ if (!window.bootFromCloud) {
     }
   });
 }
-
 // ═══ פונקציה ידנית לשמירה ═══
-
 window.saveCurrentSharedFolders = function() {
   if (window.mySharedFolders && Array.isArray(window.mySharedFolders)) {
     saveSharedFoldersToCache(window.mySharedFolders);
@@ -4600,9 +3776,7 @@ window.saveCurrentSharedFolders = function() {
     console.warn("⚠️ No shared folders to save");
   }
 };
-
 // ═══ פונקציה ידנית לטעינה ═══
-
 window.loadSavedSharedFolders = function() {
   const folders = loadSharedFoldersFromCache();
   if (folders && folders.length > 0) {
@@ -4613,51 +3787,28 @@ window.loadSavedSharedFolders = function() {
   console.warn("⚠️ No saved shared folders found");
   return [];
 };
-
 console.log("✅ Shared Folders Fix loaded!");
 console.log("💡 Manual commands available:");
 console.log("   - saveCurrentSharedFolders()");
 console.log("   - loadSavedSharedFolders()");
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ════════════════════════════════════════════════════════════════
 // 🔧 תיקונים ל-main.js - העתיקי לסוף הקובץ
 // ════════════════════════════════════════════════════════════════
-
 // ═══ תיקון 1: בטל הערה מ-deleteDocForever ═══
 // מצא שורות 1884-1933 (שמתחילות ב-"// async function deleteDocForever")
 // ומחק את ה-"//" מכל שורה
-
 // או פשוט החלף בקוד הזה:
-
 async function deleteDocForever(id) {
   console.log("🗑️ Deleting forever:", id);
-  
   const allDocsData = window.allDocsData || [];
   const userNow = getCurrentUserEmail();
   const allUsersData = window.allUsersData || {};
-  
   const i = allDocsData.findIndex(d => d.id === id);
   if (i === -1) {
     showNotification("המסמך לא נמצא", true);
     return;
   }
-  
   const doc = allDocsData[i];
-  
   try {
     // Delete from backend if available
         // Delete from backend (Render API) דרך ה-api-bridge
@@ -4669,20 +3820,16 @@ async function deleteDocForever(id) {
         console.warn("⚠️ Backend delete failed:", backendError);
       }
     }
-
-    
     // Delete from IndexedDB (local)
     if (typeof deleteFileFromDB === 'function') {
       await deleteFileFromDB(id).catch(() => {});
     }
-    
     // Delete from Firestore
     if (isFirebaseAvailable()) {
       const docRef = window.fs.doc(window.db, "documents", id);
       await window.fs.deleteDoc(docRef);
       console.log("✅ Document deleted from Firestore:", id);
     }
-    
     // Delete from Storage (if has downloadURL)
     if (doc.downloadURL && window.storage) {
       try {
@@ -4693,29 +3840,22 @@ async function deleteDocForever(id) {
         console.warn("⚠️ Could not delete from Storage:", storageError.message);
       }
     }
-    
     // Remove from local array
     allDocsData.splice(i, 1);
     window.allDocsData = allDocsData;
-    
     if (typeof setUserDocs === "function") {
       setUserDocs(userNow, allDocsData, allUsersData);
     }
-    
     showNotification("הקובץ נמחק לצמיתות");
-    
     // Refresh view
     if (typeof openRecycleView === 'function') {
       openRecycleView();
     }
-    
   } catch (error) {
     console.error("❌ Error deleting document:", error);
     showNotification("שגיאה במחיקת המסמך", true);
   }
 }
-
-
 // ═══ תיקון 2: שחזור מסל מחזור ═══
 async function restoreDocument(id) {
   console.log("♻️ Restoring:", id);
@@ -4724,32 +3864,26 @@ async function restoreDocument(id) {
     openRecycleView();
   }
 }
-
-
 // ═══ תיקון 3: צפייה/פתיחת קובץ ═══
 async function viewDocument(doc) {
   console.log("👁️ Downloading:", doc.title);
-  
   try {
     // הצגת הודעה שמתחיל להוריד
     if (typeof showNotification === "function") {
       showNotification("מוריד את הקובץ... 📥");
     }
-    
     // תמיד קודם מנסים דרך Render (עם headers)
     if (window.downloadDocument && typeof window.downloadDocument === "function") {
       await window.downloadDocument(
         doc.id,
         doc.fileName || doc.title || "document"
       );
-      
       // הודעת הצלחה
       if (typeof showNotification === "function") {
         showNotification("הקובץ הורד בהצלחה! ✅");
       }
       return;
     }
-
     // אם משום מה אין downloadDocument – ננסה ישירות מה-URL (פיירבייס ישן)
     if (doc.downloadURL) {
       const a = document.createElement("a");
@@ -4759,33 +3893,26 @@ async function viewDocument(doc) {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      
       if (typeof showNotification === "function") {
         showNotification("הקובץ הורד בהצלחה! ✅");
       }
       return;
     }
-
     showNotification("הקובץ לא זמין להורדה", true);
   } catch (error) {
     console.error("❌ Download error:", error);
     showNotification("שגיאה בהורדת הקובץ", true);
   }
 }
-
-
-
 // ═══ תיקון 4: הורדת קובץ ═══
 async function downloadDocument(doc) {
   console.log("📥 Downloading:", doc.title);
-  
   try {
     // Try backend first
     if (window.downloadDocument && typeof window.downloadDocument === 'function') {
       await window.downloadDocument(doc.id);
       return;
     }
-    
     // Try Firebase Storage
     if (doc.downloadURL) {
       const link = document.createElement('a');
@@ -4798,17 +3925,13 @@ async function downloadDocument(doc) {
       showNotification("הקובץ הורד בהצלחה");
       return;
     }
-    
     // No file available
     showNotification("הקובץ לא זמין להורדה (metadata בלבד)", true);
-    
   } catch (error) {
     console.error("❌ Download error:", error);
     showNotification("שגיאה בהורדת הקובץ", true);
   }
 }
-
-
 // ═══ תיקון 5: חבר כפתור "פתיחת קובץ" ═══
 // הוסף event listener לכפתורי פתיחת קובץ
 document.addEventListener('click', function(e) {
@@ -4822,57 +3945,35 @@ document.addEventListener('click', function(e) {
     }
   }
 });
-
-
 // 🎯 האזנה גלובלית לכפתור "שחזור" בסל המחזור
-
-
-
-
-
-
-
-
 console.log("✅ All functions fixed and loaded!");
-
-
-
-
 // 🔥 תמיכה בפתיחת קבצים לכל החברים בתיקייה משותפת
 (function() {
   document.addEventListener('click', async (e) => {
     const target = e.target;
-    
     // בדוק אם זה כפתור פתיחת קובץ
     if (target.classList.contains('doc-open-link')) {
       e.preventDefault();
       e.stopPropagation();
-      
       const docId = target.dataset.openId;
       if (!docId) {
         console.error("❌ No document ID");
         return;
       }
-      
       // בדוק אם זה בתיקייה משותפת
       const urlParams = new URLSearchParams(window.location.search);
       const sharedFolderId = urlParams.get('sharedFolder');
-      
       if (sharedFolderId) {
         console.log("🔍 Opening shared doc:", docId);
-        
         try {
           showLoading("טוען מסמך...");
-          
           // נסה לטעון מ-Firestore
           if (isFirebaseAvailable()) {
             const docRef = window.fs.doc(window.db, "sharedDocs", `${sharedFolderId}_${docId}`);
             const docSnap = await window.fs.getDoc(docRef);
-            
             if (docSnap.exists()) {
               const docData = docSnap.data();
               console.log("📄 Found document:", docData);
-              
               if (docData.fileUrl) {
                 window.open(docData.fileUrl, '_blank');
                 hideLoading();
@@ -4881,7 +3982,6 @@ console.log("✅ All functions fixed and loaded!");
               }
             }
           }
-          
           // אם לא מצאנו ב-Firestore, נסה API
           const currentEmail = getCurrentUserEmail();
           const response = await fetch(`${API_BASE}/api/docs/${docId}`, {
@@ -4889,7 +3989,6 @@ console.log("✅ All functions fixed and loaded!");
               "X-Dev-Email": currentEmail
             }
           });
-          
           if (response.ok) {
             const doc = await response.json();
             if (doc.fileUrl) {
@@ -4898,10 +3997,8 @@ console.log("✅ All functions fixed and loaded!");
               return;
             }
           }
-          
           hideLoading();
           showNotification("לא נמצא קישור לקובץ", true);
-          
         } catch (err) {
           console.error("❌ Error opening doc:", err);
           hideLoading();
@@ -4910,99 +4007,5 @@ console.log("✅ All functions fixed and loaded!");
       }
     }
   });
-  
   console.log("✅ Shared document opener installed");
-})();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// 🔥 פתיחת מסמכים בתיקייה משותפת - עובד לכל החברים!
-// 🔥 פתיחת מסמכים בתיקייה משותפת - מתוקן!
-(function setupSharedDocOpener() {
-  console.log("📂 Installing shared doc opener...");
-  
-  document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.doc-open-link');
-    if (!btn) return;
-    
-    const docId = btn.dataset.openId;
-    if (!docId) return; // תן למערכת הרגילה לטפל
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const sharedFolderId = urlParams.get('sharedFolder');
-    
-    // 🔥 רק אם זה בתיקייה משותפת - טפל בזה
-    if (!sharedFolderId) return; // תן למערכת הרגילה לטפל
-    
-    // רק עכשיו עצור את ברירת המחדל
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log("🔍 Opening shared doc:", docId, "from folder:", sharedFolderId);
-    
-    try {
-      showLoading("טוען מסמך...");
-      
-      // חפש ב-Firestore
-      if (isFirebaseAvailable()) {
-        const col = window.fs.collection(window.db, "sharedDocs");
-        const q = window.fs.query(
-          col,
-          window.fs.where("folderId", "==", sharedFolderId),
-          window.fs.where("id", "==", docId)
-        );
-        const snap = await window.fs.getDocs(q);
-        
-        if (!snap.empty) {
-          const docData = snap.docs[0].data();
-          console.log("✅ Found doc:", docData);
-          
-          if (docData.fileUrl) {
-            window.open(docData.fileUrl, '_blank');
-            hideLoading();
-            showNotification("פותח מסמך... 📄");
-            return;
-          }
-        }
-      }
-      
-      // אם לא מצאנו - נסה API
-      const response = await fetch(`${API_BASE}/api/docs/${docId}`, {
-        headers: { "X-Dev-Email": getCurrentUserEmail() }
-      });
-      
-      if (response.ok) {
-        const doc = await response.json();
-        const fileUrl = doc.fileUrl || doc.file_url;
-        if (fileUrl) {
-          window.open(fileUrl, '_blank');
-          hideLoading();
-          return;
-        }
-      }
-      
-      hideLoading();
-      showNotification("לא נמצא קישור לקובץ", true);
-      
-    } catch (err) {
-      console.error("❌ Error:", err);
-      hideLoading();
-      showNotification("שגיאה בפתיחת המסמך", true);
-    }
-  }, true);
-  
-  console.log("✅ Shared doc opener ready");
 })();
