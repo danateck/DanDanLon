@@ -1508,97 +1508,175 @@ element.style {
 }
 
 
+/* ========== תיקון גלילה רוחבית וריכוז - גרסה סופית ========== */
 
+/* תיקון גלובלי */
+html {
+  overflow-x: hidden !important;
+  max-width: 100vw;
+}
 
-/* ===== תיקוני אחסון משותף - גרסה סופית ===== */
+body {
+  overflow-x: hidden !important;
+  max-width: 100vw;
+}
 
+.dashboard {
+  overflow-x: hidden !important;
+  max-width: 100vw;
+}
+
+/* תיקון docsList במצב shared */
+.docs-list.shared-mode {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  margin: 0 auto !important;
+  padding: 0 16px !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+}
+
+/* Container של 3 הבלוקים */
 .shared-top-blocks {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  width: 100%;
-  max-width: min(900px, calc(100vw - 32px));
-  margin: 0 auto 20px;
-  padding: 0;
-  box-sizing: border-box;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  width: 100% !important;
+  max-width: 900px !important;
+  margin: 0 auto 20px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
+/* כל הבלוקים החומים */
 .cozy-head,
-.pending-wrap {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-  word-wrap: break-word;
+.pending-wrap,
+.sf-list {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 
+/* Grid המסמכים */
 .docs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
-  gap: clamp(12px, 2vw, 20px);
-  width: 100%;
-  max-width: min(1200px, calc(100vw - 32px));
-  margin: 0 auto;
-  padding: 0;
-  box-sizing: border-box;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)) !important;
+  gap: 20px !important;
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
 /* תיקון כרטיסי מסמכים */
 .doc-card {
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 
-.doc-card-title,
-.doc-card-meta,
-.doc-card * {
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  hyphens: auto;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* תיקון שמות קבצים ארוכים */
 .doc-card-title {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  word-break: break-all;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
 }
 
-/* במובייל */
-@media (max-width: 768px) {
-  .docs-grid {
-    grid-template-columns: 1fr;
-    max-width: calc(100vw - 16px);
+/* מסכים בינוניים (768px - 1024px) */
+@media (max-width: 1024px) {
+  .docs-list.shared-mode {
+    padding: 0 12px !important;
   }
   
   .shared-top-blocks {
-    max-width: calc(100vw - 16px);
+    max-width: calc(100vw - 24px) !important;
+  }
+  
+  .docs-grid {
+    max-width: calc(100vw - 24px) !important;
+    grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)) !important;
+    gap: 16px !important;
   }
 }
 
+/* מסכים קטנים (640px - 768px) */
+@media (max-width: 768px) {
+  .docs-list.shared-mode {
+    padding: 0 8px !important;
+  }
+  
+  .shared-top-blocks {
+    max-width: calc(100vw - 16px) !important;
+  }
+  
+  .docs-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)) !important;
+    max-width: calc(100vw - 16px) !important;
+    gap: 12px !important;
+  }
+  
+  .cozy-head {
+    flex-direction: column !important;
+  }
+  
+  .cozy-head > div {
+    width: 100% !important;
+  }
+}
+
+/* מובייל (מתחת ל-640px) */
 @media (max-width: 640px) {
   .docs-list.shared-mode {
-    padding: 0 8px;
-  }
-  
-  .docs-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    max-width: calc(100vw - 16px);
+    padding: 0 8px !important;
   }
   
   .shared-top-blocks {
-    max-width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px) !important;
+    gap: 10px !important;
+  }
+  
+  .docs-grid {
+    grid-template-columns: 1fr !important;
+    max-width: calc(100vw - 16px) !important;
+    gap: 10px !important;
+  }
+  
+  .btn-cozy {
+    width: 100% !important;
+    padding: 10px !important;
   }
 }
+
+/* מובייל קטן מאוד (מתחת ל-480px) */
+@media (max-width: 480px) {
+  .docs-list.shared-mode {
+    padding: 0 4px !important;
+  }
+  
+  .shared-top-blocks {
+    max-width: calc(100vw - 8px) !important;
+  }
+  
+  .docs-grid {
+    max-width: calc(100vw - 8px) !important;
+  }
+  
+  .cozy-head h3 {
+    font-size: 1.1rem !important;
+  }
+}
+
+/* ========== סוף התיקון ========== */
 
 
   </style>
