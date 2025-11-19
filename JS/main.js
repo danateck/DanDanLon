@@ -3587,291 +3587,323 @@ async function renderPending() {
     const renameId = t.getAttribute?.("data-rename");
     const delId    = t.getAttribute?.("data-delete");
 
-    // --- פתיחת עמוד תיקייה ---
+   // --- פתיחת עמוד תיקייה ---
     if (openId) {
       // Header: משתתפים + הוספת משתתף משמאל
       categoryTitle.textContent = me.sharedFolders[openId]?.name || "תיקייה משותפת";
+      
+      // 🔥 נקה ותקן את docsList
       docsList.innerHTML = "";
-
+      docsList.classList.add("shared-mode"); // ✅ הוסף את הקלאס!
+      
       // 🔥 יצירת Container עבור שלושת הבלוקים הראשונים
       const topBlocksContainer = document.createElement("div");
       topBlocksContainer.className = "shared-top-blocks";
+      topBlocksContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        width: 100%;
+        max-width: min(900px, calc(100vw - 32px));
+        margin: 0 auto 20px;
+        box-sizing: border-box;
+      `;
       docsList.appendChild(topBlocksContainer);
 
       // שורת "משתתפים" + הוספה
       const membersBar = document.createElement("div");
       membersBar.className = "cozy-head";
+      membersBar.style.cssText = `
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+      `;
       membersBar.innerHTML = `
         <h3 style="margin:0;">משתתפים</h3>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <input id="detail_inv_email" placeholder="הוסף מייל לשיתוף"
-                 style="padding:.5rem;border:1px solid #2b3c3c;border-radius:10px;background:#101a1a;color:#e0f0ee;min-width:220px;">
+                 style="padding:.5rem;border:1px solid #2b3c3c;border-radius:10px;background:#101a1a;color:#e0f0ee;min-width:220px;max-width:100%;">
           <button id="detail_inv_btn" class="btn-cozy">הוסף משתתף</button>
         </div>
       `;
       topBlocksContainer.appendChild(membersBar);
 
-      // רשימת משתתפים
-     // רשימת משתתפים (Firestore live)
-const membersList = document.createElement("div");
-membersList.className = "pending-wrap";
-membersList.style.gap = "6px";
-membersList.innerHTML = `<div id="members_chips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>`;
-topBlocksContainer.appendChild(membersList);
+      // רשימת משתתפים (Firestore live)
+      const membersList = document.createElement("div");
+      membersList.className = "pending-wrap";
+      membersList.style.cssText = `
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+        gap: 6px;
+      `;
+      membersList.innerHTML = `<div id="members_chips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>`;
+      topBlocksContainer.appendChild(membersList);
 
-const ownerEmailForThisFolder = (me.sharedFolders[openId]?.owner || "").toLowerCase();
-const chips = membersList.querySelector("#members_chips");
+      const ownerEmailForThisFolder = (me.sharedFolders[openId]?.owner || "").toLowerCase();
+      const chips = membersList.querySelector("#members_chips");
 
-const paintMembers = (arr = []) => {
-  chips.innerHTML = arr.map(email => `<span class="btn-min" style="cursor:default">${email}</span>`).join("");
-};
+      const paintMembers = (arr = []) => {
+        chips.innerHTML = arr.map(email => `<span class="btn-min" style="cursor:default">${email}</span>`).join("");
+      };
 
-// 🔥 טען חברים מה-sharedFolders collection (לא מ-users!)
-if (isFirebaseAvailable()) {
-  // one-time fetch מ-sharedFolders collection
-  (async () => {
-    try {
-      const folderRef = window.fs.doc(window.db, "sharedFolders", openId);
-      const folderSnap = await window.fs.getDoc(folderRef);
-      if (folderSnap.exists()) {
-        const folderData = folderSnap.data();
-        const members = folderData.members || [];
-        paintMembers(members);
-        console.log("✅ Loaded members from sharedFolders collection:", members);
+      // 🔥 טען חברים מה-sharedFolders collection (לא מ-users!)
+      if (isFirebaseAvailable()) {
+        // one-time fetch מ-sharedFolders collection
+        (async () => {
+          try {
+            const folderRef = window.fs.doc(window.db, "sharedFolders", openId);
+            const folderSnap = await window.fs.getDoc(folderRef);
+            if (folderSnap.exists()) {
+              const folderData = folderSnap.data();
+              const members = folderData.members || [];
+              paintMembers(members);
+              console.log("✅ Loaded members from sharedFolders collection:", members);
+            } else {
+              console.warn("⚠️ Folder not found in sharedFolders collection");
+              paintMembers([]);
+            }
+          } catch (err) {
+            console.error("❌ Failed to load members:", err);
+            paintMembers([]);
+          }
+        })();
+
+        // live updates
+        if (window._stopMembersWatch) try { window._stopMembersWatch(); } catch(e) {}
+        window._stopMembersWatch = (() => {
+          const folderRef = window.fs.doc(window.db, "sharedFolders", openId);
+          return window.fs.onSnapshot(folderRef, (snap) => {
+            if (snap.exists()) {
+              const folderData = snap.data();
+              const members = folderData.members || [];
+              paintMembers(members);
+            }
+          }, (err) => console.error("watchMembers error", err));
+        })();
       } else {
-        console.warn("⚠️ Folder not found in sharedFolders collection");
-        paintMembers([]);
+        // offline fallback from local cache
+        paintMembers(me.sharedFolders[openId]?.members || []);
       }
-    } catch (err) {
-      console.error("❌ Failed to load members:", err);
-      paintMembers([]);
-    }
-  })();
 
-  // live updates
-  if (window._stopMembersWatch) try { window._stopMembersWatch(); } catch(e) {}
-  window._stopMembersWatch = (() => {
-    const folderRef = window.fs.doc(window.db, "sharedFolders", openId);
-    return window.fs.onSnapshot(folderRef, (snap) => {
-      if (snap.exists()) {
-        const folderData = snap.data();
-        const members = folderData.members || [];
-        paintMembers(members);
-      }
-    }, (err) => console.error("watchMembers error", err));
-  })();
-} else {
-  // offline fallback from local cache
-  paintMembers(me.sharedFolders[openId]?.members || []);
-}
-
-
-      
       // כותרת "מסמכים משותפים"
-const docsHead = document.createElement("div");
-docsHead.className = "cozy-head";
-docsHead.innerHTML = `
-  <h3 style="margin:0;">מסמכים משותפים</h3>
-  <div style="display:flex;gap:8px;">
-    <button id="upload_to_shared_btn" class="btn-cozy">📤 העלה מסמך</button>
-    <button id="refresh_docs_btn" class="btn-cozy">🔄 רענן רשימה</button>
-  </div>
-`;
-topBlocksContainer.appendChild(docsHead);
+      const docsHead = document.createElement("div");
+      docsHead.className = "cozy-head";
+      docsHead.style.cssText = `
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+      `;
+      docsHead.innerHTML = `
+        <h3 style="margin:0;">מסמכים משותפים</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="upload_to_shared_btn" class="btn-cozy">📤 העלה מסמך</button>
+          <button id="refresh_docs_btn" class="btn-cozy">🔄 רענן רשימה</button>
+        </div>
+      `;
+      topBlocksContainer.appendChild(docsHead);
 
-// טיפול בהעלאת מסמך לתיקייה משותפת
-const uploadToSharedBtn = docsHead.querySelector("#upload_to_shared_btn");
-uploadToSharedBtn.addEventListener("click", async () => {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "*/*";
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    showLoading(`מעלה ${file.name}...`);
-    
-    try {
-      // העלאה ל-Firestore Storage או לשרת
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("title", file.name);
-      formData.append("sharedFolderId", openId); // 🔥 חשוב!
-      
-      const response = await fetch(`${API_BASE}/api/docs`, {
-        method: "POST",
-        headers: {
-          "X-Dev-Email": myEmail
-        },
-        body: formData
+      // טיפול בהעלאת מסמך לתיקייה משותפת
+      const uploadToSharedBtn = docsHead.querySelector("#upload_to_shared_btn");
+      uploadToSharedBtn.addEventListener("click", async () => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "*/*";
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          showLoading(`מעלה ${file.name}...`);
+          
+          try {
+            // העלאה ל-Firestore Storage או לשרת
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("title", file.name);
+            formData.append("sharedFolderId", openId); // 🔥 חשוב!
+            
+            const response = await fetch(`${API_BASE}/api/docs`, {
+              method: "POST",
+              headers: {
+                "X-Dev-Email": myEmail
+              },
+              body: formData
+            });
+            
+            if (!response.ok) throw new Error("Upload failed");
+            
+            const uploadedDoc = await response.json();
+            console.log("✅ Document uploaded:", uploadedDoc);
+            
+            // הוסף לרשימת המסמכים המשותפים ב-Firestore
+            await upsertSharedDocRecord({
+              id: uploadedDoc.id,
+              title: file.name,
+              fileName: file.name,
+              uploadedAt: Date.now(),
+              category: [],
+              recipient: []
+            }, openId);
+            
+            hideLoading();
+            showNotification("המסמך הועלה בהצלחה! ✅");
+            
+            // רענן את רשימת המסמכים
+            await loadAndDisplayDocs();
+          } catch (err) {
+            console.error("Upload error:", err);
+            hideLoading();
+            showNotification("שגיאה בהעלאת המסמך", true);
+          }
+        };
+        input.click();
       });
-      
-      if (!response.ok) throw new Error("Upload failed");
-      
-      const uploadedDoc = await response.json();
-      console.log("✅ Document uploaded:", uploadedDoc);
-      
-      // הוסף לרשימת המסמכים המשותפים ב-Firestore
-      await upsertSharedDocRecord({
-        id: uploadedDoc.id,
-        title: file.name,
-        fileName: file.name,
-        uploadedAt: Date.now(),
-        category: [],
-        recipient: []
-      }, openId);
-      
-      hideLoading();
-      showNotification("המסמך הועלה בהצלחה! ✅");
-      
-      // רענן את רשימת המסמכים
-      await loadAndDisplayDocs();
-    } catch (err) {
-      console.error("Upload error:", err);
-      hideLoading();
-      showNotification("שגיאה בהעלאת המסמך", true);
-    }
-  };
-  input.click();
-});
 
-// קונטיינר הכרטיסיות – גריד רספונסיבי (מחוץ ל-topBlocksContainer!)
-const docsBox = document.createElement("div");
-docsBox.className = "docs-grid";
-docsList.appendChild(docsBox);
-
+      // ✅ קונטיינר הכרטיסיות – גריד רספונסיבי (מחוץ ל-topBlocksContainer!)
+      const docsBox = document.createElement("div");
+      docsBox.className = "docs-grid";
+      docsBox.style.cssText = `
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+        gap: clamp(12px, 2vw, 20px);
+        width: 100%;
+        max-width: min(1200px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 0;
+        box-sizing: border-box;
+      `;
+      docsList.appendChild(docsBox);
 
       // Prefer Firestore (cross-device). Fallback to local for offline.
-// Prefer Firestore (cross-device). Fallback to local for offline.
-// Prefer Firestore (cross-device). Fallback to local for offline.
-async function loadAndDisplayDocs() {
-  docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>טוען מסמכים...</div>";
-  
-  if (isFirebaseAvailable()) {
-    await syncMySharedDocsToFirestore();
+      async function loadAndDisplayDocs() {
+        docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>טוען מסמכים...</div>";
+        
+        if (isFirebaseAvailable()) {
+          await syncMySharedDocsToFirestore();
 
-    const first = await fetchSharedFolderDocsFromFirestore(openId);
-    docsBox.innerHTML = "";
-    
-    if (first.length === 0) {
-      docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>אין עדיין מסמכים בתיקייה זו</div>";
-    } else {
-      sortDocs(first).forEach(d => {
-        const card = buildDocCard(d, "shared");
-        const meta = card.querySelector(".doc-card-meta");
-        if (meta) {
-          const span = document.createElement("span");
-          span.textContent = `הועלה ע"י: ${d._ownerEmail || "-"}`;
-          meta.appendChild(span);
-        }
-        docsBox.appendChild(card);
-      });
-    }
-
-    if (window._stopSharedDocsWatch) try { window._stopSharedDocsWatch(); } catch(e) {}
-    window._stopSharedDocsWatch = watchSharedFolderDocs(openId, (rows) => {
-      console.log("🔄 Real-time update: received", rows.length, "documents");
-      docsBox.innerHTML = "";
-      if (rows.length === 0) {
-        docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>אין עדיין מסמכים בתיקייה זו</div>";
-      } else {
-        sortDocs(rows).forEach(d => {
-          const card = buildDocCard(d, "shared");
-          const meta = card.querySelector(".doc-card-meta");
-          if (meta) {
-            const span = document.createElement("span");
-            span.textContent = `הועלה ע"י: ${d._ownerEmail || "-"}`;
-            meta.appendChild(span);
+          const first = await fetchSharedFolderDocsFromFirestore(openId);
+          docsBox.innerHTML = "";
+          
+          if (first.length === 0) {
+            docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>אין עדיין מסמכים בתיקייה זו</div>";
+          } else {
+            sortDocs(first).forEach(d => {
+              const card = buildDocCard(d, "shared");
+              const meta = card.querySelector(".doc-card-meta");
+              if (meta) {
+                const span = document.createElement("span");
+                span.textContent = `הועלה ע"י: ${d._ownerEmail || "-"}`;
+                meta.appendChild(span);
+              }
+              docsBox.appendChild(card);
+            });
           }
-          docsBox.appendChild(card);
-        });
-      }
-    });
-  } else {
-    const docs = collectSharedFolderDocs(allUsersData, openId);
-    const sorted = sortDocs(docs);
-    docsBox.innerHTML = "";
-    
-    if (sorted.length === 0) {
-      docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>אין עדיין מסמכים בתיקייה זו (מצב לא מקוון)</div>";
-    } else {
-      for (const d of sorted) {
-        const card = buildDocCard(d, "shared");
-        const meta = card.querySelector(".doc-card-meta");
-        if (meta) {
-          const span = document.createElement("span");
-          span.textContent = `הועלה ע"י: ${d._ownerEmail || "-"}`;
-          meta.appendChild(span);
+
+          if (window._stopSharedDocsWatch) try { window._stopSharedDocsWatch(); } catch(e) {}
+          window._stopSharedDocsWatch = watchSharedFolderDocs(openId, (rows) => {
+            console.log("🔄 Real-time update: received", rows.length, "documents");
+            docsBox.innerHTML = "";
+            if (rows.length === 0) {
+              docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>אין עדיין מסמכים בתיקייה זו</div>";
+            } else {
+              sortDocs(rows).forEach(d => {
+                const card = buildDocCard(d, "shared");
+                const meta = card.querySelector(".doc-card-meta");
+                if (meta) {
+                  const span = document.createElement("span");
+                  span.textContent = `הועלה ע"י: ${d._ownerEmail || "-"}`;
+                  meta.appendChild(span);
+                }
+                docsBox.appendChild(card);
+              });
+            }
+          });
+        } else {
+          const docs = collectSharedFolderDocs(allUsersData, openId);
+          const sorted = sortDocs(docs);
+          docsBox.innerHTML = "";
+          
+          if (sorted.length === 0) {
+            docsBox.innerHTML = "<div style='opacity:.7;padding:20px;text-align:center'>אין עדיין מסמכים בתיקייה זו (מצב לא מקוון)</div>";
+          } else {
+            for (const d of sorted) {
+              const card = buildDocCard(d, "shared");
+              const meta = card.querySelector(".doc-card-meta");
+              if (meta) {
+                const span = document.createElement("span");
+                span.textContent = `הועלה ע"י: ${d._ownerEmail || "-"}`;
+                meta.appendChild(span);
+              }
+              docsBox.appendChild(card);
+            }
+          }
         }
-        docsBox.appendChild(card);
       }
-    }
-  }
-}
 
-// Initial load
-await loadAndDisplayDocs();
+      // Initial load
+      await loadAndDisplayDocs();
 
-// Refresh button handler
-docsHead.querySelector("#refresh_docs_btn").addEventListener("click", async () => {
-  showNotification("מרענן רשימת מסמכים...");
-  await loadAndDisplayDocs();
-  showNotification("הרשימה עודכנה ✅");
-});
-
-
+      // Refresh button handler
+      docsHead.querySelector("#refresh_docs_btn").addEventListener("click", async () => {
+        showNotification("מרענן רשימת מסמכים...");
+        await loadAndDisplayDocs();
+        showNotification("הרשימה עודכנה ✅");
+      });
 
       // לחצן הזמנה במסך פרטי התיקייה – אותה לוגיקה בדיוק
-membersBar.querySelector("#detail_inv_btn").addEventListener("click", async () => {
-  const emailEl = membersBar.querySelector("#detail_inv_email");
-  const targetEmail = (emailEl.value || "").trim().toLowerCase();
-  
-  if (!targetEmail) { 
-    showNotification("הקלידי מייל של הנמען", true); 
-    return; 
-  }
+      membersBar.querySelector("#detail_inv_btn").addEventListener("click", async () => {
+        const emailEl = membersBar.querySelector("#detail_inv_email");
+        const targetEmail = (emailEl.value || "").trim().toLowerCase();
+        
+        if (!targetEmail) { 
+          showNotification("הקלידי מייל של הנמען", true); 
+          return; 
+        }
 
-  const myEmail = (allUsersData[userNow].email || userNow).toLowerCase();
-  if (targetEmail === myEmail) { 
-    showNotification("את כבר חברה בתיקייה הזו", true); 
-    return; 
-  }
+        const myEmail = (allUsersData[userNow].email || userNow).toLowerCase();
+        if (targetEmail === myEmail) { 
+          showNotification("את כבר חברה בתיקייה הזו", true); 
+          return; 
+        }
 
-  // בדיקה ב-Firestore אם המשתמש קיים
-  showLoading("בודק אם המשתמש קיים...");
-  const exists = await checkUserExistsInFirestore(targetEmail);
-  hideLoading();
-  
-  if (!exists) { 
-    showNotification("אין משתמש עם המייל הזה במערכת", true); 
-    return; 
-  }
+        // בדיקה ב-Firestore אם המשתמש קיים
+        showLoading("בודק אם המשתמש קיים...");
+        const exists = await checkUserExistsInFirestore(targetEmail);
+        hideLoading();
+        
+        if (!exists) { 
+          showNotification("אין משתמש עם המייל הזה במערכת", true); 
+          return; 
+        }
 
-  // שליחת הזמנה ל-Firestore
-  showLoading("שולח הזמנה...");
-  const meUser = allUsersData[userNow];
-  const folderName = meUser.sharedFolders[openId]?.name || "";
-  
-  const success = await sendShareInviteToFirestore(
-    myEmail,
-    targetEmail,
-    openId,
-    folderName
-  );
-  
-  hideLoading();
-  
-  if (success) {
-    showNotification("ההזמנה נשלחה בהצלחה! ✉️");
-    emailEl.value = "";
-  } else {
-    showNotification("שגיאה בשליחת ההזמנה, נסי שוב", true);
-  }
-});
-
+        // שליחת הזמנה ל-Firestore
+        showLoading("שולח הזמנה...");
+        const meUser = allUsersData[userNow];
+        const folderName = meUser.sharedFolders[openId]?.name || "";
+        
+        const success = await sendShareInviteToFirestore(
+          myEmail,
+          targetEmail,
+          openId,
+          folderName
+        );
+        
+        hideLoading();
+        
+        if (success) {
+          showNotification("ההזמנה נשלחה בהצלחה! ✉️");
+          emailEl.value = "";
+        } else {
+          showNotification("שגיאה בשליחת ההזמנה, נסי שוב", true);
+        }
+      });
 
       return;
     }
+
 
     // --- שינוי שם (לכל החברים) ---
     if (renameId) {
