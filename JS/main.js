@@ -3607,15 +3607,36 @@ document.addEventListener("click", async (ev) => {
   if (!btn) return;
 
   const docId = btn.getAttribute("data-open-id");
-  const docsArr = window.allDocsData || [];
+  const docsArr = Array.isArray(window.allDocsData) ? window.allDocsData : [];
   const docObj = docsArr.find(d => d.id === docId);
 
   if (!docObj) {
-    showNotification("לא נמצא המסמך", true);
+    if (typeof showNotification === "function") {
+      showNotification("לא נמצא המסמך", true);
+    }
+    console.error("doc not found in allDocsData", { docId });
     return;
   }
 
-  // 1️⃣ ניסיון לפתוח מקומי (IndexedDB) – אם זה אותו מחשב שהעלה
+  // אם יש פונקציה מרכזית לצפייה – נשתמש בה
+  if (typeof window.viewDocument === "function") {
+    try {
+      await window.viewDocument(docObj);
+      return;
+    } catch (err) {
+      console.warn("viewDocument failed, falling back:", err);
+    }
+  }
+
+  // fallback 1 – URL מהענן (fileUrl / downloadURL)
+  const fileUrl = docObj.fileUrl || docObj.downloadURL;
+  if (fileUrl) {
+    console.log("📂 Opening URL (fallback):", fileUrl);
+    window.open(fileUrl, "_blank");
+    return;
+  }
+
+  // fallback 2 – IndexedDB למי שהעלה מהמחשב שלו
   let dataUrl = null;
   try {
     if (typeof loadFileFromDB === "function") {
@@ -3628,7 +3649,11 @@ document.addEventListener("click", async (ev) => {
   if (dataUrl) {
     const a = document.createElement("a");
     a.href = dataUrl;
-    a.download = docObj.originalFileName || docObj.fileName || docObj.title || "file";
+    a.download =
+      docObj.originalFileName ||
+      docObj.fileName ||
+      docObj.title ||
+      "file";
     a.target = "_blank";
     document.body.appendChild(a);
     a.click();
@@ -3636,22 +3661,12 @@ document.addEventListener("click", async (ev) => {
     return;
   }
 
-  // 2️⃣ אם אין קובץ מקומי – לפתוח מהענן לפי downloadURL
-  if (docObj.downloadURL) {
-    window.open(docObj.downloadURL, "_blank");
-    return;
+  if (typeof showNotification === "function") {
+    showNotification("הקובץ לא זמין במכשיר הזה ולא נמצא URL בענן", true);
   }
-
-  // 3️⃣ fallback לשרת Node (eco-files.onrender.com) אם יש ID
-  if (typeof API_BASE !== "undefined" && docObj.id) {
-    const url = `${API_BASE}/api/docs/${encodeURIComponent(docObj.id)}/download`;
-    window.open(url, "_blank");
-    return;
-  }
-
-  // 4️⃣ אין בכלל איך לפתוח
-  showNotification("לא נמצא קובץ להצגה (לא מקומי ולא בענן)", true);
+  console.warn("No way to open document", docObj);
 });
+
 
 });
 window.addEventListener("firebase-ready", () => {
