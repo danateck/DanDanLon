@@ -3963,67 +3963,357 @@ document.addEventListener('click', function(e) {
 // 🎯 האזנה גלובלית לכפתור "שחזור" בסל המחזור
 console.log("✅ All functions fixed and loaded!");
 // 🔥 תמיכה בפתיחת קבצים לכל החברים בתיקייה משותפת
+// ═══════════════════════════════════════════════════════════
+// 🔧 תיקונים ל-main.js - 3 בעיות עיקריות
+// ═══════════════════════════════════════════════════════════
+
+// ────────────────────────────────────────────────────────────
+// תיקון #1: פתיחת מסמכים בתיקיות משותפות
+// ────────────────────────────────────────────────────────────
+
+// 🔥 החלף את הקוד בשורות 3966-4026 בזה:
+
 (function() {
   document.addEventListener('click', async (e) => {
     const target = e.target;
+    
     // בדוק אם זה כפתור פתיחת קובץ
     if (target.classList.contains('doc-open-link')) {
       e.preventDefault();
       e.stopPropagation();
+      
       const docId = target.dataset.openId;
       if (!docId) {
         console.error("❌ No document ID");
         return;
       }
-      // בדוק אם זה בתיקייה משותפת
-      const urlParams = new URLSearchParams(window.location.search);
-      const sharedFolderId = urlParams.get('sharedFolder');
-      if (sharedFolderId) {
-        console.log("🔍 Opening shared doc:", docId);
-        try {
-          showLoading("טוען מסמך...");
-          // נסה לטעון מ-Firestore
-          if (isFirebaseAvailable()) {
-            const docRef = window.fs.doc(window.db, "sharedDocs", `${sharedFolderId}_${docId}`);
-            const docSnap = await window.fs.getDoc(docRef);
-            if (docSnap.exists()) {
-              const docData = docSnap.data();
-              console.log("📄 Found document:", docData);
-              if (docData.fileUrl) {
-                window.open(docData.fileUrl, '_blank');
-                hideLoading();
-                showNotification("פותח קובץ...");
-                return;
-              }
-            }
-          }
-          // אם לא מצאנו ב-Firestore, נסה API
-          const currentEmail = getCurrentUserEmail();
-          const response = await fetch(`${API_BASE}/api/docs/${docId}`, {
-            headers: {
-              "X-Dev-Email": currentEmail
-            }
-          });
-          if (response.ok) {
-            const doc = await response.json();
-            if (doc.fileUrl) {
-              window.open(doc.fileUrl, '_blank');
+
+      console.log("🔍 Opening document:", docId);
+      
+      try {
+        showLoading("טוען מסמך...");
+        
+        // 1️⃣ קודם נסה למצוא את המסמך ב-allDocsData
+        let doc = (window.allDocsData || []).find(d => d.id === docId);
+        
+        if (doc) {
+          console.log("✅ Found in allDocsData:", doc.title);
+          await viewDocument(doc);
+          hideLoading();
+          return;
+        }
+
+        // 2️⃣ אם לא מצאנו, נסה לטעון מ-Firestore
+        if (isFirebaseAvailable()) {
+          const docRef = window.fs.doc(window.db, "documents", docId);
+          const docSnap = await window.fs.getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            doc = { id: docSnap.id, ...docSnap.data() };
+            console.log("✅ Found in Firestore:", doc.title);
+            
+            // בדוק אם למשתמש יש הרשאה
+            const currentEmail = getCurrentUserEmail();
+            const hasAccess = (
+              doc.owner === currentEmail ||
+              (doc.sharedWith && doc.sharedWith.includes(currentEmail))
+            );
+            
+            if (!hasAccess) {
               hideLoading();
+              showNotification("אין לך הרשאה לצפות במסמך זה", true);
               return;
             }
+            
+            await viewDocument(doc);
+            hideLoading();
+            return;
           }
-          hideLoading();
-          showNotification("לא נמצא קישור לקובץ", true);
-        } catch (err) {
-          console.error("❌ Error opening doc:", err);
-          hideLoading();
-          showNotification("שגיאה בפתיחת המסמך", true);
         }
+
+        // 3️⃣ אם עדיין לא מצאנו, נסה API
+        const currentEmail = getCurrentUserEmail();
+        const response = await fetch(`${API_BASE}/api/docs/${docId}`, {
+          headers: {
+            "X-Dev-Email": currentEmail
+          }
+        });
+        
+        if (response.ok) {
+          doc = await response.json();
+          console.log("✅ Found via API:", doc.title);
+          await viewDocument(doc);
+          hideLoading();
+          return;
+        }
+
+        // 4️⃣ לא מצאנו בשום מקום
+        hideLoading();
+        showNotification("לא נמצא מסמך זה או אין לך הרשאה", true);
+        
+      } catch (err) {
+        console.error("❌ Error opening doc:", err);
+        hideLoading();
+        showNotification("שגיאה בפתיחת המסמך", true);
       }
     }
   });
-  console.log("✅ Shared document opener installed");
+  
+  console.log("✅ Fixed shared document opener installed");
 })();
+
+
+// ────────────────────────────────────────────────────────────
+// תיקון #2: שמירת עריכת מסמך
+// ────────────────────────────────────────────────────────────
+
+// 🔥 החלף/הוסף את הפונקציה updateDocumentInFirestore:
+
+async function updateDocumentInFirestore(docId, updates) {
+  console.log("💾 Updating document:", docId, updates);
+  
+  if (!docId) {
+    console.error("❌ No document ID provided");
+    throw new Error("מזהה מסמך חסר");
+  }
+
+  if (!isFirebaseAvailable()) {
+    console.error("❌ Firebase not available");
+    throw new Error("Firebase לא זמין");
+  }
+
+  try {
+    // 1️⃣ עדכן ב-Firestore
+    const docRef = window.fs.doc(window.db, "documents", docId);
+    
+    // הכן את העדכון עם timestamp
+    const updateData = {
+      ...updates,
+      updatedAt: Date.now()
+    };
+    
+    await window.fs.updateDoc(docRef, updateData);
+    console.log("✅ Updated in Firestore");
+
+    // 2️⃣ עדכן ב-allDocsData המקומי
+    const docIndex = (window.allDocsData || []).findIndex(d => d.id === docId);
+    
+    if (docIndex !== -1) {
+      // עדכן את המסמך הקיים
+      window.allDocsData[docIndex] = {
+        ...window.allDocsData[docIndex],
+        ...updateData
+      };
+      console.log("✅ Updated in allDocsData");
+    } else {
+      // אם לא נמצא, טען מחדש מ-Firestore
+      console.log("⚠️ Document not in allDocsData, reloading...");
+      const docSnap = await window.fs.getDoc(docRef);
+      if (docSnap.exists()) {
+        const doc = { id: docSnap.id, ...docSnap.data() };
+        window.allDocsData.push(doc);
+        console.log("✅ Added to allDocsData");
+      }
+    }
+
+    // 3️⃣ עדכן ב-localStorage/memory
+    const currentUser = getCurrentUserEmail();
+    if (currentUser && typeof setUserDocs === 'function') {
+      setUserDocs(currentUser, window.allDocsData, window.allUsersData);
+    }
+
+    // 4️⃣ רענן את התצוגה
+    console.log("🎨 Refreshing view after update");
+    if (typeof window.renderHome === 'function') {
+      window.renderHome();
+    }
+
+    showNotification("המסמך עודכן בהצלחה ✅");
+    return true;
+    
+  } catch (error) {
+    console.error("❌ Error updating document:", error);
+    showNotification("שגיאה בעדכון המסמך", true);
+    throw error;
+  }
+}
+
+// גם החלף את saveDocumentEdit:
+async function saveDocumentEdit() {
+  const id = document.getElementById("edit_doc_id")?.value;
+  const title = document.getElementById("edit_title")?.value?.trim();
+  const category = document.getElementById("edit_category")?.value;
+  const notes = document.getElementById("edit_notes")?.value?.trim();
+  const warranty = document.getElementById("edit_warranty")?.value;
+
+  console.log("💾 saveDocumentEdit called:", { id, title, category, notes, warranty });
+
+  if (!id) {
+    showNotification("מזהה מסמך חסר", true);
+    return;
+  }
+
+  if (!title) {
+    showNotification("יש למלא שם מסמך", true);
+    return;
+  }
+
+  try {
+    showLoading("שומר שינויים...");
+
+    const updates = {
+      title,
+      category: category || "כללי",
+      notes: notes || "",
+      updatedAt: Date.now()
+    };
+
+    // הוסף תאריך אחריות רק אם הוזן
+    if (warranty) {
+      updates.warrantyEnd = warranty;
+    }
+
+    // עדכן ב-Firestore
+    await updateDocumentInFirestore(id, updates);
+
+    // סגור את המודל
+    closeModal("editDocModal");
+    
+    hideLoading();
+    showNotification("המסמך עודכן בהצלחה ✅");
+    
+    console.log("✅ Document edit saved successfully");
+
+  } catch (error) {
+    console.error("❌ Error saving edit:", error);
+    hideLoading();
+    showNotification("שגיאה בשמירת השינויים", true);
+  }
+}
+
+
+// ────────────────────────────────────────────────────────────
+// תיקון #3: הסרת מסמך מתיקייה משותפת
+// ────────────────────────────────────────────────────────────
+
+// 🔥 הוסף פונקציה חדשה להסרת מסמך מתיקייה:
+
+async function removeDocFromFolder(docId, folderId) {
+  console.log("🗑️ Removing doc from folder:", docId, folderId);
+  
+  if (!docId || !folderId) {
+    showNotification("פרטים חסרים", true);
+    return;
+  }
+
+  if (!isFirebaseAvailable()) {
+    showNotification("Firebase לא זמין", true);
+    return;
+  }
+
+  try {
+    showLoading("מסיר מסמך מהתיקייה...");
+
+    // 1️⃣ טען את התיקייה
+    const folderRef = window.fs.doc(window.db, "sharedFolders", folderId);
+    const folderSnap = await window.fs.getDoc(folderRef);
+    
+    if (!folderSnap.exists()) {
+      throw new Error("התיקייה לא נמצאה");
+    }
+
+    const folderData = folderSnap.data();
+    const currentEmail = getCurrentUserEmail();
+
+    // 2️⃣ בדוק הרשאות - רק הבעלים יכול להסיר
+    if (folderData.owner !== currentEmail) {
+      hideLoading();
+      showNotification("רק בעל התיקייה יכול להסיר מסמכים", true);
+      return;
+    }
+
+    // 3️⃣ הסר את המסמך מרשימת המסמכים
+    let docsList = folderData.docs || [];
+    const originalLength = docsList.length;
+    docsList = docsList.filter(d => d !== docId);
+    
+    if (docsList.length === originalLength) {
+      hideLoading();
+      showNotification("המסמך לא נמצא בתיקייה", true);
+      return;
+    }
+
+    // 4️⃣ עדכן את התיקייה ב-Firestore
+    await window.fs.updateDoc(folderRef, {
+      docs: docsList,
+      updatedAt: Date.now()
+    });
+
+    console.log("✅ Document removed from folder");
+
+    // 5️⃣ עדכן את התצוגה
+    hideLoading();
+    showNotification("המסמך הוסר מהתיקייה ✅");
+
+    // טען מחדש את התיקייה
+    if (typeof openSharedFolder === 'function') {
+      await openSharedFolder(folderId);
+    }
+
+  } catch (error) {
+    console.error("❌ Error removing doc from folder:", error);
+    hideLoading();
+    showNotification("שגיאה בהסרת המסמך מהתיקייה", true);
+  }
+}
+
+// הוסף כפתור "הסר מתיקייה" לכרטיס המסמך
+// בפונקציה שמציירת את המסמכים בתיקייה משותפת, הוסף:
+
+function addRemoveFromFolderButton(docCard, docId, folderId) {
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'btn-secondary';
+  removeBtn.textContent = '🗑️ הסר מתיקייה';
+  removeBtn.style.marginTop = '0.5rem';
+  
+  removeBtn.onclick = async (e) => {
+    e.stopPropagation();
+    
+    const confirm = await showConfirmDialog(
+      "האם להסיר מסמך זה מהתיקייה?",
+      "המסמך עצמו לא יימחק, רק יוסר מהתיקייה המשותפת"
+    );
+    
+    if (confirm) {
+      await removeDocFromFolder(docId, folderId);
+    }
+  };
+  
+  docCard.appendChild(removeBtn);
+}
+
+// פונקציית עזר לדיאלוג אישור
+function showConfirmDialog(title, message) {
+  return new Promise((resolve) => {
+    const confirmed = confirm(`${title}\n\n${message}`);
+    resolve(confirmed);
+  });
+}
+
+
+// ────────────────────────────────────────────────────────────
+// 🎯 הוספת הפונקציות החדשות ל-window
+// ────────────────────────────────────────────────────────────
+
+window.updateDocumentInFirestore = updateDocumentInFirestore;
+window.saveDocumentEdit = saveDocumentEdit;
+window.removeDocFromFolder = removeDocFromFolder;
+window.addRemoveFromFolderButton = addRemoveFromFolderButton;
+
+console.log("✅ All 3 fixes loaded successfully!");
+console.log("✅ תיקון 1: פתיחת מסמכים בתיקיות משותפות");
+console.log("✅ תיקון 2: שמירת עריכת מסמכים");
+console.log("✅ תיקון 3: הסרת מסמכים מתיקיות");
 
 
 
