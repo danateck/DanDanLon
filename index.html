@@ -1679,6 +1679,24 @@ body {
 /* ========== סוף התיקון ========== */
 
 
+
+
+.small-btn {
+  background: #e8e4d9;
+  color: #333;
+  padding: 0.45rem 1rem;
+  border-radius: 12px;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.small-btn:hover {
+  background: #d6d2c7;
+}
+
   </style>
 </head>
 
@@ -1782,7 +1800,8 @@ body {
   <button class="logout-btn mobile-logout" id="mobileLogoutBtn">🚪 התנתקות</button>
 
   <!-- כפתור העלאת קובץ -->
-<button class="logout-btn" id="topLogoutBtn">🚪 התנתקות</button>
+<button class="small-btn" id="topLogoutBtn">🚪 התנתקות</button>
+
   <input
     type="file"
     id="fileInput"
