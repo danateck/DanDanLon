@@ -4126,14 +4126,11 @@ document.addEventListener("click", async (e) => {
     }
 
     try {
-      // 🔥 ננסה קודם להוריד דרך השרת עם headers (כמו בשאר הקריאות ל־API)
       let headers = {};
 
       if (typeof getAuthHeaders === "function") {
-        // מה-api-bridge.js – כולל Authorization + X-Dev-Email
         headers = await getAuthHeaders();
       } else {
-        // גיבוי: לפחות לשלוח מייל
         const email =
           (typeof getCurrentUserEmail === "function" && getCurrentUserEmail()) ||
           "";
@@ -4141,6 +4138,19 @@ document.addEventListener("click", async (e) => {
       }
 
       const resp = await fetch(fileUrl, { headers });
+
+      if (resp.status === 403) {
+        // ❌ ל־חבר בתיקייה שאין לו הרשאה
+        console.warn("❌ Forbidden opening shared doc (403)");
+        if (typeof hideLoading === "function") hideLoading();
+        if (typeof showNotification === "function") {
+          showNotification("אין לך הרשאה לפתוח את המסמך (רק מי שהעלה אותו יכול)", true);
+        } else {
+          alert("אין לך הרשאה לפתוח את המסמך (רק מי שהעלה אותו יכול)");
+        }
+        return;
+      }
+
       if (!resp.ok) {
         throw new Error("Download via API failed: " + resp.status);
       }
@@ -4150,14 +4160,13 @@ document.addEventListener("click", async (e) => {
       window.open(blobUrl, "_blank");
     } catch (apiErr) {
       console.error("❌ Error opening shared doc via API:", apiErr);
-      // אם משהו נדפק – לפחות ננסה לפתוח ישירות
-      window.open(fileUrl, "_blank");
+      if (typeof showNotification === "function") {
+        showNotification("שגיאה בפתיחת המסמך המשותף", true);
+      }
     } finally {
       if (typeof hideLoading === "function") hideLoading();
-      if (typeof showNotification === "function") {
-        showNotification("פותח קובץ...");
-      }
     }
+
   } catch (err) {
     console.error("❌ Error opening shared doc:", err);
     if (typeof hideLoading === "function") hideLoading();
@@ -4166,6 +4175,7 @@ document.addEventListener("click", async (e) => {
     }
   }
 });
+
 
 })();
 
