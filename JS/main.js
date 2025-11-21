@@ -4055,117 +4055,118 @@ console.log("✅ All functions fixed and loaded!");
 // 🔥 תמיכה בפתיחת קבצים לכל החברים בתיקייה משותפת
 // 🔥 פתיחת קבצים בתיקייה משותפת – ל-OWNER ולחברים
 (function () {
-  document.addEventListener("click", async (e) => {
-    const target = e.target.closest(".doc-open-link");
-    if (!target) return;
+  // פתיחת קובץ מתוך תיקייה משותפת (גם לבעלים וגם לחבר)
+document.addEventListener("click", async (e) => {
+  const target = e.target.closest(".doc-open-link");
+  if (!target) return;
 
-    // אם אנחנו לא בתוך תיקייה משותפת – שלא יתערב
-    let folderId = null;
-    if (typeof getCurrentFolderId === "function") {
-      folderId = getCurrentFolderId();
-    } else {
-      const urlParams = new URLSearchParams(window.location.search);
-      folderId = urlParams.get("sharedFolder");
+  // אם אנחנו לא בתוך תיקייה משותפת – שלא יתערב
+  let folderId = null;
+  if (typeof getCurrentFolderId === "function") {
+    folderId = getCurrentFolderId();
+  } else {
+    const urlParams = new URLSearchParams(window.location.search);
+    folderId = urlParams.get("sharedFolder");
+  }
+  if (!folderId) {
+    // לא בתיקייה משותפת – הליסנרים האחרים מטפלים
+    return;
+  }
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const docId = target.dataset.openId;
+  if (!docId) {
+    console.error("❌ No document ID on button");
+    return;
+  }
+
+  console.log("🔍 Opening shared doc:", { folderId, docId });
+
+  if (!isFirebaseAvailable()) {
+    if (typeof showNotification === "function") {
+      showNotification("Firebase לא זמין - לא ניתן לפתוח מסמך משותף", true);
     }
-    if (!folderId) {
-      // לא בתיקייה משותפת – הליסנרים האחרים מטפלים
+    return;
+  }
+
+  try {
+    if (typeof showLoading === "function") {
+      showLoading("טוען מסמך משותף...");
+    }
+
+    const col = window.fs.collection(window.db, "sharedDocs");
+    const q = window.fs.query(
+      col,
+      window.fs.where("folderId", "==", folderId),
+      window.fs.where("id", "==", docId)
+    );
+    const snap = await window.fs.getDocs(q);
+
+    if (snap.empty) {
+      console.warn("❌ No sharedDocs record for", { folderId, docId });
+      if (typeof hideLoading === "function") hideLoading();
       return;
     }
 
-    e.preventDefault();
-    e.stopPropagation();
+    const docSnap = snap.docs[0];
+    const data = docSnap.data();
+    console.log("📄 Shared doc data:", data);
 
-    const docId = target.dataset.openId;
-    if (!docId) {
-      console.error("❌ No document ID on button");
-      return;
-    }
+    const fileUrl =
+      data.fileUrl || data.file_url || data.downloadURL || data.url;
 
-    console.log("🔍 Opening shared doc:", { folderId, docId });
-
-    if (!isFirebaseAvailable()) {
+    if (!fileUrl) {
+      if (typeof hideLoading === "function") hideLoading();
       if (typeof showNotification === "function") {
-        showNotification("Firebase לא זמין - לא ניתן לפתוח מסמך משותף", true);
+        showNotification("לא נמצא קישור לקובץ במסמך המשותף", true);
       }
       return;
     }
 
     try {
-      if (typeof showLoading === "function") {
-        showLoading("טוען מסמך משותף...");
+      // 🔥 ננסה קודם להוריד דרך השרת עם headers (כמו בשאר הקריאות ל־API)
+      let headers = {};
+
+      if (typeof getAuthHeaders === "function") {
+        // מה-api-bridge.js – כולל Authorization + X-Dev-Email
+        headers = await getAuthHeaders();
+      } else {
+        // גיבוי: לפחות לשלוח מייל
+        const email =
+          (typeof getCurrentUserEmail === "function" && getCurrentUserEmail()) ||
+          "";
+        if (email) headers["X-Dev-Email"] = email;
       }
 
-      const col = window.fs.collection(window.db, "sharedDocs");
-      const q = window.fs.query(
-        col,
-        window.fs.where("folderId", "==", folderId),
-        window.fs.where("id", "==", docId)
-      );
-      const snap = await window.fs.getDocs(q);
-
-      if (snap.empty) {
-        console.warn("❌ No sharedDocs record for", { folderId, docId });
-        if (typeof hideLoading === "function") hideLoading();
-        if (typeof showNotification === "function") {
-            //showNotification("לא נמצא המסמך בתיקייה המשותפת", true);
-        }
-        return;
+      const resp = await fetch(fileUrl, { headers });
+      if (!resp.ok) {
+        throw new Error("Download via API failed: " + resp.status);
       }
 
-           const docSnap = snap.docs[0];
-      const data = docSnap.data();
-      console.log("📄 Shared doc data:", data);
-
-      const fileUrl =
-        data.fileUrl || data.file_url || data.downloadURL || data.url;
-
-      if (!fileUrl) {
-        if (typeof hideLoading === "function") hideLoading();
-        if (typeof showNotification === "function") {
-          showNotification("לא נמצא קישור לקובץ במסמך המשותף", true);
-        }
-        return;
-      }
-
-      // 👇 אם הקישור הוא ל־API של eco-files (onrender) – נפתח עם fetch ו־X-Dev-Email
-      const apiBase = (typeof API_BASE === "string") ? API_BASE : "";
-
-      try {
-        let openUrl = fileUrl;
-
-        if (apiBase && fileUrl.startsWith(apiBase)) {
-          const email = (typeof getCurrentUserEmail === "function")
-            ? getCurrentUserEmail()
-            : null;
-
-          const headers = {};
-          if (email) headers["X-Dev-Email"] = email;
-
-          const resp = await fetch(fileUrl, { headers });
-          if (!resp.ok) {
-            throw new Error("Download via API failed: " + resp.status);
-          }
-
-          const blob = await resp.blob();
-          openUrl = URL.createObjectURL(blob);
-        }
-
-        window.open(openUrl, "_blank");
-      } finally {
-        if (typeof hideLoading === "function") hideLoading();
-        if (typeof showNotification === "function") {
-          showNotification("פותח קובץ...");
-        }
-      }
-
-    } catch (err) {
-      console.error("❌ Error opening shared doc:", err);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+    } catch (apiErr) {
+      console.error("❌ Error opening shared doc via API:", apiErr);
+      // אם משהו נדפק – לפחות ננסה לפתוח ישירות
+      window.open(fileUrl, "_blank");
+    } finally {
       if (typeof hideLoading === "function") hideLoading();
       if (typeof showNotification === "function") {
-        showNotification("שגיאה בפתיחת המסמך המשותף", true);
+        showNotification("פותח קובץ...");
       }
     }
-  });
+  } catch (err) {
+    console.error("❌ Error opening shared doc:", err);
+    if (typeof hideLoading === "function") hideLoading();
+    if (typeof showNotification === "function") {
+      showNotification("שגיאה בפתיחת המסמך המשותף", true);
+    }
+  }
+});
+
 })();
 
 
