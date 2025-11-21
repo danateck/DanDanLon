@@ -1782,7 +1782,7 @@ body {
   <button class="logout-btn mobile-logout" id="mobileLogoutBtn">🚪 התנתקות</button>
 
   <!-- כפתור העלאת קובץ -->
-  <button class="upload-btn" id="uploadBtn">📤 העלה מסמך</button>
+<button class="logout-btn" id="topLogoutBtn">🚪 התנתקות</button>
   <input
     type="file"
     id="fileInput"
@@ -1796,11 +1796,12 @@ body {
 
       <!-- טאבים (משתמשת בהמשך בעיקר למיון/תצוגה) -->
       <div class="tabs-bar">
-        <button class="tab-btn active" data-sort="category">לפי קטגוריה</button>
-        <button class="tab-btn" data-sort="year">לפי שנה</button>
-        <button class="tab-btn" data-sort="org">לפי ארגון</button>
-        <button class="tab-btn" data-sort="recipient">לפי נמען</button>
-      </div>
+  <!-- כפתור העלאת מסמך בשורת הטאבים -->
+  <button class="tab-btn active" id="uploadBtn">📤 העלה מסמך</button>
+  <!-- כפתור סריקת מסמך במקום "לפי שנה" -->
+  <button class="tab-btn" id="scanBtn">🖨️ סרוק מסמך</button>
+</div>
+
 
       <!-- אזור התוכן -->
       <div class="content-scroll-area">
@@ -2210,16 +2211,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Logout buttons
-  const logoutBtn = document.getElementById("logoutBtn");
-  const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
-  
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", window.handleLogout);
-  }
-  if (mobileLogoutBtn) {
-    mobileLogoutBtn.addEventListener("click", window.handleLogout);
-  }
+// Logout buttons
+const logoutBtn = document.getElementById("logoutBtn");
+const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+const topLogoutBtn = document.getElementById("topLogoutBtn");
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", window.handleLogout);
+}
+if (mobileLogoutBtn) {
+  mobileLogoutBtn.addEventListener("click", window.handleLogout);
+}
+if (topLogoutBtn) {
+  topLogoutBtn.addEventListener("click", window.handleLogout);
+}
+
 
   // Menu items (sidebar navigation)
   document.querySelectorAll(".menu-item").forEach(item => {
