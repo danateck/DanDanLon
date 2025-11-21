@@ -236,6 +236,7 @@ app.post('/api/docs', upload.single('file'), async (req, res) => {
 });
 
 // 3️⃣ GET /api/docs/:id/download - Download file
+// 3️⃣ GET /api/docs/:id/download - Download file (FIXED)
 app.get('/api/docs/:id/download', async (req, res) => {
   try {
     const userEmail = getUserFromRequest(req);
@@ -244,6 +245,7 @@ app.get('/api/docs/:id/download', async (req, res) => {
     }
 
     const { id } = req.params;
+    console.log('📥 Download request:', { id, user: userEmail });
 
     const result = await pool.query(`
       SELECT file_data, file_name, mime_type, owner, shared_with
@@ -252,13 +254,32 @@ app.get('/api/docs/:id/download', async (req, res) => {
     `, [id]);
 
     if (result.rows.length === 0) {
+      console.log('❌ Document not found:', id);
       return res.status(404).json({ error: 'Not found' });
     }
 
     const doc = result.rows[0];
-    const sharedWith = doc.shared_with || [];
     
-    if (doc.owner !== userEmail && !sharedWith.includes(userEmail)) {
+    // 🔑 Parse shared_with properly
+    let sharedWith = [];
+    if (doc.shared_with) {
+      if (typeof doc.shared_with === 'string') {
+        try { sharedWith = JSON.parse(doc.shared_with); } catch (e) { sharedWith = []; }
+      } else if (Array.isArray(doc.shared_with)) {
+        sharedWith = doc.shared_with;
+      }
+    }
+    
+    // Normalize to lowercase
+    sharedWith = sharedWith.map(e => (e || '').toLowerCase());
+    const ownerEmail = (doc.owner || '').toLowerCase();
+    const requestingUser = userEmail.toLowerCase();
+
+    console.log('🔐 Access check:', { owner: ownerEmail, user: requestingUser, sharedWith });
+    
+    // Check access
+    if (ownerEmail !== requestingUser && !sharedWith.includes(requestingUser)) {
+      console.log('❌ Access denied for:', requestingUser);
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -266,6 +287,7 @@ app.get('/api/docs/:id/download', async (req, res) => {
       return res.status(404).json({ error: 'No file data' });
     }
 
+    console.log('✅ Sending file:', doc.file_name);
     res.setHeader('Content-Type', doc.mime_type);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(doc.file_name)}"`);
     res.send(doc.file_data);

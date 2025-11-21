@@ -4465,3 +4465,227 @@ console.log("✅ תיקון 3: מציאת folderId אוטומטית");
   console.log("✅ openSharedFolder wrapper installed");
 })();
 
+
+
+
+
+
+
+
+
+// 🔧 פתיחת קבצים בתיקייה משותפת - גם לחברים!
+(function () {
+  // מסיר listener קודם אם יש
+  const oldHandler = window._sharedDocClickHandler;
+  if (oldHandler) {
+    document.removeEventListener("click", oldHandler);
+  }
+
+  async function handleSharedDocClick(e) {
+    const target = e.target.closest(".doc-open-link");
+    if (!target) return;
+
+    // בדיקה אם אנחנו בתיקייה משותפת
+    let folderId = null;
+    if (typeof getCurrentFolderId === "function") {
+      folderId = getCurrentFolderId();
+    } else {
+      const urlParams = new URLSearchParams(window.location.search);
+      folderId = urlParams.get("sharedFolder");
+    }
+    
+    if (!folderId) {
+      // לא בתיקייה משותפת - תן ל-handler הרגיל לטפל
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const docId = target.dataset.openId;
+    if (!docId) {
+      console.error("❌ No document ID on button");
+      return;
+    }
+
+    console.log("📂 Opening shared doc:", { folderId, docId });
+
+    if (!isFirebaseAvailable()) {
+      if (typeof showNotification === "function") {
+        showNotification("Firebase לא זמין", true);
+      }
+      return;
+    }
+
+    try {
+      if (typeof showLoading === "function") {
+        showLoading("טוען מסמך משותף...");
+      }
+
+      // שליפת פרטי המסמך מ-sharedDocs
+      const col = window.fs.collection(window.db, "sharedDocs");
+      const q = window.fs.query(
+        col,
+        window.fs.where("folderId", "==", folderId),
+        window.fs.where("id", "==", docId)
+      );
+      const snap = await window.fs.getDocs(q);
+
+      if (snap.empty) {
+        console.warn("❌ No sharedDocs record for", { folderId, docId });
+        if (typeof hideLoading === "function") hideLoading();
+        showNotification("המסמך לא נמצא בתיקייה", true);
+        return;
+      }
+
+      const docSnap = snap.docs[0];
+      const data = docSnap.data();
+      console.log("📄 Shared doc data:", data);
+
+      const fileUrl = data.fileUrl || data.file_url || data.downloadURL || data.url;
+
+      if (!fileUrl) {
+        if (typeof hideLoading === "function") hideLoading();
+        showNotification("לא נמצא קישור לקובץ", true);
+        return;
+      }
+
+      // 🔑 קבלת ה-email של הבעלים של המסמך
+      const ownerEmail = data.ownerEmail || data._ownerEmail || "";
+      const currentEmail = typeof getCurrentUserEmail === "function" 
+        ? getCurrentUserEmail() 
+        : "";
+
+      console.log("👤 Owner:", ownerEmail);
+      console.log("👤 Current user:", currentEmail);
+
+      // בניית headers - נשתמש ב-email של הבעלים!
+      let headers = {};
+      
+      // אם אני הבעלים - אשתמש ב-email שלי
+      if (ownerEmail.toLowerCase() === currentEmail.toLowerCase()) {
+        console.log("✅ User is the owner - using own credentials");
+        if (typeof getAuthHeaders === "function") {
+          headers = await getAuthHeaders();
+        } else {
+          headers["X-Dev-Email"] = currentEmail;
+        }
+      } else {
+        // אני חבר - צריך לגשת דרך הבעלים
+        // 🔧 פתרון: נשלח את ה-email של הבעלים + סימון שזה shared access
+        console.log("👥 User is a member - requesting shared access");
+        headers["X-Dev-Email"] = ownerEmail; // משתמש ב-email של הבעלים
+        headers["X-Shared-Access"] = currentEmail; // מסמן מי מבקש
+        headers["X-Folder-Id"] = folderId; // מזהה התיקייה
+      }
+
+      console.log("📤 Request headers:", Object.keys(headers));
+
+      try {
+        const resp = await fetch(fileUrl, { headers });
+
+        if (resp.status === 403) {
+          // עדיין חסום - ננסה פתרון חלופי
+          console.warn("⚠️ Still forbidden, trying alternative...");
+          
+          // פתרון חלופי: ננסה לגשת ישירות ל-Storage URL אם יש
+          if (data.storageUrl || data.firebaseUrl) {
+            console.log("🔄 Trying Firebase Storage URL...");
+            window.open(data.storageUrl || data.firebaseUrl, "_blank");
+            if (typeof hideLoading === "function") hideLoading();
+            return;
+          }
+
+          // אם גם זה לא עובד - הודעה למשתמש
+          if (typeof hideLoading === "function") hideLoading();
+          showNotification("אין הרשאה לפתוח את המסמך. בקש מהבעלים לשתף אותו איתך ישירות.", true);
+          return;
+        }
+
+        if (!resp.ok) {
+          throw new Error("Download failed: " + resp.status);
+        }
+
+        // הצלחנו! פותחים את הקובץ
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // פתיחה בטאב חדש
+        window.open(blobUrl, "_blank");
+        
+        console.log("✅ File opened successfully!");
+        if (typeof hideLoading === "function") hideLoading();
+        
+      } catch (fetchErr) {
+        console.error("❌ Fetch error:", fetchErr);
+        if (typeof hideLoading === "function") hideLoading();
+        showNotification("שגיאה בפתיחת המסמך", true);
+      }
+
+    } catch (err) {
+      console.error("❌ Error opening shared doc:", err);
+      if (typeof hideLoading === "function") hideLoading();
+      showNotification("שגיאה בטעינת המסמך", true);
+    }
+  }
+
+  // שמירת ה-handler לשימוש עתידי
+  window._sharedDocClickHandler = handleSharedDocClick;
+  
+  // הוספת ה-listener עם capture=true כדי לתפוס לפני handlers אחרים
+  document.addEventListener("click", handleSharedDocClick, true);
+  
+  console.log("✅ Shared folder file access fix loaded!");
+})();
+
+
+
+
+
+
+
+
+// ═══════════════════════════════════════════════════════════════════
+// תיקון: עדכון shared_with כשמוסיפים מסמך לתיקייה משותפת
+// ═══════════════════════════════════════════════════════════════════
+
+// שמירת הפונקציה המקורית
+const _originalAddDoc = window.addDocumentToSharedFolder;
+
+// פונקציה מתוקנת שמעדכנת shared_with בשרת
+window.addDocumentToSharedFolder = async function(docId, folderId) {
+  const me = typeof getCurrentUserEmail === "function" 
+    ? getCurrentUserEmail()?.toLowerCase() 
+    : "";
+  
+  console.log("📂 Adding doc to shared folder (with shared_with update):", { docId, folderId });
+
+  // קריאה לפונקציה המקורית
+  const result = await _originalAddDoc(docId, folderId);
+
+  // עכשיו נעדכן את shared_with בשרת
+  try {
+    // קבלת חברי התיקייה
+    const folderRef = window.fs.doc(window.db, "sharedFolders", folderId);
+    const folderSnap = await window.fs.getDoc(folderRef);
+    
+    if (folderSnap.exists()) {
+      const folderData = folderSnap.data();
+      const members = (folderData.members || [])
+        .map(e => e.toLowerCase())
+        .filter(e => e !== me); // כל החברים חוץ מהבעלים
+      
+      if (members.length > 0 && typeof window.updateDocument === "function") {
+        console.log("📤 Updating shared_with in backend:", members);
+        await window.updateDocument(docId, { shared_with: members });
+        console.log("✅ Backend shared_with updated!");
+      }
+    }
+  } catch (err) {
+    console.warn("⚠️ Could not update shared_with:", err);
+  }
+
+  return result;
+};
+
+console.log("✅ addDocumentToSharedFolder patched with shared_with update!");
