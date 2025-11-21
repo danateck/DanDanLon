@@ -4112,7 +4112,7 @@ console.log("✅ All functions fixed and loaded!");
         return;
       }
 
-               const docSnap = snap.docs[0];
+           const docSnap = snap.docs[0];
       const data = docSnap.data();
       console.log("📄 Shared doc data:", data);
 
@@ -4125,38 +4125,6 @@ console.log("✅ All functions fixed and loaded!");
           showNotification("לא נמצא קישור לקובץ במסמך המשותף", true);
         }
         return;
-      }
-
-      // 👇 אם הקישור הוא ל־API של eco-files – נשתמש ב־getAuthHeaders
-      const apiBase = (typeof API_BASE === "string") ? API_BASE : "";
-      let openUrl = fileUrl;
-
-      try {
-        if (apiBase && fileUrl.startsWith(apiBase)) {
-          // לוקחים headers מאוחדים מה-api-bridge (X-Dev-Email + Authorization)
-          let headers = {};
-          if (typeof getAuthHeaders === "function") {
-            headers = await getAuthHeaders();
-          } else if (typeof getCurrentUser === "function") {
-            const u = getCurrentUser();
-            if (u) headers["X-Dev-Email"] = u;
-          }
-
-          const resp = await fetch(fileUrl, { headers });
-          if (!resp.ok) {
-            throw new Error("Download via API failed: " + resp.status);
-          }
-
-          const blob = await resp.blob();
-          openUrl = URL.createObjectURL(blob);
-        }
-
-        window.open(openUrl, "_blank");
-      } finally {
-        if (typeof hideLoading === "function") hideLoading();
-        if (typeof showNotification === "function") {
-          showNotification("פותח קובץ...");
-        }
       }
 
       // 👇 אם הקישור הוא ל־API של eco-files (onrender) – נפתח עם fetch ו־X-Dev-Email
