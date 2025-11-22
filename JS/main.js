@@ -3700,6 +3700,7 @@ if (editForm) {
 // 📷 סריקת מסמך: מצלמה -> תמונה -> "סריקה" שחור-לבן -> PDF -> העלאה
 // 📷 סריקת מסמך: מצלמה -> תיקון כיוון -> שחור-לבן -> PDF -> העלאה רגילה
 // 📷 סריקת מסמך: מצלמה -> שחור-לבן -> סיבוב קבוע -> PDF -> העלאה רגילה
+// 📷 סריקת מסמך: מצלמה -> שחור-לבן -> סיבוב בתוך ה-PDF -> העלאה רגילה
 if (scanBtn) {
   scanBtn.addEventListener("click", () => {
     if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -3776,24 +3777,19 @@ if (scanBtn) {
 
               srcCtx.putImageData(imageData, 0, 0);
 
-              // --- שלב 3: סיבוב קבוע ב־90° כדי שלא יהיה על הצד ---
-              const rotateCanvas = document.createElement("canvas");
-              const rctx = rotateCanvas.getContext("2d");
+              // --- שלב 3: החלטת סיבוב בתוך ה-PDF ---
+              let finalCanvas = srcCanvas;
+              let rotationDeg = 0;
 
-              // הופכים מרוחב×גובה לגובה×רוחב
-              rotateCanvas.width  = srcCanvas.height;
-              rotateCanvas.height = srcCanvas.width;
+              // אם התמונה "שוכבת" (רוחב>גובה) – נסובב אותה ב-PDF ב-90°
+              let imgW = finalCanvas.width;
+              let imgH = finalCanvas.height;
 
-              rctx.translate(rotateCanvas.width / 2, rotateCanvas.height / 2);
-              // 🌟 אם אחרי זה זה עדיין הפוך, תחליפי ל-Math.PI / 2
-              rctx.rotate(Math.PI / 2); // סיבוב 90° *עם* כיוון השעון
-              rctx.drawImage(
-                srcCanvas,
-                -srcCanvas.width / 2,
-                -srcCanvas.height / 2
-              );
-
-              const finalCanvas = rotateCanvas;
+              if (imgW > imgH) {
+                rotationDeg = 90;
+                // לצורך חישוב גודל על הדף – הרוחב והגובה אחרי סיבוב מתהפכים
+                [imgW, imgH] = [imgH, imgW];
+              }
 
               // --- שלב 4: התאמה ל-A4 ויצירת PDF ---
               const processedDataUrl = finalCanvas.toDataURL("image/jpeg", 1.0);
@@ -3801,7 +3797,7 @@ if (scanBtn) {
               const maxWidth  = pageWidth  - margin * 2;
               const maxHeight = pageHeight - margin * 2;
 
-              const imgAspect = finalCanvas.width / finalCanvas.height;
+              const imgAspect = imgW / imgH; // אחרי התאמת סיבוב תאורטית
 
               let drawWidth  = maxWidth;
               let drawHeight = drawWidth / imgAspect;
@@ -3814,13 +3810,17 @@ if (scanBtn) {
               const x = (pageWidth  - drawWidth)  / 2;
               const y = (pageHeight - drawHeight) / 2;
 
+              // addImage: data, type, x, y, w, h, alias, compression, rotation
               pdf.addImage(
                 processedDataUrl,
                 "JPEG",
                 x,
                 y,
                 drawWidth,
-                drawHeight
+                drawHeight,
+                undefined,
+                "FAST",
+                rotationDeg
               );
 
               const blob = pdf.output("blob");
@@ -3893,6 +3893,7 @@ if (scanBtn) {
     cameraInput.click();
   });
 }
+
 
 
 
