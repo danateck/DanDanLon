@@ -4136,8 +4136,14 @@ async function uploadScannedPdf() {
   });
 
 const blob = pdf.output("blob");
-const fileName = `scan_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+// שם ייחודי לכל סריקה: כולל תאריך + שעה + שניות
+const now = new Date();
+const iso = now.toISOString().replace(/[:.]/g, "-"); // 2025-11-22T13-45-30-123Z
+const fileName = `scan_${iso}.pdf`;
+
 const pdfFile = new File([blob], fileName, { type: "application/pdf" });
+
 
 // 👉 להשתמש בפלואו הרגיל של "העלה מסמך"
 const fileInput = document.getElementById("fileInput");
