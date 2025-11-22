@@ -3805,33 +3805,57 @@ if (scanBtn) {
 
                 srcCtx.putImageData(imageData, 0, 0);
 
-                // --- שלב 3: התאמה ל-A4 ויצירת PDF ---
-                const processedDataUrl = srcCanvas.toDataURL("image/jpeg", 1.0);
+// --- סיבוב אוטומטי אם הדף עדיין "שוכב" ---
+let finalCanvas = srcCanvas;
 
-                const maxWidth  = pageWidth  - margin * 2;
-                const maxHeight = pageHeight - margin * 2;
+if (srcCanvas.width > srcCanvas.height) {
+  const rotateCanvas = document.createElement("canvas");
+  const rctx = rotateCanvas.getContext("2d");
 
-                const imgAspect = srcCanvas.width / srcCanvas.height;
+  // הופכים מרוחב>גובה לגובה>רוחב (פורטרט)
+  rotateCanvas.width  = srcCanvas.height;
+  rotateCanvas.height = srcCanvas.width;
 
-                let drawWidth  = maxWidth;
-                let drawHeight = drawWidth / imgAspect;
+  rctx.translate(rotateCanvas.width / 2, rotateCanvas.height / 2);
+  // סיבוב 90° בכיוון השעון
+  rctx.rotate(Math.PI / 2);
+  rctx.drawImage(
+    srcCanvas,
+    -srcCanvas.width / 2,
+    -srcCanvas.height / 2
+  );
 
-                if (drawHeight > maxHeight) {
-                  drawHeight = maxHeight;
-                  drawWidth  = drawHeight * imgAspect;
-                }
+  finalCanvas = rotateCanvas;
+}
 
-                const x = (pageWidth  - drawWidth)  / 2;
-                const y = (pageHeight - drawHeight) / 2;
+// --- שלב 3: התאמה ל-A4 ויצירת PDF ---
+const processedDataUrl = finalCanvas.toDataURL("image/jpeg", 1.0);
 
-                pdf.addImage(
-                  processedDataUrl,
-                  "JPEG",
-                  x,
-                  y,
-                  drawWidth,
-                  drawHeight
-                );
+const maxWidth  = pageWidth  - margin * 2;
+const maxHeight = pageHeight - margin * 2;
+
+const imgAspect = finalCanvas.width / finalCanvas.height;
+
+let drawWidth  = maxWidth;
+let drawHeight = drawWidth / imgAspect;
+
+if (drawHeight > maxHeight) {
+  drawHeight = maxHeight;
+  drawWidth  = drawHeight * imgAspect;
+}
+
+const x = (pageWidth  - drawWidth)  / 2;
+const y = (pageHeight - drawHeight) / 2;
+
+pdf.addImage(
+  processedDataUrl,
+  "JPEG",
+  x,
+  y,
+  drawWidth,
+  drawHeight
+);
+
 
                 const blob = pdf.output("blob");
                 const pdfFile = new File(
