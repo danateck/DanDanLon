@@ -1726,6 +1726,21 @@ body {
 
 
 
+
+<!-- jsPDF - יצירת PDF מצד הלקוח -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+  if (window.jspdf && window.jspdf.jsPDF) {
+    console.log("✅ jsPDF loaded");
+  } else {
+    console.warn("⚠️ jsPDF failed to load");
+  }
+</script>
+
+
+
+
+
   <div class="dashboard">
     <!-- ===== SIDEBAR ===== -->
     <aside class="sidebar" id="sidebarDrawer">

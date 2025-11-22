@@ -2493,6 +2493,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const uploadBtn = document.getElementById("uploadBtn");
   const fileInput = document.getElementById("fileInput");
   const sortSelect = document.getElementById("sortSelect");
+  const scanBtn    = document.getElementById("scanBtn"); // כפתור "סרוק מסמך"
   const editModal = document.getElementById("editModal");
   const editForm = document.getElementById("editForm");
   const editCancelBtn = document.getElementById("editCancelBtn");
@@ -3695,6 +3696,137 @@ if (editForm) {
       fileInput.click();
     });
   }
+  // 📷 סריקת מסמך: מצלמה -> תמונה -> PDF -> העלאה כאילו נבחר קובץ רגיל
+if (scanBtn) {
+  scanBtn.addEventListener("click", () => {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      if (typeof showNotification === "function") {
+        showNotification("לא הצלחתי לטעון את מנוע ה-PDF 🤷‍♂️", true);
+      } else {
+        alert("לא הצלחתי לטעון את מנוע ה-PDF");
+      }
+      return;
+    }
+
+    // קלט מוסתר שפותח מצלמה במובייל / גלריה במחשב
+    const cameraInput = document.createElement("input");
+    cameraInput.type = "file";
+    cameraInput.accept = "image/*";
+    cameraInput.capture = "environment"; // רמז למצלמה אחורית במובייל
+    cameraInput.style.display = "none";
+    document.body.appendChild(cameraInput);
+
+    cameraInput.addEventListener("change", () => {
+      const imageFile = cameraInput.files && cameraInput.files[0];
+      document.body.removeChild(cameraInput);
+      if (!imageFile) return;
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        try {
+          const imgDataUrl = reader.result;
+          const { jsPDF } = window.jspdf;
+
+          // A4 בפיקסלים נקודות (pt)
+          const pdf = new jsPDF({ unit: "pt", format: "a4" });
+          const pageWidth  = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const margin    = 20;
+              const maxWidth  = pageWidth  - margin * 2;
+              const maxHeight = pageHeight - margin * 2;
+
+              let imgWidth  = img.width;
+              let imgHeight = img.height;
+
+              const ratio = Math.min(maxWidth / imgWidth, maxHeight / imgHeight);
+              imgWidth  *= ratio;
+              imgHeight *= ratio;
+
+              pdf.addImage(
+                imgDataUrl,
+                imageFile.type.includes("png") ? "PNG" : "JPEG",
+                (pageWidth  - imgWidth)  / 2,
+                (pageHeight - imgHeight) / 2,
+                imgWidth,
+                imgHeight
+              );
+
+              const blob = pdf.output("blob");
+              const pdfFile = new File(
+                [blob],
+                `scan-${new Date().toISOString().slice(0, 10)}.pdf`,
+                { type: "application/pdf" }
+              );
+
+              // 👉 כאן אנחנו משתמשים באותה זרימת העלאה כמו כפתור "העלה מסמך"
+              const targetInput = document.getElementById("fileInput");
+              if (!targetInput) {
+                if (typeof showNotification === "function") {
+                  showNotification("לא נמצא שדה העלאת קובץ", true);
+                } else {
+                  alert("לא נמצא שדה העלאת קובץ");
+                }
+                return;
+              }
+
+              // נשים את ה-PDF הסופי ב-fileInput ונדליק אירוע change
+              const dt = new DataTransfer();
+              dt.items.add(pdfFile);
+              targetInput.files = dt.files;
+
+              // מפעיל את אותו קוד שיש לך ל-fileInput.addEventListener("change", ...)
+              targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+            } catch (err) {
+              console.error("❌ Error while creating PDF from image:", err);
+              if (typeof showNotification === "function") {
+                showNotification("שגיאה בהמרה לצורת PDF", true);
+              } else {
+                alert("שגיאה בהמרה לצורת PDF");
+              }
+            }
+          };
+
+          img.onerror = (e) => {
+            console.error("❌ Image load error:", e);
+            if (typeof showNotification === "function") {
+              showNotification("שגיאה בקריאת התמונה", true);
+            } else {
+              alert("שגיאה בקריאת התמונה");
+            }
+          };
+
+          img.src = imgDataUrl;
+        } catch (err) {
+          console.error("❌ FileReader onload error:", err);
+          if (typeof showNotification === "function") {
+            showNotification("שגיאה בעיבוד הקובץ", true);
+          } else {
+            alert("שגיאה בעיבוד הקובץ");
+          }
+        }
+      };
+
+      reader.onerror = (e) => {
+        console.error("❌ FileReader error:", e);
+        if (typeof showNotification === "function") {
+          showNotification("שגיאה בקריאת הקובץ", true);
+        } else {
+          alert("שגיאה בקריאת הקובץ");
+        }
+      };
+
+      reader.readAsDataURL(imageFile);
+    });
+
+    cameraInput.click();
+  });
+}
+
   if (sortSelect) {
     sortSelect.addEventListener("change", () => {
       const [field, dir] = sortSelect.value.split("-");
