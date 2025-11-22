@@ -3992,178 +3992,320 @@ if (editForm) {
 
 
 // ================== סריקת מסמך – CamScanner סטייל ==================
-const scannedPages = []; // כל עמוד: { dataUrl, width, height }
+// ================== סריקת מסמך – CamScanner סטייל (עם CROP צבעוני) ==================
 
-// פתיחת מודאל
+
+
+let scannedPages = [];
+
+// פתיחה/סגירה של מודאל הסריקה
 function openScanModal() {
   if (!scanModal) return;
-  // איפוס מצב
-  scannedPages.length = 0;
-  if (scanPagesContainer) scanPagesContainer.innerHTML = "";
-  if (scanEmptyState) scanEmptyState.style.display = "block";
-  if (scanUploadBtn) {
-    scanUploadBtn.disabled = true;
-    scanUploadBtn.style.opacity = "0.6";
-  }
-
+  scannedPages = [];
+  refreshScanPagesList();
   scanModal.classList.remove("hidden");
-  document.body.style.overflow = "hidden";
 }
 
-// סגירת מודאל
 function closeScanModal() {
   if (!scanModal) return;
   scanModal.classList.add("hidden");
-  document.body.style.overflow = "";
-  scannedPages.length = 0;
-  if (scanPagesContainer) scanPagesContainer.innerHTML = "";
-  if (scanEmptyState) scanEmptyState.style.display = "block";
-  if (scanUploadBtn) {
-    scanUploadBtn.disabled = true;
-    scanUploadBtn.style.opacity = "0.6";
-  }
+  scannedPages = [];
+  refreshScanPagesList();
 }
 
-// המרה לתמונה שחור-לבן + עמידה
-function makeBWPortraitDataUrl(img) {
-  const tmp = document.createElement("canvas");
-  const ctx = tmp.getContext("2d");
-
-  tmp.width = img.width;
-  tmp.height = img.height;
-  ctx.drawImage(img, 0, 0);
-
-  const imageData = ctx.getImageData(0, 0, tmp.width, tmp.height);
-  const data = imageData.data;
-
-  const contrast = 40;
-  const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    let gray = 0.3 * r + 0.59 * g + 0.11 * b;
-
-    gray = factor * (gray - 128) + 128;
-    gray = Math.max(0, Math.min(255, gray));
-
-    data[i] = data[i + 1] = data[i + 2] = gray;
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-
-  // אם התמונה שוכבת – נסובב לעמידה
-  let finalCanvas = tmp;
-  if (tmp.width > tmp.height) {
-    finalCanvas = document.createElement("canvas");
-    finalCanvas.width = tmp.height;
-    finalCanvas.height = tmp.width;
-    const fctx = finalCanvas.getContext("2d");
-    fctx.translate(finalCanvas.width / 2, finalCanvas.height / 2);
-    fctx.rotate(-Math.PI / 2); // אם יוצא לא נכון – אפשר להחליף ל +Math.PI/2
-    fctx.drawImage(tmp, -tmp.width / 2, -tmp.height / 2);
-  }
-
-  return {
-    dataUrl: finalCanvas.toDataURL("image/jpeg", 1.0),
-    width: finalCanvas.width,
-    height: finalCanvas.height,
-  };
-}
-
-// רענון תצוגת העמודים במודל (עם מחיקה + צילום מחדש)
-function refreshPagesList() {
-  if (!scanPagesContainer || !scanEmptyState) return;
+// רענון רשימת העמודים שנסרקו
+function refreshScanPagesList() {
+  if (!scanPagesContainer) return;
 
   scanPagesContainer.innerHTML = "";
 
   if (!scannedPages.length) {
-    scanEmptyState.style.display = "block";
+    if (scanEmptyState) scanEmptyState.style.display = "block";
     if (scanUploadBtn) {
       scanUploadBtn.disabled = true;
-      scanUploadBtn.style.opacity = "0.6";
+      scanUploadBtn.style.opacity = ".6";
     }
     return;
   }
 
-  scanEmptyState.style.display = "none";
+  if (scanEmptyState) scanEmptyState.style.display = "none";
   if (scanUploadBtn) {
     scanUploadBtn.disabled = false;
     scanUploadBtn.style.opacity = "1";
   }
 
-  scannedPages.forEach((p, index) => {
-    const wrapper = document.createElement("div");
-    wrapper.style.border = "1px solid #ddd";
-    wrapper.style.borderRadius = "8px";
-    wrapper.style.padding = ".5rem";
-    wrapper.style.background = "#fafafa";
-    wrapper.style.display = "flex";
-    wrapper.style.flexDirection = "column";
-    wrapper.style.gap = ".35rem";
+  scannedPages.forEach((page, index) => {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.justifyContent = "space-between";
+    row.style.gap = ".5rem";
+    row.style.padding = ".4rem .5rem";
+    row.style.borderRadius = "8px";
+    row.style.border = "1px solid #eee";
+    row.style.background = "#fafafa";
 
-    const title = document.createElement("div");
-    title.textContent = `עמוד ${index + 1}`;
-    title.style.fontSize = ".8rem";
-    title.style.fontWeight = "600";
+    const left = document.createElement("div");
+    left.style.display = "flex";
+    left.style.alignItems = "center";
+    left.style.gap = ".5rem";
 
-    const imgEl = document.createElement("img");
-    imgEl.src = p.dataUrl;
-    imgEl.alt = `עמוד ${index + 1}`;
-    imgEl.style.display = "block";
-    imgEl.style.width = "100%";
-    imgEl.style.borderRadius = "6px";
-    imgEl.style.border = "1px solid #ccc";
+    const thumb = document.createElement("img");
+    thumb.src = page.dataUrl;
+    thumb.style.width = "50px";
+    thumb.style.height = "70px";
+    thumb.style.objectFit = "cover";
+    thumb.style.borderRadius = "4px";
+    thumb.alt = `עמוד ${index + 1}`;
 
-    const btnRow = document.createElement("div");
-    btnRow.style.display = "flex";
-    btnRow.style.justifyContent = "flex-end";
-    btnRow.style.gap = ".4rem";
+    const label = document.createElement("div");
+    label.style.fontSize = ".8rem";
+    label.textContent = `עמוד ${index + 1}`;
 
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.textContent = "🗑️ מחיקה";
-    deleteBtn.style.fontSize = ".75rem";
-    deleteBtn.style.border = "none";
-    deleteBtn.style.borderRadius = "999px";
-    deleteBtn.style.padding = ".25rem .6rem";
-    deleteBtn.style.cursor = "pointer";
-    deleteBtn.style.background = "#ffe5e5";
-    deleteBtn.style.color = "#b00020";
-    deleteBtn.addEventListener("click", () => {
-      scannedPages.splice(index, 1);
-      refreshPagesList();
-    });
+    left.appendChild(thumb);
+    left.appendChild(label);
+
+    const right = document.createElement("div");
+    right.style.display = "flex";
+    right.style.gap = ".3rem";
 
     const replaceBtn = document.createElement("button");
     replaceBtn.type = "button";
-    replaceBtn.textContent = "🔁 צלם שוב";
+    replaceBtn.textContent = "צלמי שוב";
     replaceBtn.style.fontSize = ".75rem";
-    replaceBtn.style.border = "none";
+    replaceBtn.style.padding = ".25rem .5rem";
     replaceBtn.style.borderRadius = "999px";
-    replaceBtn.style.padding = ".25rem .6rem";
+    replaceBtn.style.border = "none";
     replaceBtn.style.cursor = "pointer";
-    replaceBtn.style.background = "#e3f2fd";
-    replaceBtn.style.color = "#0d47a1";
+    replaceBtn.style.background = "#eef5ff";
+    replaceBtn.style.color = "#114488";
+
     replaceBtn.addEventListener("click", () => {
-      captureScanPage(index); // יחליף את העמוד במקום
+      captureScanPage(index); // מחליף את העמוד הזה
     });
 
-    btnRow.appendChild(replaceBtn);
-    btnRow.appendChild(deleteBtn);
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "מחק";
+    deleteBtn.style.fontSize = ".75rem";
+    deleteBtn.style.padding = ".25rem .5rem";
+    deleteBtn.style.borderRadius = "999px";
+    deleteBtn.style.border = "none";
+    deleteBtn.style.cursor = "pointer";
+    deleteBtn.style.background = "#ffeaea";
+    deleteBtn.style.color = "#aa2222";
 
-    wrapper.appendChild(title);
-    wrapper.appendChild(imgEl);
-    wrapper.appendChild(btnRow);
-    scanPagesContainer.appendChild(wrapper);
+    deleteBtn.addEventListener("click", () => {
+      scannedPages.splice(index, 1);
+      refreshScanPagesList();
+    });
+
+    right.appendChild(replaceBtn);
+    right.appendChild(deleteBtn);
+
+    row.appendChild(left);
+    row.appendChild(right);
+    scanPagesContainer.appendChild(row);
   });
 }
 
-// צילום עמוד מהמצלמה
+/**
+ * פותח עורך CROP לפני שמירת העמוד:
+ * 1. עושה חיתוך אוטומטי (zoom קטן פנימה)
+ * 2. נותן סליידר "התאמת חיתוך" להגדיל/להקטין
+ * 3. כשאת לוחצת "אישור" – שומר את העמוד בצבע, מסובב לעמידה אם צריך
+ */
+function showScanCropEditor(file, onDone) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      // שכבה שמכסה את המסך
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.inset = "0";
+      overlay.style.background = "rgba(0,0,0,.55)";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.style.zIndex = "10001";
+
+      const panel = document.createElement("div");
+      panel.style.background = "#fff";
+      panel.style.borderRadius = "12px";
+      panel.style.padding = ".75rem";
+      panel.style.maxWidth = "95vw";
+      panel.style.width = "420px";
+      panel.style.maxHeight = "95vh";
+      panel.style.display = "flex";
+      panel.style.flexDirection = "column";
+      panel.style.gap = ".5rem";
+      panel.style.boxShadow = "0 20px 40px rgba(0,0,0,.35)";
+
+      const title = document.createElement("h3");
+      title.textContent = "תצוגה לפני שמירה";
+      title.style.margin = "0 0 .25rem 0";
+      title.style.fontSize = ".95rem";
+      title.style.fontWeight = "600";
+
+      const canvas = document.createElement("canvas");
+      canvas.style.width = "100%";
+      canvas.style.maxHeight = "60vh";
+      canvas.style.borderRadius = "8px";
+      canvas.style.border = "1px solid #ddd";
+      canvas.style.background = "#000";
+
+      const sliderWrapper = document.createElement("div");
+      sliderWrapper.style.display = "flex";
+      sliderWrapper.style.flexDirection = "column";
+      sliderWrapper.style.gap = ".2rem";
+      sliderWrapper.style.marginTop = ".25rem";
+
+      const sliderLabel = document.createElement("div");
+      sliderLabel.textContent = "התאמת חיתוך (Zoom)";
+      sliderLabel.style.fontSize = ".8rem";
+      sliderLabel.style.color = "#555";
+
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0";
+      slider.max = "0.3";      // עד 30% חיתוך פנימה
+      slider.step = "0.01";
+      slider.value = "0.08";   // חיתוך אוטומטי עדין
+
+      sliderWrapper.appendChild(sliderLabel);
+      sliderWrapper.appendChild(slider);
+
+      const buttonsRow = document.createElement("div");
+      buttonsRow.style.display = "flex";
+      buttonsRow.style.justifyContent = "space-between";
+      buttonsRow.style.gap = ".5rem";
+      buttonsRow.style.marginTop = ".4rem";
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.textContent = "ביטול";
+      cancelBtn.style.flex = "1";
+      cancelBtn.style.padding = ".45rem .75rem";
+      cancelBtn.style.borderRadius = "999px";
+      cancelBtn.style.border = "none";
+      cancelBtn.style.cursor = "pointer";
+      cancelBtn.style.background = "#eee";
+      cancelBtn.style.color = "#333";
+      cancelBtn.style.fontSize = ".85rem";
+
+      const okBtn = document.createElement("button");
+      okBtn.type = "button";
+      okBtn.textContent = "אישור";
+      okBtn.style.flex = "1";
+      okBtn.style.padding = ".45rem .75rem";
+      okBtn.style.borderRadius = "999px";
+      okBtn.style.border = "none";
+      okBtn.style.cursor = "pointer";
+      okBtn.style.background = "#2ecc71";
+      okBtn.style.color = "#fff";
+      okBtn.style.fontSize = ".85rem";
+      okBtn.style.fontWeight = "600";
+
+      buttonsRow.appendChild(cancelBtn);
+      buttonsRow.appendChild(okBtn);
+
+      panel.appendChild(title);
+      panel.appendChild(canvas);
+      panel.appendChild(sliderWrapper);
+      panel.appendChild(buttonsRow);
+      overlay.appendChild(panel);
+      document.body.appendChild(overlay);
+
+      let lastPage = null;
+
+      function renderCrop() {
+        const zoom = parseFloat(slider.value) || 0;
+        const iw = img.width;
+        const ih = img.height;
+
+        const marginX = iw * zoom;
+        const marginY = ih * zoom;
+
+        let sx = marginX;
+        let sy = marginY;
+        let sw = iw - 2 * marginX;
+        let sh = ih - 2 * marginY;
+
+        if (sw <= 0 || sh <= 0) {
+          sx = 0;
+          sy = 0;
+          sw = iw;
+          sh = ih;
+        }
+
+        const rotate = sw > sh; // אם יותר רחב מגבוה – להפוך לעמידה
+        let cw, ch;
+        if (rotate) {
+          cw = sh;
+          ch = sw;
+        } else {
+          cw = sw;
+          ch = sh;
+        }
+
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, cw, ch);
+
+        if (rotate) {
+          ctx.translate(cw / 2, ch / 2);
+          ctx.rotate(-Math.PI / 2);
+          ctx.drawImage(
+            img,
+            sx,
+            sy,
+            sw,
+            sh,
+            -sw / 2,
+            -sh / 2,
+            sw,
+            sh
+          );
+        } else {
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+        }
+
+        lastPage = {
+          dataUrl: canvas.toDataURL("image/jpeg", 0.95),
+          width: cw,
+          height: ch,
+        };
+      }
+
+      slider.addEventListener("input", renderCrop);
+      renderCrop(); // פעם ראשונה – CROP אוטומטי
+
+      cancelBtn.addEventListener("click", () => {
+        document.body.removeChild(overlay);
+        // לא שומרים את העמוד
+      });
+
+      okBtn.addEventListener("click", () => {
+        document.body.removeChild(overlay);
+        if (lastPage && typeof onDone === "function") {
+          onDone(lastPage);
+        }
+      });
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// צילום עמוד חדש (או החלפת עמוד קיים)
 function captureScanPage(replaceIndex = null) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*";
-  input.capture = "environment"; // מצלמה אחורית
+  input.capture = "environment";
   input.style.display = "none";
   document.body.appendChild(input);
 
@@ -4172,101 +4314,98 @@ function captureScanPage(replaceIndex = null) {
     document.body.removeChild(input);
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const page = makeBWPortraitDataUrl(img);
-
-        if (replaceIndex !== null && scannedPages[replaceIndex]) {
-          scannedPages[replaceIndex] = page; // צילום מחדש
-        } else {
-          scannedPages.push(page); // עמוד חדש
-        }
-
-        refreshPagesList();
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
+    showScanCropEditor(file, (page) => {
+      if (typeof replaceIndex === "number") {
+        scannedPages[replaceIndex] = page;
+      } else {
+        scannedPages.push(page);
+      }
+      refreshScanPagesList();
+    });
   });
 
   input.click();
 }
 
-// יצירת PDF והעלאתו לשרת כמו העלאה רגילה
+// יצירת PDF והעלאה – משתמש בזרימה הרגילה של "העלה מסמך" (fileInput.change)
 async function uploadScannedPdf() {
-  if (!scannedPages.length) {
-    if (typeof showNotification === "function") {
-      showNotification("אין עמודים בסריקה", true);
-    } else {
-      alert("אין עמודים בסריקה");
+  if (!scannedPages.length) return;
+
+  try {
+    if (scanUploadBtn) {
+      scanUploadBtn.disabled = true;
+      scanUploadBtn.textContent = "מעלה סריקה...";
     }
-    return;
+
+    // בונה PDF מהעמודים שסרקנו
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) throw new Error("jsPDF not loaded");
+
+    const pdf = new jsPDF({
+      orientation: "p",
+      unit: "pt",
+      format: "a4",
+    });
+
+    scannedPages.forEach((page, idx) => {
+      if (idx > 0) pdf.addPage();
+      const imgProps = pdf.getImageProperties(page.dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      let imgWidth = pdfWidth - 40;
+      let imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+      if (imgHeight > pdfHeight - 40) {
+        imgHeight = pdfHeight - 40;
+        imgWidth = (imgProps.width * imgHeight) / imgProps.height;
+      }
+
+      const x = (pdfWidth - imgWidth) / 2;
+      const y = (pdfHeight - imgHeight) / 2;
+
+      pdf.addImage(page.dataUrl, "JPEG", x, y, imgWidth, imgHeight);
+    });
+
+    const blob = pdf.output("blob");
+    const fileName = `scan_${new Date().toISOString().replace(/[:.]/g, "-")}.pdf`;
+    const pdfFile = new File([blob], fileName, { type: "application/pdf" });
+
+    // 👉 משתמשים בזרימת "העלה מסמך" הרגילה (fileInput + change)
+    const fileInput = document.getElementById("fileInput");
+    if (!fileInput) {
+      alert("לא נמצא שדה העלאת קובץ");
+      return;
+    }
+
+    const dt = new DataTransfer();
+    dt.items.add(pdfFile);
+    fileInput.files = dt.files;
+
+    closeScanModal();
+
+    // מפעיל את כל ההיגיון הקיים (KEYWORDS, קטגוריה, אחריות, העלאה לשרת...)
+    fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+  } catch (err) {
+    console.error("❌ Scan upload failed:", err);
+    if (typeof showNotification === "function") {
+      showNotification("שגיאה בהעלאת הסריקה", true);
+    } else {
+      alert("שגיאה בהעלאת הסריקה");
+    }
+  } finally {
+    if (scanUploadBtn) {
+      scanUploadBtn.disabled = !scannedPages.length;
+      scanUploadBtn.textContent = "📤 העלאה";
+    }
   }
-
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    alert("jsPDF לא נטען – אי אפשר ליצור PDF");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "pt", format: "a4", compress: true });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-
-  scannedPages.forEach((p, idx) => {
-    if (idx > 0) pdf.addPage();
-    const ratio = Math.min(pageW / p.width, pageH / p.height);
-    const w = p.width * ratio;
-    const h = p.height * ratio;
-    const x = (pageW - w) / 2;
-    const y = (pageH - h) / 2;
-    pdf.addImage(p.dataUrl, "JPEG", x, y, w, h);
-  });
-
-const blob = pdf.output("blob");
-
-// שם ייחודי לכל סריקה: כולל תאריך + שעה + שניות
-const now = new Date();
-const iso = now.toISOString().replace(/[:.]/g, "-"); // 2025-11-22T13-45-30-123Z
-const fileName = `scan_${iso}.pdf`;
-
-const pdfFile = new File([blob], fileName, { type: "application/pdf" });
-
-
-// 👉 להשתמש בפלואו הרגיל של "העלה מסמך"
-const fileInput = document.getElementById("fileInput");
-if (!fileInput) {
-  if (typeof showNotification === "function") {
-    showNotification("לא נמצא שדה העלאת קובץ", true);
-  } else {
-    alert("לא נמצא שדה העלאת קובץ");
-  }
-  return;
 }
 
-// שמים את ה-PDF שיצרנו בתוך fileInput
-const dt = new DataTransfer();
-dt.items.add(pdfFile);
-fileInput.files = dt.files;
-
-// סוגרים את מודאל הסריקה (אם יש)
-if (typeof closeScanModal === "function") {
-  closeScanModal();
-}
-
-// מפעילים את כל הלוגיקה הקיימת של fileInput.change:
-// כפילויות, KEYWORDS, אחריות, העלאה לשרת...
-fileInput.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-// חיבור כל הכפתורים
+// חיבור הכפתורים
 if (scanBtn && scanModal) {
   scanBtn.addEventListener("click", () => {
     openScanModal();
-    // צילום אוטומטי של עמוד ראשון
-    captureScanPage();
+    // לא מצלם אוטומטי – רק כשאת לוחצת "➕ עמוד נוסף"
   });
 }
 
@@ -4296,8 +4435,8 @@ if (scanModal) {
   });
 }
 
+// ================== סוף סריקת מסמך ==================
 
-// ============================================================
 
 
 
