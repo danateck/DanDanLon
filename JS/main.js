@@ -3786,7 +3786,7 @@ if (scanBtn) {
 
               rctx.translate(rotateCanvas.width / 2, rotateCanvas.height / 2);
               // 🌟 אם אחרי זה זה עדיין הפוך, תחליפי ל-Math.PI / 2
-              rctx.rotate(-Math.PI / 2); // סיבוב 90° *עם* כיוון השעון
+              rctx.rotate(Math.PI / 2); // סיבוב 90° *עם* כיוון השעון
               rctx.drawImage(
                 srcCanvas,
                 -srcCanvas.width / 2,
