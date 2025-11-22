@@ -3697,6 +3697,7 @@ if (editForm) {
     });
   }
   // 📷 סריקת מסמך: מצלמה -> תמונה -> PDF -> העלאה כאילו נבחר קובץ רגיל
+// 📷 סריקת מסמך: מצלמה -> תמונה -> "סריקה" שחור-לבן -> PDF -> העלאה
 if (scanBtn) {
   scanBtn.addEventListener("click", () => {
     if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -3708,11 +3709,11 @@ if (scanBtn) {
       return;
     }
 
-    // קלט מוסתר שפותח מצלמה במובייל / גלריה במחשב
+    // קלט מוסתר שפותח מצלמה / גלריה
     const cameraInput = document.createElement("input");
     cameraInput.type = "file";
     cameraInput.accept = "image/*";
-    cameraInput.capture = "environment"; // רמז למצלמה אחורית במובייל
+    cameraInput.capture = "environment"; // מצלמה אחורית במובייל (אם אפשר)
     cameraInput.style.display = "none";
     document.body.appendChild(cameraInput);
 
@@ -3727,33 +3728,95 @@ if (scanBtn) {
         try {
           const imgDataUrl = reader.result;
           const { jsPDF } = window.jspdf;
-
-          // A4 בפיקסלים נקודות (pt)
           const pdf = new jsPDF({ unit: "pt", format: "a4" });
           const pageWidth  = pdf.internal.pageSize.getWidth();
           const pageHeight = pdf.internal.pageSize.getHeight();
+          const margin     = 20;
 
           const img = new Image();
+
           img.onload = () => {
             try {
-              const margin    = 20;
+              // --- שלב 1: לייצר canvas מקור וליישר את התמונה (אם היא לרוחב) ---
+              const srcCanvas = document.createElement("canvas");
+              const srcCtx    = srcCanvas.getContext("2d");
+
+              const origW = img.width;
+              const origH = img.height;
+
+              // אם התמונה לרוחב (רוחב גדול מגובה), נסובב אותה שתהיה אנכית
+              if (origW > origH) {
+                srcCanvas.width  = origH;
+                srcCanvas.height = origW;
+
+                srcCtx.translate(srcCanvas.width / 2, srcCanvas.height / 2);
+                srcCtx.rotate(-Math.PI / 2);
+                srcCtx.drawImage(img, -origW / 2, -origH / 2);
+              } else {
+                srcCanvas.width  = origW;
+                srcCanvas.height = origH;
+                srcCtx.drawImage(img, 0, 0);
+              }
+
+              // --- שלב 2: "אפקט סריקה" – שחור-לבן, רקע לבן, טקסט כהה ---
+              const imageData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+              const data = imageData.data;
+
+              for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                // גווני אפור
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                let v;
+                // סף לרקע לבן/טקסט כהה – אפשר לשחק עם 80/200 אם בא לך
+                if (gray > 200) {
+                  v = 255; // רקע לבן
+                } else if (gray < 80) {
+                  v = 0;   // טקסט כהה
+                } else {
+                  // חיזוק ניגודיות באזור האמצעי
+                  v = ((gray - 80) * 255) / (200 - 80);
+                  if (v < 0) v = 0;
+                  if (v > 255) v = 255;
+                }
+
+                data[i]     = v; // R
+                data[i + 1] = v; // G
+                data[i + 2] = v; // B
+                // אלפא נשאר אותו דבר
+              }
+
+              srcCtx.putImageData(imageData, 0, 0);
+
+              // --- שלב 3: המתכון ל-PDF – להשחיל את ה-canvas המנוקה כעמוד A4 ---
+              const processedDataUrl = srcCanvas.toDataURL("image/jpeg", 1.0);
+
               const maxWidth  = pageWidth  - margin * 2;
               const maxHeight = pageHeight - margin * 2;
 
-              let imgWidth  = img.width;
-              let imgHeight = img.height;
+              const imgAspect = srcCanvas.width / srcCanvas.height;
 
-              const ratio = Math.min(maxWidth / imgWidth, maxHeight / imgHeight);
-              imgWidth  *= ratio;
-              imgHeight *= ratio;
+              let drawWidth  = maxWidth;
+              let drawHeight = drawWidth / imgAspect;
+
+              if (drawHeight > maxHeight) {
+                drawHeight = maxHeight;
+                drawWidth  = drawHeight * imgAspect;
+              }
+
+              const x = (pageWidth  - drawWidth)  / 2;
+              const y = (pageHeight - drawHeight) / 2;
 
               pdf.addImage(
-                imgDataUrl,
-                imageFile.type.includes("png") ? "PNG" : "JPEG",
-                (pageWidth  - imgWidth)  / 2,
-                (pageHeight - imgHeight) / 2,
-                imgWidth,
-                imgHeight
+                processedDataUrl,
+                "JPEG",
+                x,
+                y,
+                drawWidth,
+                drawHeight
               );
 
               const blob = pdf.output("blob");
@@ -3763,7 +3826,7 @@ if (scanBtn) {
                 { type: "application/pdf" }
               );
 
-              // 👉 כאן אנחנו משתמשים באותה זרימת העלאה כמו כפתור "העלה מסמך"
+              // --- שלב 4: להעלות את זה כאילו זה נבחר ב"העלה מסמך" ---
               const targetInput = document.getElementById("fileInput");
               if (!targetInput) {
                 if (typeof showNotification === "function") {
@@ -3774,19 +3837,18 @@ if (scanBtn) {
                 return;
               }
 
-              // נשים את ה-PDF הסופי ב-fileInput ונדליק אירוע change
               const dt = new DataTransfer();
               dt.items.add(pdfFile);
               targetInput.files = dt.files;
 
-              // מפעיל את אותו קוד שיש לך ל-fileInput.addEventListener("change", ...)
+              // מפעיל את כל הלוגיקה הקיימת של העלאת מסמך רגילה
               targetInput.dispatchEvent(new Event("change", { bubbles: true }));
             } catch (err) {
-              console.error("❌ Error while creating PDF from image:", err);
+              console.error("❌ Error while creating scanned-style PDF:", err);
               if (typeof showNotification === "function") {
-                showNotification("שגיאה בהמרה לצורת PDF", true);
+                showNotification("שגיאה בהמרת הסריקה ל-PDF", true);
               } else {
-                alert("שגיאה בהמרה לצורת PDF");
+                alert("שגיאה בהמרת הסריקה ל-PDF");
               }
             }
           };
@@ -3826,6 +3888,7 @@ if (scanBtn) {
     cameraInput.click();
   });
 }
+
 
   if (sortSelect) {
     sortSelect.addEventListener("change", () => {
