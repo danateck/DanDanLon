@@ -3903,36 +3903,85 @@ if (editForm) {
 
 const scannedPages = []; // { dataUrl, width, height }
 
-
+// פתיחת מודאל הסריקה
 function openScanModal() {
   if (!scanModal) return;
   scanModal.classList.remove("hidden");
   scanModal.setAttribute("aria-hidden", "false");
 }
 
+// סגירת מודאל הסריקה + ניקוי מצב
 function closeScanModal() {
   if (!scanModal) return;
   scanModal.classList.add("hidden");
   scanModal.setAttribute("aria-hidden", "true");
-  // לנקות מצב
+
+  // לנקות את המצב
   scannedPages.length = 0;
-  if (scanPreview) scanPreview.style.display = "none";
-  if (scanPreviewPh) scanPreviewPh.style.display = "block";
-  if (scanPagesList) scanPagesList.textContent = "אין עמודים עדיין";
-  if (scanUploadBtn) scanUploadBtn.disabled = true;
+
+  if (scanPagesContainer) {
+    scanPagesContainer.innerHTML = "";
+  }
+  if (scanEmptyState) {
+    scanEmptyState.style.display = "block";
+  }
+  if (scanUploadBtn) {
+    scanUploadBtn.disabled = true;
+    scanUploadBtn.style.opacity = "0.6";
+  }
 }
 
-// עידכון כיתוב העמודים
+// רענון רשימת העמודים שבתוך המודאל
 function refreshPagesList() {
-  if (!scanPagesList) return;
+  if (!scanPagesContainer || !scanEmptyState) return;
+
   if (!scannedPages.length) {
-    scanPagesList.textContent = "אין עמודים עדיין";
+    scanPagesContainer.innerHTML = "";
+    scanEmptyState.style.display = "block";
+
+    if (scanUploadBtn) {
+      scanUploadBtn.disabled = true;
+      scanUploadBtn.style.opacity = "0.6";
+    }
     return;
   }
-  scanPagesList.innerHTML = scannedPages
-    .map((p, i) => `<span style="margin-left:.5rem;">עמוד ${i + 1}</span>`)
-    .join("");
+
+  // יש עמודים – להסתיר טקסט ריק ולהציג תצוגה מקדימה
+  scanEmptyState.style.display = "none";
+  scanPagesContainer.innerHTML = "";
+
+  scannedPages.forEach((p, i) => {
+    const wrapper = document.createElement("div");
+    wrapper.style.border = "1px solid #ddd";
+    wrapper.style.borderRadius = "8px";
+    wrapper.style.padding = "0.5rem";
+    wrapper.style.background = "#fafafa";
+
+    const title = document.createElement("div");
+    title.textContent = `עמוד ${i + 1}`;
+    title.style.fontSize = ".8rem";
+    title.style.marginBottom = ".35rem";
+    title.style.color = "#444";
+
+    const imgEl = document.createElement("img");
+    imgEl.src = p.dataUrl;
+    imgEl.alt = `עמוד ${i + 1}`;
+    imgEl.style.display = "block";
+    imgEl.style.width = "100%";
+    imgEl.style.borderRadius = "6px";
+    imgEl.style.border = "1px solid #ccc";
+
+    wrapper.appendChild(title);
+    wrapper.appendChild(imgEl);
+    scanPagesContainer.appendChild(wrapper);
+  });
+
+  if (scanUploadBtn) {
+    scanUploadBtn.disabled = false;
+    scanUploadBtn.style.opacity = "1";
+  }
 }
+
 
 // המרה לשחור-לבן + יישור עומד
 function makeBWPortraitDataUrl(img) {
@@ -4001,13 +4050,8 @@ function captureScanPage() {
       img.onload = () => {
         const page = makeBWPortraitDataUrl(img);
         scannedPages.push(page);
-        if (scanPreview) {
-          scanPreview.src = page.dataUrl;
-          scanPreview.style.display = "block";
-        }
-        if (scanPreviewPh) scanPreviewPh.style.display = "none";
+        // לעדכן את התצוגה במודאל
         refreshPagesList();
-        if (scanUploadBtn) scanUploadBtn.disabled = false;
       };
       img.src = reader.result;
     };
@@ -4016,6 +4060,7 @@ function captureScanPage() {
 
   input.click();
 }
+
 
 // יצירת PDF מרובה עמודים והעלאה
 async function uploadScannedPdf() {
@@ -4087,7 +4132,7 @@ async function uploadScannedPdf() {
   }
 }
 
-// חיבור כל הכפתורים
+// חיבור כל כפתורי הסריקה
 if (scanBtn && scanModal) {
   scanBtn.addEventListener("click", () => {
     openScanModal();
@@ -4108,13 +4153,14 @@ if (scanUploadBtn) {
   });
 }
 
-if (scanCancelBtn) {
-  scanCancelBtn.addEventListener("click", () => {
+// כפתור ✖ שסוגר את המודאל
+if (scanCloseBtn) {
+  scanCloseBtn.addEventListener("click", () => {
     closeScanModal();
   });
 }
 
-// סגירה בלחיצה על הרקע (אם יש class modal)
+// סגירה בלחיצה על הרקע האפור
 if (scanModal) {
   scanModal.addEventListener("click", (e) => {
     if (e.target === scanModal) {
@@ -4122,6 +4168,7 @@ if (scanModal) {
     }
   });
 }
+
 // ============================================================
 
 
