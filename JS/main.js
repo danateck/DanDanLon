@@ -4136,57 +4136,34 @@ async function uploadScannedPdf() {
   });
 
   const blob = pdf.output("blob");
-  const fileName = `scan_${new Date().toISOString().slice(0, 10)}.pdf`;
-  const file = new File([blob], fileName, { type: "application/pdf" });
+const fileName = `scan_${new Date().toISOString().slice(0, 10)}.pdf`;
+const pdfFile = new File([blob], fileName, { type: "application/pdf" });
 
-  try {
-    // שימוש באותה פונקציית שרת כמו העלאה רגילה
-    if (window.uploadDocument) {
-      const now = new Date();
-      const year = String(now.getFullYear());
-
-      await window.uploadDocument(file, {
-        title: fileName,
-        category: "אחר",
-        year,
-        org: "",
-        recipient: [],
-        warrantyStart: null,
-        warrantyExpiresAt: null,
-        autoDeleteAfter: null,
-      });
-    } else {
-      console.warn("⚠️ window.uploadDocument לא קיים – שמירה רק מקומית");
-    }
-
-    if (typeof showNotification === "function") {
-      showNotification("הסריקה נשמרה בהצלחה ✅");
-    } else {
-      alert("הסריקה נשמרה בהצלחה ✅");
-    }
-
-    closeScanModal();
-
-    // ריענון תצוגה כמו בהעלאה רגילה
-    const currentCat = categoryTitle && categoryTitle.textContent;
-    if (currentCat === "אחסון משותף") {
-      openSharedView();
-    } else if (currentCat === "סל מחזור") {
-      openRecycleView();
-    } else if (homeView && !homeView.classList.contains("hidden")) {
-      renderHome();
-    } else if (currentCat) {
-      openCategoryView(currentCat);
-    }
-  } catch (err) {
-    console.error("❌ Scan upload failed:", err);
-    if (typeof showNotification === "function") {
-      showNotification("שגיאה בהעלאת הסריקה", true);
-    } else {
-      alert("שגיאה בהעלאת הסריקה");
-    }
+// 👉 להשתמש בפלואו הרגיל של "העלה מסמך"
+const fileInput = document.getElementById("fileInput");
+if (!fileInput) {
+  if (typeof showNotification === "function") {
+    showNotification("לא נמצא שדה העלאת קובץ", true);
+  } else {
+    alert("לא נמצא שדה העלאת קובץ");
   }
+  return;
 }
+
+// שמים את ה-PDF שיצרנו בתוך fileInput
+const dt = new DataTransfer();
+dt.items.add(pdfFile);
+fileInput.files = dt.files;
+
+// סוגרים את מודאל הסריקה (אם יש)
+if (typeof closeScanModal === "function") {
+  closeScanModal();
+}
+
+// מפעילים את כל הלוגיקה הקיימת של fileInput.change:
+// כפילויות, KEYWORDS, אחריות, העלאה לשרת...
+fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+
 
 // חיבור כל הכפתורים
 if (scanBtn && scanModal) {
