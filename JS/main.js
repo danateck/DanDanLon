@@ -3557,14 +3557,21 @@ saveAllUsersDataToStorage(allUsersData);
 
 
 
-function renderSubfoldersBar(categoryName) {
+window.renderSubfoldersBar = function(categoryName) {
   const bar = document.getElementById("subfoldersBar");
-  if (!bar) return;
+  if (!bar) {
+    console.log("❌ subfoldersBar element not found");
+    return;
+  }
 
   bar.innerHTML = "";
 
+  // בדוק אם יש תתי-תיקיות לקטגוריה הזו
   const defs = SUBFOLDERS_BY_CATEGORY?.[categoryName];
-  if (!defs) {
+  console.log("📁 Subfolders for", categoryName, ":", defs);
+  
+  if (!defs || defs.length === 0) {
+    console.log("ℹ️ No subfolders for this category");
     return;
   }
 
@@ -3574,14 +3581,12 @@ function renderSubfoldersBar(categoryName) {
   const makeBtn = (label, value) => {
     const btn = document.createElement("button");
     btn.textContent = label;
-    // שים לב - window.currentSubfolderFilter
     if (value === window.currentSubfolderFilter) {
       btn.classList.add("active");
     }
     btn.addEventListener("click", () => {
       window.currentSubfolderFilter = value;
-      // רענון התצוגה
-      openCategoryView(categoryName, window.currentSubfolderFilter);
+      window.openCategoryView(categoryName, window.currentSubfolderFilter);
     });
     return btn;
   };
@@ -3593,7 +3598,10 @@ function renderSubfoldersBar(categoryName) {
   subNames.forEach(name => {
     bar.appendChild(makeBtn(name, name));
   });
-}
+  
+  console.log("✅ Rendered", subNames.length, "subfolder buttons");
+};
+
 
   function renderDocsList(docs, mode = "normal") {
     const sortedDocs = sortDocs(docs);
