@@ -30,6 +30,7 @@ window.userNow = window.userNow || "";
 window.currentSubfolderFilter = null;
 let currentSubfolderFilter = window.currentSubfolderFilter;
 
+window.currentCategoryFilter = null;
 
 // ---- Minimal pending-invites renderer ----
 window.paintPending = window.paintPending || function(invites = []) {
@@ -2469,6 +2470,11 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
   // כותרת
   categoryTitle.textContent = categoryName;
 
+
+  
+  window.currentCategoryFilter = categoryName;
+
+
   // שמירת התת-תיקייה הנוכחית
   window.currentSubfolderFilter = subfolderName || null;
   console.log("🔍 Current subfolder filter:", window.currentSubfolderFilter);
@@ -3341,6 +3347,24 @@ let guessedCategory = detection?.category || "אחר";
 let guessedSubCategory = detection?.subCategory || null;
 
 console.log("📁 Auto-detected:", { category: guessedCategory, subfolder: guessedSubCategory });
+
+
+// 👇 אם את כבר בתוך קטגוריה / תת-תיקייה – נכבד את מה שפתוח על המסך
+if (window.currentCategoryFilter) {
+  guessedCategory = window.currentCategoryFilter;
+
+  // אם את עומדת על תת-תיקייה (למשל "בדיקות") – נשמור לשם
+  if (window.currentSubfolderFilter) {
+    guessedSubCategory = window.currentSubfolderFilter;
+  }
+}
+
+console.log("📁 After context override:", {
+  category: guessedCategory,
+  subfolder: guessedSubCategory,
+});
+
+
 
 // אם לא זוהה - שאל את המשתמש
 if (!guessedCategory || guessedCategory === "אחר") {
