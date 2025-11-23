@@ -2437,37 +2437,66 @@ window.renderHome = function() {
   console.log("✅ renderHome complete");
 };
 // 2. CATEGORY VIEW
-window.openCategoryView = function(categoryName) {
-  console.log("📂 Opening category:", categoryName);
+// CATEGORY VIEW
+window.openCategoryView = function(categoryName, subfolderName = null) {
+  console.log("📂 Opening category:", categoryName, "subfolder:", subfolderName);
+
   const categoryTitle = document.getElementById("categoryTitle");
-  const docsList = document.getElementById("docsList");
-  const homeView = document.getElementById("homeView");
-  const categoryView = document.getElementById("categoryView");
+  const docsList      = document.getElementById("docsList");
+  const homeView      = document.getElementById("homeView");
+  const categoryView  = document.getElementById("categoryView");
+
   if (!categoryTitle || !docsList) {
     console.error("❌ Category view elements not found");
     return;
   }
+
+  // כותרת
   categoryTitle.textContent = categoryName;
-  // Filter docs for this category
-  let docsForThisCategory = (window.allDocsData || []).filter(doc =>
-    doc.category &&
-    doc.category.includes(categoryName) &&
-    !doc._trashed
-  );
+
+  // שמירת התת-תיקייה הנוכחית בגלובלי
+  currentSubfolderFilter = subfolderName || null;
+
+  // ציור כפתורי תתי-התיקיות למעלה
+  if (typeof renderSubfoldersBar === "function") {
+    renderSubfoldersBar(categoryName);
+  }
+
+  // סינון מסמכים לפי קטגוריה + תת-תיקייה (אם נבחרה)
+  let docsForThisCategory = (window.allDocsData || []).filter(doc => {
+    if (!doc || !doc.category || doc._trashed) return false;
+    if (!doc.category.includes(categoryName)) return false;
+
+    if (currentSubfolderFilter) {
+      // מסמכים שמתאימים לתת-התיקייה
+      return doc.subCategory === currentSubfolderFilter;
+    }
+    return true;
+  });
+
+  // מיון (אם יש פונקציית sortDocs)
+  if (typeof sortDocs === "function") {
+    docsForThisCategory = sortDocs(docsForThisCategory);
+  }
+
+  // ציור הכרטיסים
   docsList.innerHTML = "";
   if (docsForThisCategory.length === 0) {
-    docsList.innerHTML = `<div style="padding:2rem;text-align:center;opacity:0.6;">אין מסמכים בתיקייה זו</div>`;
+    docsList.innerHTML =
+      `<div style="padding:2rem;text-align:center;opacity:0.6;">אין מסמכים בתיקייה זו</div>`;
   } else {
     docsForThisCategory.forEach(doc => {
-      // ✅ USE buildDocCard instead of inline HTML
       const card = buildDocCard(doc, "normal");
       docsList.appendChild(card);
     });
   }
+
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
+
   console.log("✅ Category view opened with", docsForThisCategory.length, "documents");
 };
+
 // 3. RECYCLE VIEW – משתמש ב-buildDocCard
 // 3. RECYCLE VIEW – בלי renderDocsList
 window.openRecycleView = function () {
@@ -3426,7 +3455,7 @@ if (fileInput) {
     } else if (!homeView.classList.contains("hidden")) {
       renderHome();
     } else {
-      openCategoryView(currentCat);
+      openCategoryView(currentCat, currentSubfolderFilter || null);
     }
 
     fileInput.value = "";
