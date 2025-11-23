@@ -1697,6 +1697,30 @@ body {
   background: #d6d2c7;
 }
 
+
+.subfolders-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.8rem;
+}
+
+.subfolders-bar button {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  cursor: pointer;
+}
+
+.subfolders-bar button.active {
+  background: #2d6cdf;
+  color: #fff;
+  border-color: #2d6cdf;
+}
+
+
   </style>
 </head>
 
@@ -1884,6 +1908,9 @@ body {
               <option value="warrantyExpiresAt-desc">פג תוקף אחריות (מאוחר קודם)</option>
             </select>
           </div>
+
+          <!-- כאן שורת תתי־תיקיות -->
+  <div id="subfoldersBar" class="subfolders-bar"></div>
 
           <div class="docs-list" id="docsList"></div>
         </section>

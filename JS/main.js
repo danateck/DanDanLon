@@ -1889,63 +1889,94 @@ function detectSubCategoryFromWords(category, normalizedWords) {
  *  - string של כל הטקסט
  *  - או Array של מילים
  */
+// זיהוי תת־תיקייה לפי מילים וקאטגוריה
+function detectSubCategoryFromWords(categoryName, normalizedWords) {
+  if (!window.SUBCATEGORY_KEYWORDS) return null;
+
+  const defs = SUBCATEGORY_KEYWORDS[categoryName];
+  if (!defs) return null;
+
+  let bestSub = null;
+  let bestScore = 0;
+
+  // defs בצורת: { "בנק": [מילים..], "אשראי": [מילים..], ... }
+  for (const [subName, keywords] of Object.entries(defs)) {
+    let score = 0;
+    for (const rawKw of keywords || []) {
+      const kw = normalizeWord(rawKw);
+      if (!kw) continue;
+
+      for (const w of normalizedWords) {
+        if (!w) continue;
+        if (w === kw) {
+          score += 3;
+        } else if (w.includes(kw) || kw.includes(w)) {
+          score += 1;
+        }
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestSub = subName;
+    }
+  }
+
+  return bestScore > 0 ? bestSub : null;
+}
+
+// זיהוי קטגוריה + תת־קטגוריה לפי טקסט/שם קובץ
 function detectCategoryFromWords(wordsOrText, fileName = "") {
   let words = [];
 
-  // אם קיבלנו מחרוזת – נפרק למילים עם הפונקציה שלך
-  if (typeof wordsOrText === "string") {
+  if (Array.isArray(wordsOrText)) {
+    words = wordsOrText.slice();
+  } else if (typeof wordsOrText === "string") {
     if (typeof splitHebrewEnglishWords === "function") {
       words = splitHebrewEnglishWords(wordsOrText);
     } else {
-      // fallback פשוט
       words = wordsOrText.split(/\s+/);
     }
-  } else if (Array.isArray(wordsOrText)) {
-    words = wordsOrText.slice();
   }
 
-  // מוסיפים גם מילים משם הקובץ (אם יש)
-  if (fileName && typeof splitHebrewEnglishWords === "function") {
-    words = words.concat(splitHebrewEnglishWords(fileName));
+  // מוסיפים גם את שם הקובץ למילים
+  if (fileName) {
+    const base = fileName.replace(/\.[^/.]+$/, "");
+    const nameParts = base.split(/[\s_\-\.]+/g);
+    words = words.concat(nameParts);
   }
 
-  // מנרמלים מילים
   const normalizedWords = words
     .map(w => normalizeWord(w))
-    .filter(w => w.length > 1);
+    .filter(w => w && w.length > 1);
 
   if (!normalizedWords.length) {
     return { category: "אחר", subCategory: null };
   }
 
   // ניקוד לכל קטגוריה
-  const categoryScores = {};
+  const scores = {};
   for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS || {})) {
     let score = 0;
-
-    for (const word of normalizedWords) {
-      for (const kw of keywords) {
-        const cleanKw = normalizeWord(kw);
-        if (!cleanKw) continue;
-
-        if (word === cleanKw) {
+    for (const rawKw of keywords || []) {
+      const kw = normalizeWord(rawKw);
+      if (!kw) continue;
+      for (const w of normalizedWords) {
+        if (!w) continue;
+        if (w === kw) {
           score += 3;
-        } else if (word.includes(cleanKw) || cleanKw.includes(word)) {
+        } else if (w.includes(kw) || kw.includes(w)) {
           score += 1;
         }
       }
     }
-
-    categoryScores[cat] = score;
+    scores[cat] = score;
   }
 
-  // בוחרים את הקטגוריה עם הניקוד הגבוה
   let bestCategory = "אחר";
   let bestScore = 0;
-
-  for (const [cat, score] of Object.entries(categoryScores)) {
-    if (score > bestScore) {
-      bestScore = score;
+  for (const [cat, sc] of Object.entries(scores)) {
+    if (sc > bestScore) {
+      bestScore = sc;
       bestCategory = cat;
     }
   }
@@ -1954,19 +1985,16 @@ function detectCategoryFromWords(wordsOrText, fileName = "") {
     return { category: "אחר", subCategory: null };
   }
 
-  const subCategory = detectSubCategoryFromWords(bestCategory, normalizedWords);
-
+  const sub = detectSubCategoryFromWords(bestCategory, normalizedWords);
   return {
     category: bestCategory,
-    subCategory: subCategory || null
+    subCategory: sub || null
   };
 }
 
-// כדי שתוכלי להשתמש גם מקבצים אחרים אם תרצי
+// לזמינות גלובלית אם תרצי
 window.detectCategoryFromWords = detectCategoryFromWords;
 window.detectSubCategoryFromWords = detectSubCategoryFromWords;
-
-
 
 
 
@@ -2036,6 +2064,7 @@ function buildDocCard(doc, mode) {
       <span>ארגון: ${doc.org || "לא ידוע"}</span>
       <span>שנה: ${doc.year || "-"}</span>
       <span>שייך ל: ${doc.recipient?.join(", ") || "-"}</span>
+       <span>תת־תיקייה: ${doc.subCategory || "-"}</span>   <!-- 👈 חדש -->
       ${warrantyBlock}
     </div>
     ${openFileButtonHtml}
@@ -3240,23 +3269,27 @@ if (fileInput) {
 
     // ניחוש קטגוריה
    // 🔍 ניחוש קטגוריה + תת-קטגוריה לפי שם הקובץ
-const detection = detectCategoryFromWords(file.name, file.name);
-let guessedCategory    = detection?.category || "אחר";
-let guessedSubCategory = detection?.subCategory || null;
+    // ניחוש קטגוריה + תת־קטגוריה לפי שם הקובץ
+    const detection = detectCategoryFromWords(file.name, file.name);
+    let guessedCategory    = detection?.category || "אחר";
+    let guessedSubCategory = detection?.subCategory || null;
 
-// אם לא זוהתה קטגוריה טובה – משאירים את ההשלמה הידנית כמו קודם
-if (!guessedCategory || guessedCategory === "אחר") {
-  const manual = prompt(
-    'לא זיהיתי אוטומטית את סוג המסמך.\nלאיזו תיקייה לשמור?\nאפשרויות: ' +
-    CATEGORIES.join(", "),
-    "רפואה"
-  );
-  if (manual && manual.trim() !== "") {
-    guessedCategory = manual.trim();
-  } else {
-    guessedCategory = "אחר";
-  }
-}
+    // אם לא זוהה – עדיין נותנים לך לבחור ידנית כמו קודם
+    if (!guessedCategory || guessedCategory === "אחר") {
+      const manual = prompt(
+        'לא זיהיתי אוטומטית את סוג המסמך.\nלאיזו תיקייה לשמור?\nאפשרויות: ' +
+        CATEGORIES.join(", "),
+        "רפואה"
+      );
+      if (manual && manual.trim() !== "") {
+        guessedCategory = manual.trim();
+        guessedSubCategory = null; // אם שינית ידנית – לא ננחש תת־תיקייה
+      } else {
+        guessedCategory = "אחר";
+        guessedSubCategory = null;
+      }
+    }
+
 
 
     // פרטי אחריות אם צריך
@@ -3333,41 +3366,45 @@ if (!guessedCategory || guessedCategory === "אחר") {
     const ownerEmail = normalizeEmail(getCurrentUserEmail() || "");
 
     const newDoc = {
-      id: newId,
-      title: fileName,
-      originalFileName: fileName,
-      category: guessedCategory,
-      uploadedAt,
-      year,
-      org: "",
-      recipient: [],
-      sharedWith: [],
-      warrantyStart,
-      warrantyExpiresAt,
-      autoDeleteAfter,
-      mimeType: file.type,
-      hasFile: true,
-      downloadURL: null,
-      owner: ownerEmail,
-      _trashed: false,
-      lastModified: Date.now(),
-      lastModifiedBy: ownerEmail
-    };
+  id: newId,
+  title: fileName,
+  originalFileName: fileName,
+  category: guessedCategory,
+  subCategory: guessedSubCategory || null,   // 👈 חדש
+  uploadedAt,
+  year,
+  org: "",
+  recipient: [],
+  sharedWith: [],
+  warrantyStart,
+  warrantyExpiresAt,
+  autoDeleteAfter,
+  mimeType: file.type,
+  hasFile: true,
+  downloadURL: null,
+  owner: ownerEmail,
+  _trashed: false,
+  lastModified: Date.now(),
+  lastModifiedBy: ownerEmail
+};
+
 
     // 📡 שמירה גם בשרת Render (PostgreSQL)
     try {
       if (window.uploadDocument) {
-        await window.uploadDocument(file, {
-          title: fileName,
-          category: guessedCategory,
-          year,
-          org: "",
-          recipient: newDoc.recipient || [],
-          warrantyStart,
-          warrantyExpiresAt,
-          autoDeleteAfter,
-        });
-      } else {
+  await window.uploadDocument(file, {
+    title: fileName,
+    category: guessedCategory,
+    subCategory: guessedSubCategory || null,   // 👈 חדש
+    year,
+    org: "",
+    recipient: newDoc.recipient || [],
+    warrantyStart,
+    warrantyExpiresAt,
+    autoDeleteAfter,
+  });
+}
+ else {
         console.warn("⚠️ window.uploadDocument לא קיים");
       }
     } catch (e) {
@@ -3452,22 +3489,78 @@ saveAllUsersDataToStorage(allUsersData);
     });
     folderGrid.appendChild(folder);
   }
-  function openCategoryView(categoryName) {
-    categoryTitle.textContent = categoryName;
-    let docsForThisCategory = allDocsData.filter(doc =>
-      doc.category &&
-      doc.category.includes(categoryName) &&
-      !doc._trashed
+  function openCategoryView(categoryName, subfolderName) {
+  categoryTitle.textContent = categoryName;
+
+  // לצייר/לעדכן את שורת התתי־תיקיות
+  renderSubfoldersBar(categoryName);
+
+  let docsForThisCategory = allDocsData.filter(doc =>
+    doc.category &&
+    doc.category.includes(categoryName) &&
+    !doc._trashed
+  );
+
+  // סינון לפי תת־תיקייה (אם נבחרה)
+  if (subfolderName) {
+    docsForThisCategory = docsForThisCategory.filter(doc =>
+      doc.subCategory === subfolderName
     );
-    docsForThisCategory = sortDocs(docsForThisCategory);
-    docsList.innerHTML = "";
-    docsForThisCategory.forEach(doc => {
-      const card = buildDocCard(doc, "normal");
-      docsList.appendChild(card);
-    });
-    homeView.classList.add("hidden");
-    categoryView.classList.remove("hidden");
   }
+
+  docsForThisCategory = sortDocs(docsForThisCategory);
+  docsList.innerHTML = "";
+  docsForThisCategory.forEach(doc => {
+    const card = buildDocCard(doc, "normal");
+    docsList.appendChild(card);
+  });
+
+  homeView.classList.add("hidden");
+  categoryView.classList.remove("hidden");
+}
+
+
+
+  let currentSubfolderFilter = null;
+
+function renderSubfoldersBar(categoryName) {
+  const bar = document.getElementById("subfoldersBar");
+  if (!bar) return;
+
+  bar.innerHTML = "";
+
+  const defs = SUBFOLDERS_BY_CATEGORY?.[categoryName];
+  if (!defs) {
+    return;
+  }
+
+  // אם בנוי כאובייקט: { "בנק": [...], "אשראי": [...] }
+  const subNames = Array.isArray(defs) ? defs : Object.keys(defs);
+  if (!subNames.length) return;
+
+  const makeBtn = (label, value) => {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    if (value === currentSubfolderFilter) {
+      btn.classList.add("active");
+    }
+    btn.addEventListener("click", () => {
+      currentSubfolderFilter = value;
+      // רענון התצוגה
+      openCategoryView(categoryName, currentSubfolderFilter);
+    });
+    return btn;
+  };
+
+  // כפתור "הכל"
+  bar.appendChild(makeBtn("הכל", null));
+
+  // שאר התתי־תיקיות
+  subNames.forEach(name => {
+    bar.appendChild(makeBtn(name, name));
+  });
+}
+
   function renderDocsList(docs, mode = "normal") {
     const sortedDocs = sortDocs(docs);
     docsList.innerHTML = "";
