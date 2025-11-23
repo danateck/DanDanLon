@@ -2537,28 +2537,32 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
 
 
   // 🔍 סינון לפי החיפוש (שם קובץ / שם מסמך / ארגון / שנה)
-  const searchTerm = (window.currentSearchTerm || "").trim();
+    // 🔍 סינון לפי החיפוש (שם קובץ / שם מסמך / ארגון / שנה)
+  const searchInput = document.getElementById("categorySearch");
+  const searchTerm = searchInput ? searchInput.value.trim() : "";
+
+  // נשמור גם בגלובל, אם תרצי להשתמש בזה בעתיד
+  window.currentSearchTerm = searchTerm;
+
   if (searchTerm) {
-  const lower = searchTerm.toLowerCase();
+    const lower = searchTerm.toLowerCase();
 
-  docsForThisCategory = docsForThisCategory.filter(doc => {
-    const title    = (doc.title    || "").toLowerCase();
-    const fileName = (doc.fileName || "").toLowerCase();
-    const org      = (doc.org      || "").toLowerCase();
-    const year     = String(doc.year || "");
+    docsForThisCategory = docsForThisCategory.filter(doc => {
+      const title    = (doc.title    || "").toLowerCase();
+      const fileName = (doc.fileName || "").toLowerCase();
+      const org      = (doc.org      || "").toLowerCase();
+      const year     = String(doc.year || "");
 
-    // שימי לב: לא בודקים doc.category ולא doc.subCategory
-    return (
-      title.includes(lower)    ||
-      fileName.includes(lower) ||
-      org.includes(lower)      ||
-      year.includes(lower)
-    );
-  });
-}
+      return (
+        title.includes(lower)    ||
+        fileName.includes(lower) ||
+        org.includes(lower)      ||
+        year.includes(lower)
+      );
+    });
+  }
 
-
-  console.log("📊 After search filter:", docsForThisCategory.length, "documents");
+  console.log("🔎 searchTerm =", searchTerm, "⇒ after filter", docsForThisCategory.length, "documents");
 
 
 
@@ -5549,13 +5553,16 @@ if (scanModal) {
 
   if (categorySearch) {
   categorySearch.addEventListener("input", () => {
-    window.currentSearchTerm = categorySearch.value || "";
+    // אין צורך לעדכן פה גלובל – openCategoryView כבר קורא ישר מה-INPUT
     if (!categoryView.classList.contains("hidden")) {
-      // מרנדרים מחדש את הקטגוריה לפי מה שפתוח עכשיו (כולל תת־תיקייה)
-      openCategoryView(categoryTitle.textContent, window.currentSubfolderFilter || null);
+      openCategoryView(
+        categoryTitle.textContent,
+        window.currentSubfolderFilter || null
+      );
     }
   });
 }
+
 
   // העלאת קובץ ושמירה (Metadata -> localStorage, קובץ -> IndexedDB)
   // פתיחת קובץ מה-IndexedDB
