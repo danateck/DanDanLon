@@ -2457,9 +2457,9 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
   console.log("📂 Opening category:", categoryName, "subfolder:", subfolderName);
 
   const categoryTitle = document.getElementById("categoryTitle");
-  const docsList      = document.getElementById("docsList");
-  const homeView      = document.getElementById("homeView");
-  const categoryView  = document.getElementById("categoryView");
+  const docsList = document.getElementById("docsList");
+  const homeView = document.getElementById("homeView");
+  const categoryView = document.getElementById("categoryView");
 
   if (!categoryTitle || !docsList) {
     console.error("❌ Category view elements not found");
@@ -2469,36 +2469,56 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
   // כותרת
   categoryTitle.textContent = categoryName;
 
-  // שמירת התת-תיקייה הנוכחית בגלובלי - שים לב ל-window.
+  // שמירת התת-תיקייה הנוכחית
   window.currentSubfolderFilter = subfolderName || null;
+  console.log("🔍 Current subfolder filter:", window.currentSubfolderFilter);
 
-  // ציור כפתורי תתי-התיקיות למעלה
-  if (typeof renderSubfoldersBar === "function") {
-    renderSubfoldersBar(categoryName);
+  // ציור כפתורי תתי-התיקיות
+  if (typeof window.renderSubfoldersBar === "function") {
+    window.renderSubfoldersBar(categoryName);
   }
 
-  // סינון מסמכים לפי קטגוריה + תת-תיקייה (אם נבחרה)
+  // סינון מסמכים
   let docsForThisCategory = (window.allDocsData || []).filter(doc => {
-    if (!doc || !doc.category || doc._trashed) return false;
-    if (!doc.category.includes(categoryName)) return false;
-
-    // שים לב - window.currentSubfolderFilter
-    if (window.currentSubfolderFilter) {
-      return doc.subCategory === window.currentSubfolderFilter;
+    // בדיקות בסיסיות
+    if (!doc || doc._trashed) return false;
+    
+    // בדיקת קטגוריה - תומך גם במערך וגם במחרוזת
+    let matchesCategory = false;
+    if (Array.isArray(doc.category)) {
+      matchesCategory = doc.category.includes(categoryName);
+    } else if (typeof doc.category === "string") {
+      matchesCategory = doc.category === categoryName;
     }
+    
+    if (!matchesCategory) return false;
+
+    // אם יש סינון תת-תיקייה
+    if (window.currentSubfolderFilter) {
+      const docSubCategory = doc.subCategory || doc.sub_category || null;
+      console.log("📄 Doc:", doc.title, "subCategory:", docSubCategory, "filter:", window.currentSubfolderFilter);
+      return docSubCategory === window.currentSubfolderFilter;
+    }
+    
     return true;
   });
 
-  // מיון (אם יש פונקציית sortDocs)
+  console.log("📊 Found", docsForThisCategory.length, "documents after filter");
+
+  // מיון
   if (typeof sortDocs === "function") {
     docsForThisCategory = sortDocs(docsForThisCategory);
   }
 
   // ציור הכרטיסים
   docsList.innerHTML = "";
+  docsList.classList.remove("shared-mode");
+  
   if (docsForThisCategory.length === 0) {
-    docsList.innerHTML =
-      `<div style="padding:2rem;text-align:center;opacity:0.6;">אין מסמכים בתיקייה זו</div>`;
+    const msg = window.currentSubfolderFilter 
+      ? `אין מסמכים בתת-תיקייה "${window.currentSubfolderFilter}"`
+      : "אין מסמכים בתיקייה זו";
+    docsList.innerHTML = `<div style="padding:2rem;text-align:center;opacity:0.6;">${msg}</div>`;
   } else {
     docsForThisCategory.forEach(doc => {
       const card = buildDocCard(doc, "normal");
@@ -2511,6 +2531,8 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
 
   console.log("✅ Category view opened with", docsForThisCategory.length, "documents");
 };
+
+
 
 // 3. RECYCLE VIEW – משתמש ב-buildDocCard
 // 3. RECYCLE VIEW – בלי renderDocsList
@@ -3366,19 +3388,33 @@ console.log("📁 Final:", { category: guessedCategory, subfolder: guessedSubCat
       };
 
       if (file.type === "application/pdf") {
-        const ocrText = await extractTextFromPdfWithOcr(file);
-        const dataFromText = extractWarrantyFromText(ocrText);
-        extracted = { ...extracted, ...dataFromText };
-      }
+  const ocrText = await extractTextFromPdfWithOcr(file);
+  if (ocrText && ocrText.length > 10) {
+    // זיהוי קטגוריה + תת-תיקייה מטקסט ה-OCR
+    const detection = window.detectCategoryAndSubfolder(ocrText, file.name);
+    guessedCategory = detection.category || guessedCategory;
+    guessedSubCategory = detection.subCategory || guessedSubCategory;
+    console.log("🔍 OCR detected:", detection);
+  }
+}
 
       if (file.type.startsWith("image/") && window.Tesseract) {
-        const { data } = await window.Tesseract.recognize(file, "heb+eng", {
-          tessedit_pageseg_mode: 6,
-        });
-        const imgText = data?.text || "";
-        const dataFromText = extractWarrantyFromText(imgText);
-        extracted = { ...extracted, ...dataFromText };
-      }
+  try {
+    const { data } = await window.Tesseract.recognize(file, "heb+eng", {
+      tessedit_pageseg_mode: 6,
+    });
+    const imgText = data?.text || "";
+    if (imgText.length > 10) {
+      const detection = window.detectCategoryAndSubfolder(imgText, file.name);
+      guessedCategory = detection.category || guessedCategory;
+      guessedSubCategory = detection.subCategory || guessedSubCategory;
+      console.log("🔍 Image OCR detected:", detection);
+    }
+  } catch (e) {
+    console.warn("OCR failed:", e);
+  }
+}
+
 
       if (!extracted.warrantyStart && !extracted.warrantyExpiresAt) {
         const buf = await file.arrayBuffer().catch(() => null);
@@ -3431,7 +3467,7 @@ console.log("📁 Final:", { category: guessedCategory, subfolder: guessedSubCat
   title: fileName,
   originalFileName: fileName,
   category: guessedCategory,           // הקטגוריה הראשית
-  subCategory: guessedSubCategory,     // תת-התיקייה!
+  subCategory: guessedSubCategory || null,    // תת-התיקייה!
   uploadedAt,
   year,
   org: "",
@@ -3585,30 +3621,52 @@ saveAllUsersDataToStorage(allUsersData);
 
 window.renderSubfoldersBar = function(categoryName) {
   const bar = document.getElementById("subfoldersBar");
-  if (!bar) return;
+  if (!bar) {
+    console.error("❌ subfoldersBar not found");
+    return;
+  }
 
   bar.innerHTML = "";
 
   const defs = window.SUBFOLDERS_BY_CATEGORY?.[categoryName];
-  if (!defs || defs.length === 0) return;
-
-  const subNames = Array.isArray(defs) ? defs : Object.keys(defs);
+  console.log("📁 Subfolders for", categoryName, ":", defs);
+  
+  if (!defs || defs.length === 0) {
+    bar.style.display = "none";
+    return;
+  }
+  
+  bar.style.display = "flex";
 
   const makeBtn = (label, value) => {
     const btn = document.createElement("button");
     btn.textContent = label;
-    if (value === window.currentSubfolderFilter) {
+    
+    // סימון הכפתור הפעיל
+    const isActive = (value === null && !window.currentSubfolderFilter) || 
+                     (value === window.currentSubfolderFilter);
+    if (isActive) {
       btn.classList.add("active");
     }
+    
     btn.addEventListener("click", () => {
-      window.currentSubfolderFilter = value;
-      window.openCategoryView(categoryName, window.currentSubfolderFilter);
+      console.log("🖱️ Subfolder button clicked:", value);
+      // קריאה מחדש עם הסינון החדש
+      window.openCategoryView(categoryName, value);
     });
+    
     return btn;
   };
 
+  // כפתור "הכל"
   bar.appendChild(makeBtn("הכל", null));
-  subNames.forEach(name => bar.appendChild(makeBtn(name, name)));
+
+  // שאר התתי-תיקיות
+  defs.forEach(name => {
+    bar.appendChild(makeBtn(name, name));
+  });
+  
+  console.log("✅ Rendered", defs.length + 1, "subfolder buttons");
 };
 
 
