@@ -2595,15 +2595,15 @@ console.log("✅ Document card builder defined globally");
 /*********************
  * 3. Utilities      *
  *********************/
-function normalizeWord(word) {
-  if (!word) return "";
-  let w = word.trim().toLowerCase();
-  if (w.startsWith("ו") && w.length > 1) {
-    w = w.slice(1);
-  }
-  w = w.replace(/[",.():\[\]{}]/g, "");
-  return w;
-}
+// function normalizeWord(word) {
+//   if (!word) return "";
+//   let w = word.trim().toLowerCase();
+//   if (w.startsWith("ו") && w.length > 1) {
+//     w = w.slice(1);
+//   }
+//   w = w.replace(/[",.():\[\]{}]/g, "");
+//   return w;
+// }
 function guessCategoryForFileNameOnly(fileName) {
   const base = fileName.replace(/\.[^/.]+$/, "");
   const parts = base.split(/[\s_\-]+/g);
