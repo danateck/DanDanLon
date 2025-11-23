@@ -1846,42 +1846,42 @@ function normalizeWord(raw) {
  * category = "כלכלה" / "בית" / "רפואה" וכו'
  * normalizedWords = מערך של מילים מנורמלות
  */
-function detectSubCategoryFromWords(category, normalizedWords) {
-  if (!category || !Array.isArray(normalizedWords) || !normalizedWords.length) {
-    return null;
-  }
+// function detectSubCategoryFromWords(category, normalizedWords) {
+//   if (!category || !Array.isArray(normalizedWords) || !normalizedWords.length) {
+//     return null;
+//   }
 
-  let bestSub = null;
-  let bestScore = 0;
+//   let bestSub = null;
+//   let bestScore = 0;
 
-  // SUBCATEGORY_KEYWORDS בנוי בצורה "כלכלה/בנק", "בית/חשמל" וכו'
-  for (const [key, keywords] of Object.entries(SUBCATEGORY_KEYWORDS || {})) {
-    const [cat, sub] = key.split("/");
-    if (cat !== category || !sub) continue;
+//   // SUBCATEGORY_KEYWORDS בנוי בצורה "כלכלה/בנק", "בית/חשמל" וכו'
+//   for (const [key, keywords] of Object.entries(SUBCATEGORY_KEYWORDS || {})) {
+//     const [cat, sub] = key.split("/");
+//     if (cat !== category || !sub) continue;
 
-    let score = 0;
-    for (const word of normalizedWords) {
-      for (const kw of keywords) {
-        const cleanKw = normalizeWord(kw);
-        if (!cleanKw) continue;
+//     let score = 0;
+//     for (const word of normalizedWords) {
+//       for (const kw of keywords) {
+//         const cleanKw = normalizeWord(kw);
+//         if (!cleanKw) continue;
 
-        if (word === cleanKw) {
-          score += 3;       // התאמה חזקה
-        } else if (word.includes(cleanKw) || cleanKw.includes(word)) {
-          score += 1;       // התאמה חלשה
-        }
-      }
-    }
+//         if (word === cleanKw) {
+//           score += 3;       // התאמה חזקה
+//         } else if (word.includes(cleanKw) || cleanKw.includes(word)) {
+//           score += 1;       // התאמה חלשה
+//         }
+//       }
+//     }
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestSub = sub;
-    }
-  }
+//     if (score > bestScore) {
+//       bestScore = score;
+//       bestSub = sub;
+//     }
+//   }
 
-  if (!bestSub || bestScore === 0) return null;
-  return bestSub;
-}
+//   if (!bestSub || bestScore === 0) return null;
+//   return bestSub;
+// }
 
 /**
  * זיהוי קטגוריה + תת־קטגוריה ממילים של המסמך
