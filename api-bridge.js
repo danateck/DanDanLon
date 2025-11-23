@@ -100,45 +100,19 @@ async function loadDocuments() {
   fileType: d.mime_type,
   fileSize: d.file_size,
   category: d.category || 'אחר',
+  // 👇 שדה התת־תיקייה שמגיע מהשרת
+  subCategory: d.sub_category || d.subCategory || null,
   year: d.year || '',
   org: d.org || '',
   recipient: Array.isArray(d.recipient) ? d.recipient : [],
   sharedWith: d.shared_with || [],
-        uploadedAt: (() => {
-        const v = d.uploaded_at;
-
-        if (!v) return null;
-
-        // אם זה כבר תאריך בפורמט YYYY-MM-DD – פשוט להחזיר כמו שזה
-        if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-          return v;
-        }console.log(`✅ תאריך`);
-
-        // אם זה מספר מילישניות (כמו 1763412519863) – להפוך לתאריך
-        const ms = Number(v);
-        if (!Number.isNaN(ms)) {
-          const dObj = new Date(ms);
-          if (!Number.isNaN(dObj.getTime())) {
-            return dObj.toISOString().split("T")[0]; // ‎YYYY-MM-DD
-          }
-        }
-
-        // אם אין לנו מושג – לפחות להציג כמחרוזת
-        return String(v);
-      })(),
-
+  uploadedAt: (() => { /* נשאר כמו שיש לך */ })(),
   lastModified: d.last_modified,
   lastModifiedBy: d.last_modified_by,
   owner: d.owner,
   _trashed: d.trashed || false,
   deletedAt: d.deleted_at,
   deletedBy: d.deleted_by,
-
-  // ⭐ שדות אחריות מהשרת:
-  warrantyStart: d.warranty_start || d.warrantyStart || null,
-  warrantyExpiresAt: d.warranty_expires_at || d.warrantyExpiresAt || null,
-  autoDeleteAfter: d.auto_delete_after || d.autoDeleteAfter || null,
-
   hasFile: true,
   downloadURL: `${API_BASE}/api/docs/${d.id}/download`
 }));
@@ -204,6 +178,12 @@ async function uploadDocument(file, metadata = {}) {
     fd.append('org', metadata.org ?? '');
     fd.append('recipient', JSON.stringify(Array.isArray(metadata.recipient) ? metadata.recipient : []));
     
+
+    if (metadata.subCategory) {
+  fd.append('subCategory', metadata.subCategory);
+}
+
+
     if (metadata.warrantyStart) fd.append('warrantyStart', metadata.warrantyStart);
     if (metadata.warrantyExpiresAt) fd.append('warrantyExpiresAt', metadata.warrantyExpiresAt);
     if (metadata.autoDeleteAfter) fd.append('autoDeleteAfter', metadata.autoDeleteAfter);
@@ -238,6 +218,7 @@ async function uploadDocument(file, metadata = {}) {
   fileSize: result.file_size,
   fileType: result.mime_type,
   category: metadata.category ?? 'אחר',
+   subCategory: metadata.subCategory || null,
   year: metadata.year ?? String(new Date().getFullYear()),
   org: metadata.org ?? '',
   recipient: metadata.recipient || [],

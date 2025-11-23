@@ -86,6 +86,7 @@ async function initDB() {
         mime_type VARCHAR(100),
         file_data BYTEA,
         category VARCHAR(100),
+        sub_category VARCHAR(100),
         year VARCHAR(10),
         org VARCHAR(255),
         recipient JSONB,
@@ -151,8 +152,9 @@ app.get('/api/docs', async (req, res) => {
 
     const result = await pool.query(`
       SELECT 
-        id, owner, title, file_name, file_size, mime_type,
-        category, year, org, recipient, shared_with,
+  id, owner, title, file_name, file_size, mime_type,
+  category, sub_category, year, org, recipient, shared_with,
+
         warranty_start, warranty_expires_at, auto_delete_after,
         uploaded_at, last_modified, last_modified_by,
         deleted_at, deleted_by, trashed
@@ -191,32 +193,38 @@ app.post('/api/docs', upload.single('file'), async (req, res) => {
     const now = Date.now();
     
     const {
-      title = file.originalname,
-      category = 'אחר',
-      year = new Date().getFullYear().toString(),
-      org = '',
-      recipient = '[]',
-      warrantyStart,
-      warrantyExpiresAt,
-      autoDeleteAfter
-    } = req.body;
+  title = file.originalname,
+  category = 'אחר',
+  subCategory = '',
+  year = new Date().getFullYear().toString(),
+  org = '',
+  recipient = '[]',
+  warrantyStart,
+  warrantyExpiresAt,
+  autoDeleteAfter
+} = req.body;
+
 
     const recipientArray = JSON.parse(recipient || '[]');
     const sharedWith = [];
 
     await pool.query(`
       INSERT INTO documents (
-        id, owner, title, file_name, file_size, mime_type, file_data,
-        category, year, org, recipient, shared_with,
-        warranty_start, warranty_expires_at, auto_delete_after,
-        uploaded_at, last_modified, last_modified_by, trashed
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+  id, owner, title, file_name, file_size, mime_type, file_data,
+  category, sub_category, year, org, recipient, shared_with,
+  warranty_start, warranty_expires_at, auto_delete_after,
+  uploaded_at, last_modified, last_modified_by, trashed
+) VALUES ($1, $2, $3, $4, $5, $6, $7,
+          $8, $9, $10, $11, $12, $13,
+          $14, $15, $16, $17, $18, $19, $20)
+
     `, [
-      id, userEmail, title, file.originalname, file.size, file.mimetype, file.buffer,
-      category, year, org, JSON.stringify(recipientArray), JSON.stringify(sharedWith),
-      warrantyStart || null, warrantyExpiresAt || null, autoDeleteAfter || null,
-      now, now, userEmail, false
-    ]);
+  id, userEmail, title, file.originalname, file.size, file.mimetype, file.buffer,
+  category, subCategory, year, org, JSON.stringify(recipientArray), JSON.stringify(sharedWith),
+  warrantyStart || null, warrantyExpiresAt || null, autoDeleteAfter || null,
+  now, now, userEmail, false
+]
+);
 
     console.log(`✅ Uploaded: ${id}`);
     
