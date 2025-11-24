@@ -2643,6 +2643,10 @@ window.openSharedView = function() {
   const docsList = document.getElementById("docsList");
   const homeView = document.getElementById("homeView");
   const categoryView = document.getElementById("categoryView");
+
+   const searchBar = document.getElementById("categorySearch");
+  if (searchBar) searchBar.style.display = "none";
+
   if (!categoryTitle || !docsList) {
     console.error("❌ Shared view elements not found");
     return;
@@ -4046,6 +4050,11 @@ async function renderPending() {
         trackCurrentFolder(openId);
       }
 
+
+       const searchBar = document.getElementById("categorySearch");
+      if (searchBar) searchBar.style.display = "none";
+
+      
       // 🧭 עדכן URL עם ?sharedFolder=...
       try {
         const url = new URL(window.location);
@@ -6828,7 +6837,7 @@ window.openProfilesView = function() {
     window.currentSearchTerm = "";           // מנקה את החיפוש הגלובלי
   }
 
-  
+
   const profiles = loadProfiles();
 
   // כרטיס "הוסף פרופיל" (עיגול עם +)
