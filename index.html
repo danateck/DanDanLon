@@ -2251,7 +2251,7 @@ body {
 
 
 <!-- Settings Panel -->
-<div id="settingsPanel" class="modal-backdrop hidden" dir="rtl" aria-hidden="true">
+<div id="settingsPanel" class="modal-backdrop hidden" dir="rtl">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" tabindex="-1">
     <header class="modal-head">
       <h2 id="settingsTitle">הגדרות</h2>
@@ -2511,7 +2511,7 @@ if (topLogoutBtn) {
         const settingsPanel = document.getElementById("settingsPanel");
         if (settingsPanel) {
           settingsPanel.classList.remove("hidden");
-          settingsPanel.setAttribute("aria-hidden", "false");
+          //settingsPanel.setAttribute("aria-hidden", "false");
         }
       }
     });
@@ -2525,7 +2525,7 @@ if (topLogoutBtn) {
     settingsPanel.querySelectorAll("[data-close]").forEach(btn => {
       btn.addEventListener("click", () => {
         settingsPanel.classList.add("hidden");
-        settingsPanel.setAttribute("aria-hidden", "true");
+        //settingsPanel.setAttribute("aria-hidden", "true");
       });
     });
     
@@ -2533,7 +2533,7 @@ if (topLogoutBtn) {
     settingsPanel.addEventListener("click", (e) => {
       if (e.target === settingsPanel) {
         settingsPanel.classList.add("hidden");
-        settingsPanel.setAttribute("aria-hidden", "true");
+        //settingsPanel.setAttribute("aria-hidden", "true");
       }
     });
   }
@@ -2581,8 +2581,60 @@ if (topLogoutBtn) {
     });
   }
 
+    // ===== 2FA TOGGLE (אימות דו-שלבי) =====
+  const twoFactorToggle = document.getElementById("twoFactorToggle");
+  if (twoFactorToggle) {
+    // נטען מה־Firestore אם כבר שמור למשתמש הנוכחי
+    try {
+      const userData = await loadUserDataFromFirestore(currentUser);
+      if (userData && userData.twoFactorEnabled) {
+        twoFactorToggle.checked = true;
+      } else {
+        twoFactorToggle.checked = false;
+      }
+    } catch (err) {
+      console.error("Error loading 2FA setting:", err);
+    }
+
+    // כשמשנים את הצ'קבוקס – נשמור לפיירסטור
+    twoFactorToggle.addEventListener("change", async (e) => {
+      const enabled = e.target.checked;
+      try {
+        await updateTwoFactorSetting(currentUser, enabled);
+        console.log("twoFactorEnabled updated to:", enabled);
+      } catch (err) {
+        console.error("Error updating 2FA setting:", err);
+        alert("שגיאה בעדכון אימות דו-שלבי. נסי שוב.");
+        e.target.checked = !enabled; // מחזירים למצב הקודם אם נכשל
+      }
+    });
+  }
+
+
   console.log("✅ All event handlers attached");
 });
+
+async function updateTwoFactorSetting(email, enabled) {
+  if (!email) {
+    console.error("❌ אין אימייל, לא ניתן לעדכן twoFactorEnabled");
+    return;
+  }
+
+  let userData = await loadUserDataFromFirestore(email);
+  if (!userData) {
+    userData = {
+      email,
+      docs: [],
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  userData.twoFactorEnabled = enabled;
+  await saveUserDataToFirestore(email, userData);
+  console.log("✅ twoFactorEnabled נשמר ל:", email, "=", enabled);
+}
+
+
 
 </script>
 
