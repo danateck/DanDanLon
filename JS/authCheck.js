@@ -81,10 +81,8 @@ onAuthStateChanged(auth, async (user) => {
     window.userNow = (user.email || "").toLowerCase();
 
     if (isOnLoginPage()) {
-      console.log("➡ Redirecting to dashboard");
-      setTimeout(() => {
-        window.location.replace(ROOT_PATH);
-      }, 100);
+      console.log("📝 On login page - scriptLogin.js will handle 2FA and redirect");
+      // DON'T redirect here! Let scriptLogin.js handle 2FA first
       return;
     }
 

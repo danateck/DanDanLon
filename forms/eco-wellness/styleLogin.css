@@ -853,157 +853,231 @@ body {
 
 
 
-/* 2FA Modal Styles */
+/* ========================================
+   2FA Modal Styles - Add to styleLogin.css
+   ======================================== */
+
+/* 2FA Modal Overlay */
 .twofa-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  display: flex;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  display: none;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
-  animation: fadeIn 0.3s ease;
+  z-index: 99999;
+  animation: twofaFadeIn 0.3s ease;
 }
 
+/* 2FA Modal Box */
 .twofa-modal {
-  background: white;
-  border-radius: 16px;
-  padding: 40px;
-  max-width: 450px;
+  background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 20px;
+  padding: 48px 40px;
+  max-width: 480px;
   width: 90%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.4s ease;
+  box-shadow: 
+    0 25px 80px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  animation: twofaSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
 }
 
+.twofa-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #4CAF50, #45a049, #66BB6A);
+}
+
+/* 2FA Title */
 .twofa-title {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   text-align: center;
   margin-bottom: 12px;
   color: #1a1a1a;
+  letter-spacing: -0.5px;
 }
 
+/* 2FA Description */
 .twofa-text {
   text-align: center;
   color: #666;
   font-size: 15px;
   line-height: 1.6;
-  margin-bottom: 32px;
+  margin-bottom: 36px;
+  font-weight: 400;
 }
 
+/* 2FA Form */
 .twofa-form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
 }
 
+/* Input Container */
 .twofa-inputs {
   display: flex;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   direction: ltr;
+  padding: 0 8px;
 }
 
+/* Individual Digit Input */
 .twofa-digit {
-  width: 56px;
-  height: 64px;
+  width: 58px;
+  height: 68px;
   text-align: center;
-  font-size: 28px;
-  font-weight: 600;
-  border: 2px solid #e0e0e0;
-  border-radius: 12px;
+  font-size: 32px;
+  font-weight: 700;
+  border: 2.5px solid #e0e0e0;
+  border-radius: 14px;
   background: #f8f9fa;
-  transition: all 0.3s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
+  color: #1a1a1a;
+  caret-color: #4CAF50;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .twofa-digit:focus {
   border-color: #4CAF50;
   background: white;
-  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1);
-  transform: scale(1.05);
+  box-shadow: 
+    0 0 0 4px rgba(76, 175, 80, 0.12),
+    0 4px 12px rgba(76, 175, 80, 0.15);
+  transform: scale(1.08) translateY(-2px);
+}
+
+.twofa-digit:not(:placeholder-shown) {
+  border-color: #4CAF50;
+  background: #f1f8f4;
 }
 
 .twofa-digit.error {
   border-color: #f44336;
   background: #ffebee;
-  animation: shake 0.4s ease;
+  animation: twofaShake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
 
+/* Error Message */
 .twofa-error {
   text-align: center;
   color: #f44336;
   font-size: 14px;
-  min-height: 20px;
-  font-weight: 500;
+  font-weight: 600;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
+.twofa-error:not(:empty)::before {
+  content: '⚠';
+  font-size: 16px;
+}
+
+/* Button Container */
 .twofa-buttons {
   display: flex;
   gap: 12px;
   margin-top: 8px;
 }
 
+/* Button Styles */
 .twofa-buttons .harmony-button {
   flex: 1;
-  padding: 14px 24px;
+  padding: 16px 24px;
   font-size: 16px;
-  font-weight: 600;
-  border-radius: 12px;
+  font-weight: 700;
+  border-radius: 14px;
   border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  letter-spacing: 0.3px;
 }
 
+/* Primary Button (Verify) */
 .twofa-buttons .harmony-button:first-child {
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   color: white;
+  box-shadow: 0 4px 14px rgba(76, 175, 80, 0.3);
 }
 
 .twofa-buttons .harmony-button:first-child:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(76, 175, 80, 0.4);
 }
 
+.twofa-buttons .harmony-button:first-child:active {
+  transform: translateY(-1px);
+}
+
+/* Secondary Button (Cancel) */
 .twofa-buttons .harmony-button.secondary {
   background: #f5f5f5;
   color: #666;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .twofa-buttons .harmony-button.secondary:hover {
-  background: #e0e0e0;
+  background: #e8e8e8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
+/* Resend Section */
 .twofa-resend {
   text-align: center;
   font-size: 14px;
   color: #666;
-  margin-top: 24px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #e8e8e8;
 }
 
 .twofa-resend-link {
   background: none;
   border: none;
   color: #4CAF50;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  text-decoration: underline;
-  padding: 0;
-  transition: color 0.2s ease;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: inline-block;
 }
 
 .twofa-resend-link:hover {
   color: #45a049;
+  background: rgba(76, 175, 80, 0.08);
+  transform: scale(1.05);
 }
 
-/* Animations */
-@keyframes fadeIn {
+.twofa-resend-link:active {
+  transform: scale(0.98);
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes twofaFadeIn {
   from {
     opacity: 0;
   }
@@ -1012,42 +1086,87 @@ body {
   }
 }
 
-@keyframes slideUp {
+@keyframes twofaSlideUp {
   from {
-    transform: translateY(40px);
+    transform: translateY(60px) scale(0.95);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
 }
 
-@keyframes shake {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  20%, 60% {
-    transform: translateX(-8px);
-  }
-  40%, 80% {
-    transform: translateX(8px);
-  }
+@keyframes twofaShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+  20%, 40%, 60%, 80% { transform: translateX(6px); }
 }
 
-/* Responsive */
-@media (max-width: 480px) {
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 520px) {
   .twofa-modal {
-    padding: 32px 24px;
+    padding: 36px 28px;
+    border-radius: 16px;
+  }
+
+  .twofa-title {
+    font-size: 24px;
   }
 
   .twofa-digit {
-    width: 48px;
-    height: 56px;
-    font-size: 24px;
+    width: 50px;
+    height: 60px;
+    font-size: 28px;
   }
 
   .twofa-inputs {
     gap: 8px;
   }
+
+  .twofa-buttons {
+    flex-direction: column;
+  }
+
+  .twofa-buttons .harmony-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .twofa-digit {
+    width: 44px;
+    height: 54px;
+    font-size: 24px;
+  }
+
+  .twofa-inputs {
+    gap: 6px;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .twofa-overlay,
+  .twofa-modal,
+  .twofa-digit,
+  .twofa-buttons .harmony-button,
+  .twofa-resend-link {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+.twofa-digit:focus-visible,
+.twofa-buttons .harmony-button:focus-visible,
+.twofa-resend-link:focus-visible {
+  outline: 3px solid #4CAF50;
+  outline-offset: 2px;
 }
