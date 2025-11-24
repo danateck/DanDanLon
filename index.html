@@ -2401,46 +2401,54 @@ body {
   // ===== Firestore User Data Helpers (Required for 2FA) =====
 // ===== Firestore User Data Helpers (Required for 2FA) =====
 async function loadUserDataFromFirestore(email) {
-  try {
-    const db = window.db;
-    if (!db) {
-      console.error("❌ window.db is not ready (no Firestore instance)");
+    try {
+      if (!window.isFirebaseAvailable || !window.isFirebaseAvailable()) {
+        console.warn("❌ Firebase לא זמין כרגע (fs/db חסרים או אין אינטרנט)");
+        return null;
+      }
+
+      const key = (email || "").trim().toLowerCase();
+      if (!key) {
+        console.warn("loadUserDataFromFirestore: אימייל ריק");
+        return null;
+      }
+
+      const userRef = window.fs.doc(window.db, "users", key);
+      const snapshot = await window.fs.getDoc(userRef);
+
+      if (snapshot.exists()) {
+        return snapshot.data();
+      }
+      return null;
+    } catch (err) {
+      console.error("❌ Error loading user data:", err);
       return null;
     }
-
-    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
-
-    const userRef = doc(db, "users", email);
-    const snapshot = await getDoc(userRef);
-
-    if (snapshot.exists()) {
-      return snapshot.data();
-    }
-    return null;
-  } catch (err) {
-    console.error("❌ Error loading user data:", err);
-    return null;
   }
-}
 
-async function saveUserDataToFirestore(email, data) {
-  try {
-    const db = window.db;
-    if (!db) {
-      console.error("❌ window.db is not ready (no Firestore instance)");
+  async function saveUserDataToFirestore(email, data) {
+    try {
+      if (!window.isFirebaseAvailable || !window.isFirebaseAvailable()) {
+        console.warn("❌ Firebase לא זמין כרגע (fs/db חסרים או אין אינטרנט)");
+        return false;
+      }
+
+      const key = (email || "").trim().toLowerCase();
+      if (!key) {
+        console.warn("saveUserDataToFirestore: אימייל ריק");
+        return false;
+      }
+
+      const userRef = window.fs.doc(window.db, "users", key);
+      await window.fs.setDoc(userRef, data, { merge: true });
+      return true;
+    } catch (err) {
+      console.error("❌ Error saving user data:", err);
       return false;
     }
-
-    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
-
-    const userRef = doc(db, "users", email);
-    await setDoc(userRef, data, { merge: true });
-    return true;
-  } catch (err) {
-    console.error("❌ Error saving user data:", err);
-    return false;
   }
-}
+
+
 
 
 
