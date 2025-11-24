@@ -6571,3 +6571,289 @@ console.log("✅ addDocumentToSharedFolder patched with shared_with update!");
 
   console.log("✅ Auto shared_with update enabled!");
 })();
+
+
+
+
+
+
+
+
+
+
+// ==========================
+// 👤 פרופילים (נשמרים ב-localStorage לכל משתמש)
+// ==========================
+
+const PROFILES_KEY_PREFIX = "ecoDocsProfiles_";
+
+function getProfilesStorageKey() {
+  const email = (typeof getCurrentUserEmail === "function" ? getCurrentUserEmail() : "") || "guest";
+  return PROFILES_KEY_PREFIX + email.toLowerCase();
+}
+
+function loadProfiles() {
+  try {
+    const raw = localStorage.getItem(getProfilesStorageKey());
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.warn("⚠️ Failed to load profiles:", e);
+    return [];
+  }
+}
+
+function saveProfiles(list) {
+  try {
+    localStorage.setItem(getProfilesStorageKey(), JSON.stringify(list || []));
+  } catch (e) {
+    console.warn("⚠️ Failed to save profiles:", e);
+  }
+}
+
+// ➕ יצירת פרופיל חדש (בינתיים דרך prompt פשוט)
+function createProfileViaPrompt() {
+  const fullName = (prompt("שם פרטי ושם משפחה:") || "").trim();
+  if (!fullName) return null;
+
+  const idNumber  = (prompt("תעודת זהות (לא חובה):") || "").trim();
+  const birthDate = (prompt("תאריך לידה (למשל 2005-03-21):") || "").trim();
+  const ageStr    = (prompt("גיל (לא חובה):") || "").trim();
+  const age       = ageStr ? parseInt(ageStr, 10) : null;
+
+  const [firstName, ...rest] = fullName.split(" ");
+  const lastName = rest.join(" ").trim();
+
+  const profile = {
+    id: crypto.randomUUID(),
+    fullName,
+    firstName: firstName || fullName,
+    lastName: lastName || "",
+    idNumber,
+    birthDate,
+    age: isNaN(age) ? null : age
+  };
+
+  const profiles = loadProfiles();
+  profiles.push(profile);
+  saveProfiles(profiles);
+  return profile;
+}
+
+// בניית כרטיס פרופיל (עיגול עם אות ראשונה)
+function buildProfileCard(profile) {
+  const card = document.createElement("button");
+  card.className = "doc-card profile-card";
+  card.style.display = "flex";
+  card.style.flexDirection = "column";
+  card.style.alignItems = "center";
+  card.style.justifyContent = "center";
+  card.style.gap = "0.5rem";
+  card.style.padding = "1rem";
+  card.style.cursor = "pointer";
+
+  const circle = document.createElement("div");
+  circle.style.width = "72px";
+  circle.style.height = "72px";
+  circle.style.borderRadius = "50%";
+  circle.style.border = "2px solid #4b6bfb";
+  circle.style.display = "flex";
+  circle.style.alignItems = "center";
+  circle.style.justifyContent = "center";
+  circle.style.fontWeight = "600";
+  circle.style.fontSize = "1rem";
+  circle.textContent = profile.firstName?.[0] || profile.fullName[0] || "?";
+
+  const nameEl = document.createElement("div");
+  nameEl.textContent = profile.fullName;
+  nameEl.style.fontWeight = "600";
+
+  const small = document.createElement("div");
+  small.style.fontSize = "0.75rem";
+  small.style.opacity = "0.7";
+  const parts = [];
+  if (profile.age != null) parts.push(`גיל ${profile.age}`);
+  if (profile.birthDate) parts.push(`נולד/ה ${profile.birthDate}`);
+  small.textContent = parts.length ? parts.join(" · ") : "ללא פרטים נוספים";
+
+  card.appendChild(circle);
+  card.appendChild(nameEl);
+  card.appendChild(small);
+
+  card.addEventListener("click", () => {
+    openProfileCategories(profile.id);
+  });
+
+  return card;
+}
+
+// 🔹 מסך רשימת פרופילים (הטאב "פרופילים")
+window.openProfilesView = function() {
+  const categoryTitle = document.getElementById("categoryTitle");
+  const docsList      = document.getElementById("docsList");
+  const homeView      = document.getElementById("homeView");
+  const categoryView  = document.getElementById("categoryView");
+  if (!categoryTitle || !docsList) return;
+
+  categoryTitle.textContent = "פרופילים";
+  docsList.classList.remove("shared-mode");
+  docsList.innerHTML = "";
+
+  const profiles = loadProfiles();
+
+  // כרטיס "הוסף פרופיל" (עיגול עם +)
+  const addCard = document.createElement("button");
+  addCard.className = "doc-card profile-card";
+  addCard.style.display = "flex";
+  addCard.style.flexDirection = "column";
+  addCard.style.alignItems = "center";
+  addCard.style.justifyContent = "center";
+  addCard.style.gap = "0.5rem";
+  addCard.style.padding = "1rem";
+  addCard.style.cursor = "pointer";
+
+  const plusCircle = document.createElement("div");
+  plusCircle.style.width = "72px";
+  plusCircle.style.height = "72px";
+  plusCircle.style.borderRadius = "50%";
+  plusCircle.style.border = "2px dashed #4b6bfb";
+  plusCircle.style.display = "flex";
+  plusCircle.style.alignItems = "center";
+  plusCircle.style.justifyContent = "center";
+  plusCircle.style.fontSize = "2rem";
+  plusCircle.textContent = "+";
+
+  const label = document.createElement("div");
+  label.textContent = "הוסף פרופיל";
+  label.style.fontWeight = "600";
+
+  addCard.appendChild(plusCircle);
+  addCard.appendChild(label);
+  addCard.addEventListener("click", () => {
+    const p = createProfileViaPrompt();
+    if (p) openProfilesView(); // רענון הרשימה
+  });
+
+  docsList.appendChild(addCard);
+
+  // שאר הפרופילים
+  profiles.forEach(p => {
+    docsList.appendChild(buildProfileCard(p));
+  });
+
+  if (homeView) homeView.classList.add("hidden");
+  if (categoryView) categoryView.classList.remove("hidden");
+};
+
+// 🔹 מסך קטגוריות עבור פרופיל מסוים (כלכלה / רפואה וכו')
+function openProfileCategories(profileId) {
+  const profiles = loadProfiles();
+  const profile = profiles.find(p => p.id === profileId);
+  if (!profile) return;
+
+  const categoryTitle = document.getElementById("categoryTitle");
+  const docsList      = document.getElementById("docsList");
+  const homeView      = document.getElementById("homeView");
+  const categoryView  = document.getElementById("categoryView");
+  if (!categoryTitle || !docsList) return;
+
+  categoryTitle.textContent = `פרופיל: ${profile.fullName}`;
+  docsList.classList.remove("shared-mode");
+  docsList.innerHTML = "";
+
+  // כל המסמכים שמכילים את השם שלו בשדה "שייך ל"
+  const docs = (window.allDocsData || [])
+    .filter(d => Array.isArray(d.recipient))
+    .filter(d => {
+      const names = d.recipient.map(r => (r || "").trim());
+      return (
+        names.includes(profile.fullName) ||
+        names.includes(profile.firstName)
+      );
+    })
+    .filter(d => !d._trashed);
+
+  const categoriesSet = new Set();
+  docs.forEach(d => {
+    if (d.category) categoriesSet.add(d.category);
+  });
+
+  if (categoriesSet.size === 0) {
+    docsList.innerHTML =
+      `<div style="padding:2rem;text-align:center;opacity:0.6;">אין מסמכים שמקושרים לפרופיל הזה</div>`;
+  } else {
+    categoriesSet.forEach(cat => {
+      const card = document.createElement("button");
+      card.className = "doc-card";
+      card.style.display = "flex";
+      card.style.flexDirection = "column";
+      card.style.alignItems = "flex-start";
+      card.style.justifyContent = "center";
+      card.style.gap = "0.5rem";
+      card.style.padding = "1rem";
+      card.style.cursor = "pointer";
+
+      const titleEl = document.createElement("div");
+      titleEl.textContent = cat || "ללא קטגוריה";
+      titleEl.style.fontWeight = "600";
+
+      const countEl = document.createElement("div");
+      countEl.style.fontSize = "0.8rem";
+      countEl.style.opacity = "0.7";
+      const count = docs.filter(d => d.category === cat).length;
+      countEl.textContent = `${count} מסמכים`;
+
+      card.appendChild(titleEl);
+      card.appendChild(countEl);
+
+      card.addEventListener("click", () => {
+        openProfileCategoryDocs(profile, cat);
+      });
+
+      docsList.appendChild(card);
+    });
+  }
+
+  if (homeView) homeView.classList.add("hidden");
+  if (categoryView) categoryView.classList.remove("hidden");
+}
+
+// 🔹 מסמכים של פרופיל בתוך קטגוריה מסוימת
+function openProfileCategoryDocs(profile, categoryName) {
+  const categoryTitle = document.getElementById("categoryTitle");
+  const docsList      = document.getElementById("docsList");
+  const homeView      = document.getElementById("homeView");
+  const categoryView  = document.getElementById("categoryView");
+  if (!categoryTitle || !docsList) return;
+
+  categoryTitle.textContent = `פרופיל: ${profile.fullName} – ${categoryName}`;
+  docsList.classList.remove("shared-mode");
+  docsList.innerHTML = "";
+
+  const docs = (window.allDocsData || [])
+    .filter(d => d.category === categoryName)
+    .filter(d => Array.isArray(d.recipient))
+    .filter(d => {
+      const names = d.recipient.map(r => (r || "").trim());
+      return (
+        names.includes(profile.fullName) ||
+        names.includes(profile.firstName)
+      );
+    })
+    .filter(d => !d._trashed);
+
+  if (!docs.length) {
+    docsList.innerHTML =
+      `<div style="padding:2rem;text-align:center;opacity:0.6;">אין מסמכים בקטגוריה הזו</div>`;
+  } else {
+    docs.forEach(doc => {
+      const card = typeof buildDocCard === "function" ? buildDocCard(doc) : null;
+      if (card) docsList.appendChild(card);
+    });
+  }
+
+  if (homeView) homeView.classList.add("hidden");
+  if (categoryView) categoryView.classList.remove("hidden");
+}
+// ==========================

@@ -1814,6 +1814,11 @@ body {
             <span>אחסון משותף</span>
           </button>
 
+          <button class="menu-item" data-view="profiles">
+  <div class="menu-item-icon">👤</div>
+  <span>פרופילים</span>
+</button>
+
           <button class="menu-item" data-view="recycle">
             <div class="menu-item-icon">🗑️</div>
             <span>סל מחזור</span>
@@ -2426,6 +2431,10 @@ if (topLogoutBtn) {
         renderHome();
       } else if (view === "shared" && typeof openSharedView === 'function') {
         openSharedView();
+        } else if (view === "profiles" && typeof openProfilesView === 'function') {
+  // 🔹 חדש – לפתוח מסך פרופילים
+  openProfilesView();
+
       } else if (view === "recycle" && typeof openRecycleView === 'function') {
         openRecycleView();
       } else if (view === "settings") {
