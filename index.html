@@ -2399,10 +2399,16 @@ body {
 
 
   // ===== Firestore User Data Helpers (Required for 2FA) =====
+// ===== Firestore User Data Helpers (Required for 2FA) =====
 async function loadUserDataFromFirestore(email) {
   try {
     const db = window.db;
-    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+    if (!db) {
+      console.error("❌ window.db is not ready (no Firestore instance)");
+      return null;
+    }
+
+    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
 
     const userRef = doc(db, "users", email);
     const snapshot = await getDoc(userRef);
@@ -2420,7 +2426,12 @@ async function loadUserDataFromFirestore(email) {
 async function saveUserDataToFirestore(email, data) {
   try {
     const db = window.db;
-    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+    if (!db) {
+      console.error("❌ window.db is not ready (no Firestore instance)");
+      return false;
+    }
+
+    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
 
     const userRef = doc(db, "users", email);
     await setDoc(userRef, data, { merge: true });
