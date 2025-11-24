@@ -948,3 +948,13 @@ body {
   cursor: pointer;
   text-decoration: underline;
 }
+
+
+.otp-screen {
+  z-index: 99999;
+  position: fixed;
+  inset: 0;
+  background: white;
+}
+
+

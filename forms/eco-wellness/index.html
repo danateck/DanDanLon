@@ -156,6 +156,43 @@
 
 
 
+    <!-- 2FA OTP VERIFICATION SCREEN -->
+<div id="otpContainer" class="otp-screen" style="display:none;">
+    <main class="relative min-h-screen flex flex-col justify-center bg-slate-50 overflow-hidden">
+        <div class="w-full max-w-6xl mx-auto px-4 md:px-6 py-24">
+            <div class="flex justify-center">
+                <div class="max-w-md mx-auto text-center bg-white px-4 sm:px-8 py-10 rounded-xl shadow">
+                    <header class="mb-8">
+                        <h1 class="text-2xl font-bold mb-1">Mobile Phone Verification</h1>
+                        <p class="text-[15px] text-slate-500">Enter the 4-digit verification code that was sent to your phone number.</p>
+                    </header>
+
+                    <form id="otp-form">
+                        <div class="flex items-center justify-center gap-3">
+                            <input type="text" maxlength="1" class="otp-input">
+                            <input type="text" maxlength="1" class="otp-input">
+                            <input type="text" maxlength="1" class="otp-input">
+                            <input type="text" maxlength="1" class="otp-input">
+                        </div>
+                        <div class="max-w-[260px] mx-auto mt-4">
+                            <button type="submit" class="otp-btn">Verify Account</button>
+                        </div>
+                    </form>
+
+                    <div class="text-sm text-slate-500 mt-4">
+                        Didn't receive code?
+                        <a id="otpResend" class="font-medium text-indigo-500 hover:text-indigo-600" href="#">Resend</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+
+
+
+
     <!-- 2FA Modal -->
 <div id="twofaOverlay" class="twofa-overlay" style="display:none;">
   <div class="twofa-modal">

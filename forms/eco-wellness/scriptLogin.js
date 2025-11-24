@@ -360,144 +360,67 @@ async registerNewUserWithVerification() {
         }
 
         // 2) מציגים את המודאל
-        const overlay = document.getElementById("twofaOverlay");
-        const form = document.getElementById("twofaForm");
-        const cancelBtn = document.getElementById("twofaCancel");
-        const resendBtn = document.getElementById("twofaResend");
-        const errorEl = document.getElementById("twofaError");
-        const inputs = Array.from(
-            overlay.querySelectorAll(".twofa-digit")
-        );
+        // הצגת מסך ה־OTP החדש
+document.querySelector(".login-container").style.display = "none";
+const otpScreen = document.getElementById("otpContainer");
+otpScreen.style.display = "block";
 
-        if (!overlay || !form || !cancelBtn || !inputs.length) {
-            console.error("2FA modal elements not found");
-            alert("שגיאה בטעינת חלון האימות.");
-            return false;
+const inputs = Array.from(document.querySelectorAll(".otp-input"));
+const form = document.getElementById("otp-form");
+const resend = document.getElementById("otpResend");
+
+inputs.forEach((input, idx) => {
+    input.addEventListener("input", () => {
+        if (input.value && idx < inputs.length - 1) {
+            inputs[idx + 1].focus();
+        }
+    });
+
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Backspace" && idx > 0) {
+            inputs[idx - 1].focus();
+        }
+    });
+});
+
+// Resend
+resend.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await fetch(`${TWOFA_BASE}/api/auth/send-2fa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+    });
+    alert("נשלח שוב ✔");
+});
+
+// Verify
+return new Promise((resolve) => {
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const code = inputs.map(i => i.value).join("");
+
+        if (code.length !== 4) {
+            alert("נא להזין 4 ספרות");
+            return;
         }
 
-        // איפוס
-        inputs.forEach((i) => (i.value = ""));
-        errorEl.textContent = "";
-        overlay.style.display = "flex";
-        inputs[0].focus();
-
-        // תזוזת פוקוס, בהשראת הדוגמה ששלחת
-        const handleKeyDown = (e) => {
-            if (
-                !/^[0-9]{1}$/.test(e.key) &&
-                e.key !== "Backspace" &&
-                e.key !== "Delete" &&
-                e.key !== "Tab"
-            ) {
-                e.preventDefault();
-            }
-
-            if (e.key === "Delete" || e.key === "Backspace") {
-                const index = inputs.indexOf(e.target);
-                if (index > 0) {
-                    inputs[index].value = "";
-                    inputs[index - 1].focus();
-                }
-            }
-        };
-
-        const handleInput = (e) => {
-            const index = inputs.indexOf(e.target);
-            if (e.target.value && index < inputs.length - 1) {
-                inputs[index + 1].focus();
-            }
-        };
-
-        const handleFocus = (e) => e.target.select();
-
-        const handlePaste = (e) => {
-            e.preventDefault();
-            const text = e.clipboardData.getData("text");
-            if (!/^[0-9]{6}$/.test(text)) return;
-            const digits = text.split("");
-            inputs.forEach((input, index) => (input.value = digits[index] || ""));
-        };
-
-        inputs.forEach((input) => {
-            input.addEventListener("keydown", handleKeyDown);
-            input.addEventListener("input", handleInput);
-            input.addEventListener("focus", handleFocus);
-            input.addEventListener("paste", handlePaste);
+        const res = await fetch(`${TWOFA_BASE}/api/auth/verify-2fa`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, code })
         });
 
-        const cleanup = () => {
-            overlay.style.display = "none";
-            inputs.forEach((input) => {
-                input.removeEventListener("keydown", handleKeyDown);
-                input.removeEventListener("input", handleInput);
-                input.removeEventListener("focus", handleFocus);
-                input.removeEventListener("paste", handlePaste);
-            });
-            form.removeEventListener("submit", onSubmit);
-            cancelBtn.removeEventListener("click", onCancel);
-            if (resendBtn) resendBtn.removeEventListener("click", onResend);
-        };
+        if (!res.ok) {
+            alert("קוד שגוי");
+            return;
+        }
 
-        const getCodeFromInputs = () =>
-            inputs.map((i) => i.value.trim()).join("");
+        resolve(true);
+    });
+});
 
-        const onResend = async () => {
-            errorEl.textContent = "";
-            inputs.forEach((i) => (i.value = ""));
-            inputs[0].focus();
-            try {
-                const res = await fetch(`${TWOFA_BASE}/api/auth/send-2fa`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email })
-                });
-                if (!res.ok) {
-                    errorEl.textContent = "לא הצלחנו לשלוח מחדש. נסי שוב עוד רגע.";
-                }
-            } catch (err) {
-                errorEl.textContent = "שגיאה בשליחה מחדש. בדקי אינטרנט.";
-            }
-        };
-
-        return new Promise((resolve) => {
-            const onCancel = () => {
-                cleanup();
-                resolve(false);
-            };
-
-            const onSubmit = async (e) => {
-                e.preventDefault();
-                const code = getCodeFromInputs();
-                if (code.length !== 6) {
-                    errorEl.textContent = "נא להזין 6 ספרות.";
-                    return;
-                }
-
-                try {
-                    const res = await fetch(`${TWOFA_BASE}/api/auth/verify-2fa`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email, code })
-                    });
-
-                    if (!res.ok) {
-                        errorEl.textContent = "קוד לא נכון. נסי שוב.";
-                        return;
-                    }
-
-                    // הצלחה
-                    cleanup();
-                    resolve(true);
-                } catch (err) {
-                    console.error("2FA verify error:", err);
-                    errorEl.textContent = "שגיאה באימות הקוד. נסי שוב.";
-                }
-            };
-
-            form.addEventListener("submit", onSubmit);
-            cancelBtn.addEventListener("click", onCancel);
-            if (resendBtn) resendBtn.addEventListener("click", onResend);
-        });
     }
 
 
