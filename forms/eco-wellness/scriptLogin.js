@@ -630,48 +630,67 @@ async finishLogin(email, isNewUser = false) {
     }
 
     setupGoogleButton() {
-        const googleBtn = document.querySelector(".earth-social");
-        if (!googleBtn) return;
+    const googleBtn = document.querySelector(".earth-social");
+    if (!googleBtn) return;
 
-        googleBtn.addEventListener("click", async () => {
-            try {
-                this.setLoading(true);
+    googleBtn.addEventListener("click", async () => {
+    try {
+        this.setLoading(true);
 
-                const result = await this.signInWithPopup(this.auth, this.googleProvider);
-                const user = result.user;
+        const result = await this.signInWithPopup(this.auth, this.googleProvider);
+        const user = result.user;
 
-                // Check if user data exists in Firestore
-                let userData = await loadUserDataFromFirestore(user.email);
+        // נרמל אימייל למפתח ב־Firestore
+        const emailKey = (user.email || "").trim().toLowerCase();
 
-                // Create user data if doesn't exist
-                if (!userData) {
-                    userData = {
-                        email: user.email,
-                        displayName: user.displayName || "",
-                        photoURL: user.photoURL || "",
-                        docs: [],
-                        createdAt: new Date().toISOString(),
-                        loginMethod: "google"
-                    };
-                    await saveUserDataToFirestore(user.email, userData);
-                }
+        // טוענים פרטי משתמש מה־Firestore
+        let userData = await loadUserDataFromFirestore(emailKey);
 
-                await setCurrentUser(user.email);
+        // אם אין – ניצור רשומה חדשה
+        if (!userData) {
+            userData = {
+                email: emailKey,
+                displayName: user.displayName || "",
+                photoURL: user.photoURL || "",
+                docs: [],
+                createdAt: new Date().toISOString(),
+                loginMethod: "google",
+            };
+            await saveUserDataToFirestore(emailKey, userData);
+        }
 
-                this.showHarmonySuccess();
-                setTimeout(() => {
-  window.location.replace("/Eco-Files-FullStack/");
-}, 1500);
+        // 🔐 אם 2FA דולק למשתמש הזה – מריצים את זרימת הקוד
+        if (userData.twoFactorEnabled) {
+            console.log("🔐 twoFactorEnabled = true (Google), running 2FA...");
+            const ok = await this.runTwoFactorFlow(emailKey);
 
-
-            } catch (err) {
-                console.error("Google Sign-In Error:", err);
-                alert("שגיאה בהתחברות עם Google. נסי שוב.");
-            } finally {
+            if (!ok) {
+                console.log("⛔ 2FA לא עבר / בוטל – לא נכנסים לדשבורד (Google)");
+                await this.auth.signOut();
                 this.setLoading(false);
+                return;
             }
-        });
+        } else {
+            console.log("2FA כבוי עבור המשתמש הזה (Google), ממשיכים כרגיל.");
+        }
+
+        // שומרים משתמש נוכחי + אנימציה + רידיירקט
+        await setCurrentUser(emailKey);
+        this.showHarmonySuccess();
+        setTimeout(() => {
+            window.location.replace("/Eco-Files-FullStack/");
+        }, 1500);
+
+    } catch (err) {
+        console.error("Google Sign-In Error:", err);
+        alert("שגיאה בהתחברות עם Google. נסי שוב.");
+    } finally {
+        this.setLoading(false);
     }
+});
+
+}
+
 }
 
 // Animation keyframes
