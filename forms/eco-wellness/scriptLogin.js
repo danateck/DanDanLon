@@ -503,7 +503,7 @@ async registerNewUserWithVerification() {
 
 
 
-       async handleSubmit(e) {
+           async handleSubmit(e) {
         e.preventDefault();
 
         const okEmail = this.validateEmail();
@@ -519,13 +519,17 @@ async registerNewUserWithVerification() {
         console.log("Email:", email);
 
         try {
+            // 1) ניסיון התחברות רגיל
             console.log("Attempting signInWithEmailAndPassword...");
             const userCred = await this.signInWithEmailAndPassword(this.auth, email, password);
             const user = userCred.user;
 
-            // 👇 חובה מייל מאומת לפני כניסה
+            console.log("Sign in successful:", user);
+
+            // 2) חובה שמייל יהיה מאומת לפני שנכנסים למערכת
             if (!user.emailVerified) {
                 try {
+                    // שולחים שוב מייל אימות, עם חזרה לעמוד הלוגין שלך
                     await this.sendEmailVerification(user, {
                         url: "https://danateck.github.io/Eco-Files-FullStack/forms/eco-wellness/",
                         handleCodeInApp: false,
@@ -534,13 +538,13 @@ async registerNewUserWithVerification() {
                     console.warn("Could not re-send verification email:", e);
                 }
 
-                alert("עליך לאמת את כתובת האימייל לפני כניסה למערכת. שלחנו שוב מייל אימות, בדקי (כולל ספאם).");
+                alert("עליך לאמת את כתובת האימייל לפני כניסה למערכת. שלחנו אלייך מייל אימות, בדקי (כולל ספאם).");
                 await this.auth.signOut();
                 this.setLoading(false);
                 return;
             }
 
-            console.log("Sign in successful:", userCred);
+            // 3) אם מאומת – ממשיכים כרגיל
             await this.finishLogin(email);
 
         } catch (err) {
@@ -550,7 +554,7 @@ async registerNewUserWithVerification() {
             console.log("Login error code:", code);
             console.log("Login error message:", msg);
 
-            // סיסמה שגויה למשתמש קיים
+            // 🔴 סיסמה שגויה למשתמש קיים
             if (code === "auth/wrong-password") {
                 this.showError("password", "סיסמה שגויה");
                 this.passwordInput.focus();
@@ -558,28 +562,35 @@ async registerNewUserWithVerification() {
                 return;
             }
 
-            // משתמש לא קיים / קרדנציאל לא תקין / באג של ספארי => ליצור משתמש חדש + מייל אימות
+            // 🔴 משתמש לא קיים / קרדנציאל לא תקין / באג של ספארי
             if (
                 code === "auth/user-not-found" ||
                 code === "auth/invalid-credential" ||
                 (code === "auth/internal-error" && msg.includes("INVALID_LOGIN_CREDENTIALS"))
             ) {
                 try {
-                    console.log("No existing user. Creating a new one with email verification.");
+                    console.log("User not found / invalid, creating new user with email verification...");
                     const cred = await this.createUserWithEmailAndPassword(this.auth, email, password);
 
+                    // שולחים מייל אימות למשתמש החדש
                     await this.sendEmailVerification(cred.user, {
                         url: "https://danateck.github.io/Eco-Files-FullStack/forms/eco-wellness/",
                         handleCodeInApp: false,
                     });
 
-                    alert("יצרנו עבורך משתמש חדש ושלחנו מייל לאימות. אחרי שתאשרי את המייל – תוכלי להתחבר עם אותם פרטים.");
+                    alert(
+                        "יצרנו עבורך משתמש חדש ושלחנו מייל אימות. אחרי שתאשרי את המייל – תוכלי להתחבר עם אותם פרטים."
+                    );
+
+                    // ננתק מהמערכת עד האימות
                     await this.auth.signOut();
                     this.setLoading(false);
                     return;
+
                 } catch (createErr) {
                     console.error("Create user with verification failed:", createErr);
                     const createCode = createErr.code || "";
+
                     if (createCode === "auth/email-already-in-use") {
                         this.showError("password", "האימייל כבר קיים במערכת. נסי שוב עם הסיסמה הנכונה.");
                     } else if (createCode === "auth/weak-password") {
@@ -587,14 +598,15 @@ async registerNewUserWithVerification() {
                     } else {
                         this.showError("password", "שגיאה ביצירת משתמש חדש. נסי שוב.");
                     }
+
                     this.setLoading(false);
                     return;
                 }
             }
 
-            // כל שגיאה אחרת
+            // 🔴 שגיאה אחרת
             console.error("Login failed (unknown error):", err);
-            this.showError("password", "શגિઆ בהתחברות. אנא נסי שוב.");
+            this.showError("password", "שגיאה בהתחברות. אנא נסי שוב.");
             this.setLoading(false);
         }
     }
