@@ -6815,6 +6815,12 @@ window.openProfilesView = function() {
   const categoryView  = document.getElementById("categoryView");
   if (!categoryTitle || !docsList) return;
 
+    const searchInput = document.getElementById("categorySearch");
+  if (searchInput) {
+    searchInput.style.display = "none";   // מחביאים את החיפוש בפרופילים
+  }
+
+
   categoryTitle.textContent = "פרופילים";
   docsList.classList.remove("shared-mode");
   docsList.innerHTML = "";
@@ -6878,6 +6884,12 @@ function openProfileCategories(profileId) {
   const categoryView  = document.getElementById("categoryView");
   if (!categoryTitle || !docsList) return;
 
+
+  const searchInput = document.getElementById("categorySearch");
+  if (searchInput) {
+    searchInput.style.display = "inline-block"; // מחזירים את החיפוש
+  }
+  
   categoryTitle.textContent = `פרופיל: ${profile.fullName}`;
   docsList.classList.remove("shared-mode");
   docsList.innerHTML = "";
