@@ -6814,7 +6814,7 @@ function buildProfileCard(profile) {
   card.style.gap = "0.5rem";
   card.style.padding = "1rem";
 
-  // 🔹 כפתור עריכה קטן
+  // 🔹 כפתור עריכה
   const editBtn = document.createElement("button");
   editBtn.className = "profile-edit-btn";
   editBtn.textContent = "✏️";
@@ -6829,11 +6829,10 @@ function buildProfileCard(profile) {
 
   editBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    // ❗ פה היה profileData – צריך profile
     openProfileModal(profile);
   });
 
-  // 🔹 כפתור מחיקה קטן
+  // 🔹 כפתור מחיקה
   const deleteBtn = document.createElement("button");
   deleteBtn.className = "profile-delete-btn";
   deleteBtn.textContent = "🗑️";
@@ -6846,21 +6845,42 @@ function buildProfileCard(profile) {
   deleteBtn.style.fontSize = "0.75rem";
   deleteBtn.style.cursor = "pointer";
 
-deleteBtn.addEventListener("click", (e) => {
-  e.stopPropagation();
+  deleteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
 
-  showConfirm(
-    `למחוק את הפרופיל "${profile.fullName}"?`,
-    () => {
-      // זה קורה רק אם המשתמשת לוחצת "כן"
-      deleteProfile(profile.id);
-      openProfilesView(); // רענון אחרי מחיקה
+    showConfirm(
+      `למחוק את הפרופיל "${profile.fullName}"?`,
+      () => {
+        deleteProfile(profile.id);
+        openProfilesView();
+      }
+    );
+  });
+
+  // 🔹 כפתור שיתוף חדש
+  const shareBtn = document.createElement("button");
+  shareBtn.className = "profile-share-btn";
+  shareBtn.textContent = "🔗 שיתוף";
+  shareBtn.style.position = "absolute";
+  shareBtn.style.bottom = "6px";
+  shareBtn.style.left = "6px";
+  shareBtn.style.border = "none";
+  shareBtn.style.background = "rgba(75,107,251,0.12)";
+  shareBtn.style.borderRadius = "8px";
+  shareBtn.style.fontSize = "0.70rem";
+  shareBtn.style.padding = "2px 6px";
+  shareBtn.style.cursor = "pointer";
+
+  shareBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (typeof shareProfile === "function") {
+      shareProfile(profile.id);
+    } else {
+      alert("פונקציית שיתוף לא מוגדרת");
     }
-  );
-});
+  });
 
-
-  // 🔹 העיגול (תמונה או אות)
+  // 🔹 עיגול תמונה/אות
   const circle = document.createElement("div");
   circle.style.width = "72px";
   circle.style.height = "72px";
@@ -6874,7 +6894,6 @@ deleteBtn.addEventListener("click", (e) => {
   circle.style.overflow = "hidden";
 
   if (profile.thumbnailDataUrl) {
-    // תמונת פרופיל
     const img = document.createElement("img");
     img.src = profile.thumbnailDataUrl;
     img.style.width = "100%";
@@ -6882,15 +6901,15 @@ deleteBtn.addEventListener("click", (e) => {
     img.style.objectFit = "cover";
     circle.appendChild(img);
   } else {
-    // אות ראשונה
     circle.textContent = (profile.fullName?.[0] || "?").toUpperCase();
   }
 
-  // 🔹 פרטי פרופיל
+  // 🔹 שם
   const nameEl = document.createElement("div");
   nameEl.textContent = profile.fullName;
   nameEl.style.fontWeight = "600";
 
+  // 🔹 פרטים קטנים
   const small = document.createElement("div");
   small.style.opacity = "0.7";
   small.style.fontSize = "0.75rem";
@@ -6898,7 +6917,7 @@ deleteBtn.addEventListener("click", (e) => {
   const birthTxt = profile.birthDate ? `נולד/ה ${profile.birthDate}` : "";
   small.textContent = birthTxt + ageTxt;
 
-  // 🔹 פתיחת פרופיל בעת לחיצה על הכרטיס
+  // 🔹 לחיצה על הכרטיס תפתח את הפרופיל
   card.addEventListener("click", () => {
     openProfileCategories(profile.id);
   });
@@ -6906,6 +6925,7 @@ deleteBtn.addEventListener("click", (e) => {
   // הרכבה
   card.appendChild(editBtn);
   card.appendChild(deleteBtn);
+  card.appendChild(shareBtn);
   card.appendChild(circle);
   card.appendChild(nameEl);
   card.appendChild(small);
@@ -6913,6 +6933,226 @@ deleteBtn.addEventListener("click", (e) => {
   return card;
 }
 
+
+
+
+
+// 📥 טעינת בקשות שיתוף פרופילים למשתמש הנוכחי
+async function loadMyProfileInvites() {
+  if (!window.isFirebaseAvailable || !window.isFirebaseAvailable()) {
+    return [];
+  }
+
+  const me = typeof getCurrentUserEmail === "function"
+    ? (getCurrentUserEmail() || "").trim().toLowerCase()
+    : "";
+
+  if (!me) return [];
+
+  try {
+    const col = window.fs.collection(window.db, "profileInvites");
+    const q = window.fs.query(
+      col,
+      window.fs.where("to", "==", me),
+      window.fs.where("status", "==", "pending")
+    );
+    const snap = await window.fs.getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.error("❌ loadMyProfileInvites error:", err);
+    return [];
+  }
+}
+
+
+
+// 🔄 שליחת הזמנת שיתוף פרופיל
+async function shareProfile(profileId) {
+  if (!window.isFirebaseAvailable || !window.isFirebaseAvailable()) {
+    alert("שיתוף פרופילים דורש Firebase פעיל");
+    return;
+  }
+
+  const me = typeof getCurrentUserEmail === "function"
+    ? (getCurrentUserEmail() || "").trim().toLowerCase()
+    : "";
+
+  if (!me) {
+    alert("לא נמצא משתמש מחובר");
+    return;
+  }
+
+  const profiles = loadProfiles ? loadProfiles() : [];
+  const profile = profiles.find(p => p.id === profileId);
+  if (!profile) {
+    alert("הפרופיל לא נמצא");
+    return;
+  }
+
+  const rawEmail = prompt("לאיזה מייל לשתף את הפרופיל?");
+  if (!rawEmail) return;
+
+  const toEmail = rawEmail.trim().toLowerCase();
+  if (!toEmail) return;
+
+  if (toEmail === me) {
+    alert("אי אפשר לשתף לעצמך 🙂");
+    return;
+  }
+
+  try {
+    const col = window.fs.collection(window.db, "profileInvites");
+
+    await window.fs.addDoc(col, {
+      from: me,
+      to: toEmail,
+      profileOwner: me,
+      profileId: profile.id,
+      profileData: {
+        id: profile.id,
+        fullName: profile.fullName,
+        firstName: profile.firstName || "",
+        lastName: profile.lastName || "",
+        idNumber: profile.idNumber || "",
+        birthDate: profile.birthDate || "",
+        age: profile.age ?? null,
+        thumbnailDataUrl: profile.thumbnailDataUrl || null
+      },
+      status: "pending",
+      createdAt: Date.now()
+    });
+
+    if (typeof showNotification === "function") {
+      showNotification("נשלחה בקשת שיתוף פרופיל ✅");
+    } else {
+      alert("נשלחה בקשת שיתוף פרופיל ✅");
+    }
+  } catch (err) {
+    console.error("❌ Error sending profile invite:", err);
+    alert("שגיאה בשליחת בקשה");
+  }
+}
+
+
+
+
+
+function renderProfileInvites(container, invites) {
+  container.innerHTML = "";
+  if (!invites || !invites.length) return;
+
+  const head = document.createElement("div");
+  head.className = "cozy-head";
+  head.innerHTML = "<h3 style='margin:0;'>בקשות שיתוף פרופילים</h3>";
+  container.appendChild(head);
+
+  const box = document.createElement("div");
+  box.className = "pending-wrap";
+
+  invites.forEach(inv => {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.justifyContent = "space-between";
+    row.style.gap = "0.5rem";
+    row.style.marginBottom = "0.5rem";
+
+    const info = document.createElement("div");
+    info.style.fontSize = ".8rem";
+    const from = inv.from || inv.profileOwner || "";
+    const name = inv.profileData?.fullName || "פרופיל ללא שם";
+    info.textContent = `${name} (מ-${from})`;
+
+    const btns = document.createElement("div");
+    btns.style.display = "flex";
+    btns.style.gap = ".35rem";
+
+    const acceptBtn = document.createElement("button");
+    acceptBtn.textContent = "אישור";
+    acceptBtn.className = "btn-cozy";
+    acceptBtn.style.padding = ".3rem .6rem";
+    acceptBtn.addEventListener("click", () => handleProfileInvite(inv, true));
+
+    const rejectBtn = document.createElement("button");
+    rejectBtn.textContent = "ביטול";
+    rejectBtn.className = "btn-min";
+    rejectBtn.style.padding = ".3rem .6rem";
+    rejectBtn.addEventListener("click", () => handleProfileInvite(inv, false));
+
+    btns.appendChild(acceptBtn);
+    btns.appendChild(rejectBtn);
+
+    row.appendChild(info);
+    row.appendChild(btns);
+    box.appendChild(row);
+  });
+
+  container.appendChild(box);
+}
+
+
+
+async function handleProfileInvite(invite, accepted) {
+  if (!window.isFirebaseAvailable || !window.isFirebaseAvailable()) {
+    alert("Firebase לא זמין כרגע");
+    return;
+  }
+
+  try {
+    const docRef = window.fs.doc(window.db, "profileInvites", invite.id);
+    await window.fs.updateDoc(docRef, {
+      status: accepted ? "accepted" : "rejected",
+      respondedAt: Date.now()
+    });
+
+    if (accepted) {
+      // 1. להוסיף את הפרופיל אליך ללוקאלי
+      const profiles = loadProfiles ? loadProfiles() : [];
+      const data = invite.profileData || {};
+
+      const already = profiles.some(p =>
+        p.fullName === data.fullName &&
+        p.idNumber === data.idNumber &&
+        p.sharedFromEmail === invite.profileOwner
+      );
+
+      if (!already) {
+        const newProfile = {
+          ...data,
+          id: (typeof crypto !== "undefined" && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : (Date.now().toString() + Math.random().toString(16).slice(2)),
+          sharedFromEmail: invite.profileOwner || invite.from || null
+        };
+        profiles.push(newProfile);
+        if (typeof saveProfiles === "function") {
+          saveProfiles(profiles);
+        }
+      }
+
+      if (typeof showNotification === "function") {
+        showNotification("הפרופיל נוסף אלייך ✅");
+      } else {
+        alert("הפרופיל נוסף אלייך ✅");
+      }
+
+      // כאן בשלב הבא אפשר יהיה לחבר גם שיתוף מסמכים לפי הפרופיל
+      // (דורש לוגיקה נוספת על הדוקומנטים בשרת)
+    } else {
+      if (typeof showNotification === "function") {
+        showNotification("בקשת השיתוף נדחתה");
+      }
+    }
+
+    // רענון מסך פרופילים
+    if (typeof openProfilesView === "function") {
+      openProfilesView();
+    }
+  } catch (err) {
+    console.error("❌ handleProfileInvite error:", err);
+    alert("שגיאה בעדכון הבקשה");
+  }
+}
 
 
 // 🔹 מסך רשימת פרופילים (הטאב "פרופילים")
@@ -6938,6 +7178,29 @@ window.openProfilesView = function() {
 
 
   const profiles = loadProfiles();
+
+  // 🔔 אזור לבקשות שיתוף פרופילים
+  let invitesArea = document.getElementById("profileInvitesArea");
+  if (!invitesArea) {
+    invitesArea = document.createElement("div");
+    invitesArea.id = "profileInvitesArea";
+    invitesArea.style.gridColumn = "1 / -1";
+    invitesArea.style.width = "100%";
+    invitesArea.style.maxWidth = "900px";
+    invitesArea.style.margin = "0 auto 1rem";
+    docsList.parentElement.insertBefore(invitesArea, docsList);
+  }
+  invitesArea.innerHTML = "";
+
+  // לטעון ולהציג את ההזמנות
+  loadMyProfileInvites()
+    .then(invites => {
+      renderProfileInvites(invitesArea, invites);
+    })
+    .catch(err => {
+      console.error("❌ Failed to load profile invites:", err);
+    });
+
 
   // כרטיס "הוסף פרופיל" (עיגול עם +)
   const addCard = document.createElement("button");
