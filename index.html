@@ -1983,6 +1983,11 @@ body::-webkit-scrollbar-thumb:hover,
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+.menu-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
 
 
   </style>
@@ -2069,9 +2074,12 @@ body::-webkit-scrollbar-thumb:hover,
           <div class="menu-label">ניווט</div>
 
           <button class="menu-item active" data-view="home">
-            <div class="menu-item-icon">🏠</div>
-            <span>דף הבית</span>
-          </button>
+  <div class="menu-item-icon">
+    <img src="assests/icons/home.png" alt="Home Icon" class="menu-icon">
+  </div>
+  <span>דף הבית</span>
+</button>
+
 
           <button class="menu-item" data-view="shared">
             <div class="menu-item-icon">🤝</div>
