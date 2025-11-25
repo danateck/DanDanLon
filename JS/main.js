@@ -27,6 +27,41 @@ window.allUsersData = window.allUsersData || {};
 window.userNow = window.userNow || "";
 
 
+
+
+
+
+function showAlert(title, type = "info") {
+  const icons = {
+    success: "✅",
+    error: "⛔",
+    warning: "⚠️",
+    info: "ℹ️"
+  };
+
+  const root = document.getElementById("eco-alert-root");
+
+  const box = document.createElement("div");
+  box.className = `eco-alert eco-${type}`;
+  box.innerHTML = `
+    <div class="eco-alert-icon">${icons[type]}</div>
+    <div class="eco-alert-title">${title}</div>
+  `;
+
+  root.appendChild(box);
+
+  setTimeout(() => {
+    box.style.opacity = "0";
+    box.style.transition = "opacity 0.3s";
+    setTimeout(() => box.remove(), 300);
+  }, 2500);
+}
+
+
+
+
+
+
 // 🔍 טקסט החיפוש הנוכחי בקטגוריה
 window.currentSearchTerm = "";
 
@@ -3086,6 +3121,11 @@ function fallbackAskWarrantyDetails() {
     autoDeleteAfter
   };
 }
+
+
+
+
+
 // טוסט
 function showNotification(message, isError = false) {
   const box = document.getElementById("notification");

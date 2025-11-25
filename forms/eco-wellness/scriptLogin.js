@@ -7,6 +7,34 @@ import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence
 
 
 
+  function showAlert(title, type = "info") {
+  const icons = {
+    success: "✅",
+    error: "⛔",
+    warning: "⚠️",
+    info: "ℹ️"
+  };
+
+  const root = document.getElementById("eco-alert-root");
+
+  const box = document.createElement("div");
+  box.className = `eco-alert eco-${type}`;
+  box.innerHTML = `
+    <div class="eco-alert-icon">${icons[type]}</div>
+    <div class="eco-alert-title">${title}</div>
+  `;
+
+  root.appendChild(box);
+
+  setTimeout(() => {
+    box.style.opacity = "0";
+    box.style.transition = "opacity 0.3s";
+    setTimeout(() => box.remove(), 300);
+  }, 2500);
+}
+
+
+
 // Firestore Database functions
 async function loadUserDataFromFirestore(email) {
     try {
@@ -229,7 +257,7 @@ async registerNewUserWithVerification() {
 
         try {
             await this.sendPasswordResetEmail(this.auth, email);
-            alert("נשלח אליך מייל לאיפוס סיסמה. בדקי את תיבת הדואר שלך.");
+            showAlert("נשלח אליך מייל לאיפוס סיסמה. בדקי את תיבת הדואר שלך.");
         } catch (err) {
             console.error("Password reset error:", err);
             if (err.code === "auth/user-not-found") {
