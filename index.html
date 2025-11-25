@@ -1963,22 +1963,22 @@ body::-webkit-scrollbar-thumb:hover,
 
 
 
-/* אנימציית קפיצה */
-@keyframes icon-bounce {
-  0%   { transform: translateY(0); }
-  30%  { transform: translateY(-4px); }
-  60%  { transform: translateY(2px); }
-  100% { transform: translateY(0); }
+.tab-btn {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
-/* כל האייקונים בתוך כפתורי ניווט */
-.tab-btn img {
-  transition: 0.3s ease;
+.tab-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-/* כשהעכבר עובר על הכפתור – האייקון קופץ */
-.tab-btn:hover img {
-  animation: icon-bounce 0.4s ease;
+.small-btn {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.small-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 
