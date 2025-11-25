@@ -2567,11 +2567,20 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
   const categoryView = document.getElementById("categoryView");
 
   if (!categoryTitle || !docsList) {
+    
     console.error("❌ Category view elements not found");
     return;
   }
 
+    // להראות את החיפוש במסמכים רק במסך קטגוריה רגיל
+  const searchInput = document.getElementById("categorySearch");
+  if (searchInput) {
+    searchInput.style.display = "inline-block";
+  }
+
+
   // כותרת
+
   categoryTitle.textContent = categoryName;
 
 
@@ -2618,7 +2627,6 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
 
   // 🔍 סינון לפי החיפוש (שם קובץ / שם מסמך / ארגון / שנה)
     // 🔍 סינון לפי החיפוש (שם קובץ / שם מסמך / ארגון / שנה)
-  const searchInput = document.getElementById("categorySearch");
   const searchTerm = (window.currentSearchTerm || "").trim();
 
   // נשמור גם בגלובל, אם תרצי להשתמש בזה בעתיד
@@ -2718,6 +2726,11 @@ window.openRecycleView = function () {
 };
 // 4. SHARED VIEW
 window.openSharedView = function() {
+  const searchInput = document.getElementById("categorySearch");
+  if (searchInput) {
+    // באחסון משותף לא רוצים חיפוש במסמכים
+    searchInput.style.display = "none";
+  }
   console.log("🤝 Opening shared view");
   const categoryTitle = document.getElementById("categoryTitle");
   const docsList = document.getElementById("docsList");
@@ -3956,6 +3969,11 @@ function openSharedFolderPicker(me, onSelect) {
   };
 }
 openSharedView = function() {
+  const searchInput = document.getElementById("categorySearch");
+  if (searchInput) {
+    // באחסון משותף לא רוצים חיפוש במסמכים
+    searchInput.style.display = "none";
+  }
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
@@ -7410,9 +7428,10 @@ function openProfileCategories(profileId) {
   const categoryView  = document.getElementById("categoryView");
   if (!categoryTitle || !docsList) return;
 
-  const searchInput = document.getElementById("categorySearch");
+ const searchInput = document.getElementById("categorySearch");
   if (searchInput) {
-    searchInput.style.display = "inline-block"; // מחזירים את החיפוש
+    // בפרופילים לא רוצים חיפוש במסמכים
+    searchInput.style.display = "none";
   }
 
   categoryTitle.textContent = `פרופיל: ${profile.fullName}`;
