@@ -844,8 +844,8 @@ if (!code) {
 // 📧 שליחת המייל דרך EmailJS
 try {
   await emailjs.send(
-    "EMAILJS_SERVICE_ID",    // להחליף
-    "EMAILJS_TEMPLATE_ID",   // להחליף
+    "service_q88zsbi",    // להחליף
+    "template_swvlrtd",   // להחליף
     {
       to_email: email,
       code: code,
@@ -969,8 +969,8 @@ const inputs = overlay.querySelectorAll('.twofa-digit');
     const newCode = data.code;
 
     await emailjs.send(
-      "EMAILJS_SERVICE_ID",
-      "EMAILJS_TEMPLATE_ID",
+      "service_q88zsbi",
+      "template_swvlrtd",
       {
         to_email: email,
         code: newCode,
