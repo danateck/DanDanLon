@@ -7095,6 +7095,97 @@ async function shareProfile(profileId) {
 
 
 
+// 📥 טעינת רשימת המשתתפים בפרופיל מסוים (לפי הזמנות שאושרו)
+async function loadProfileParticipants(profile) {
+  if (!window.isFirebaseAvailable || !window.isFirebaseAvailable()) {
+    return [];
+  }
+
+  const profileId = profile.id;
+  if (!profileId) return [];
+
+  // מי הבעלים של הפרופיל?
+  const me = typeof getCurrentUserEmail === "function"
+    ? (getCurrentUserEmail() || "").trim().toLowerCase()
+    : "";
+
+  const ownerEmail = (profile.sharedFromEmail || me || "").toLowerCase();
+
+  try {
+    const col = window.fs.collection(window.db, "profileInvites");
+    const q = window.fs.query(
+      col,
+      window.fs.where("profileId", "==", profileId),
+      window.fs.where("status", "==", "accepted")
+    );
+    const snap = await window.fs.getDocs(q);
+
+    const set = new Set();
+
+    // מוסיפים את הבעלים
+    if (ownerEmail) {
+      set.add(ownerEmail);
+    }
+
+    snap.docs.forEach(d => {
+      const data = d.data();
+      if (data.to) set.add((data.to || "").toLowerCase());
+      if (data.from) set.add((data.from || "").toLowerCase());
+      if (data.profileOwner) set.add((data.profileOwner || "").toLowerCase());
+    });
+
+    return Array.from(set);
+  } catch (err) {
+    console.error("❌ loadProfileParticipants error:", err);
+    return [];
+  }
+}
+
+// 🎨 רינדור שורת המשתתפים למעלה
+function renderProfileParticipantsBar(container, emails, profile) {
+  container.innerHTML = "";
+
+  const me = typeof getCurrentUserEmail === "function"
+    ? (getCurrentUserEmail() || "").trim().toLowerCase()
+    : "";
+
+  if (!emails || !emails.length) {
+    const span = document.createElement("span");
+    span.textContent = "רק את מחוברת לפרופיל הזה כרגע 🙂";
+    span.style.fontSize = ".75rem";
+    span.style.opacity = "0.8";
+    container.appendChild(span);
+    return;
+  }
+
+  const title = document.createElement("span");
+  title.textContent = "משתתפים בפרופיל: ";
+  title.style.fontWeight = "600";
+  title.style.fontSize = ".8rem";
+  title.style.marginInlineEnd = "0.25rem";
+  container.appendChild(title);
+
+  emails.forEach(email => {
+    const chip = document.createElement("span");
+    const isMe = email === me;
+    const label = isMe ? `אני (${email})` : email;
+
+    chip.textContent = label;
+    chip.style.padding = "3px 8px";
+    chip.style.borderRadius = "999px";
+    chip.style.border = "1px solid #ddd";
+    chip.style.background = "rgba(0,0,0,0.03)";
+    chip.style.fontSize = ".75rem";
+    chip.style.direction = "ltr"; // למיילים
+    container.appendChild(chip);
+  });
+}
+
+
+
+
+
+
 function renderProfileInvites(container, invites) {
   container.innerHTML = "";
   if (!invites || !invites.length) return;
@@ -7309,6 +7400,8 @@ window.openProfilesView = function() {
 function openProfileCategories(profileId) {
   const profiles = loadProfiles();
   const profile = profiles.find(p => p.id === profileId);
+
+  // קודם כל לוודא שיש פרופיל
   if (!profile) return;
 
   const categoryTitle = document.getElementById("categoryTitle");
@@ -7316,7 +7409,6 @@ function openProfileCategories(profileId) {
   const homeView      = document.getElementById("homeView");
   const categoryView  = document.getElementById("categoryView");
   if (!categoryTitle || !docsList) return;
-
 
   const searchInput = document.getElementById("categorySearch");
   if (searchInput) {
@@ -7326,6 +7418,37 @@ function openProfileCategories(profileId) {
   categoryTitle.textContent = `פרופיל: ${profile.fullName}`;
   docsList.classList.remove("shared-mode");
   docsList.innerHTML = "";
+
+  // 🔹 אזור "משתתפים בפרופיל" בראש המסך
+  let participantsBar = document.getElementById("profile-participants-bar");
+  if (!participantsBar) {
+    participantsBar = document.createElement("div");
+    participantsBar.id = "profile-participants-bar";
+    participantsBar.style.display = "flex";
+    participantsBar.style.flexWrap = "wrap";
+    participantsBar.style.gap = "0.35rem";
+    participantsBar.style.margin = "0 0 0.75rem";
+    participantsBar.style.alignItems = "center";
+
+    const mainContainer =
+      document.getElementById("docsListContainer") ||
+      document.getElementById("docsList")?.parentElement;
+
+    if (mainContainer && !participantsBar.parentElement) {
+      mainContainer.insertBefore(participantsBar, mainContainer.firstChild);
+    }
+  }
+
+  participantsBar.innerHTML = "טוען משתתפים...";
+
+  loadProfileParticipants(profile)
+    .then(emails => {
+      renderProfileParticipantsBar(participantsBar, emails, profile);
+    })
+    .catch(err => {
+      console.error("❌ Failed to load profile participants:", err);
+      participantsBar.textContent = "לא ניתן לטעון משתתפים 😢";
+    });
 
   // כל המסמכים שמכילים את השם שלו בשדה "שייך ל"
   const docs = (window.allDocsData || [])
@@ -7383,6 +7506,7 @@ function openProfileCategories(profileId) {
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
 }
+
 
 // 🔹 מסמכים של פרופיל בתוך קטגוריה מסוימת
 function openProfileCategoryDocs(profile, categoryName) {
