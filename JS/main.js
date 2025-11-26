@@ -2160,7 +2160,7 @@ function buildDocCard(doc, mode) {
     `;
   const openFileButtonHtml = `
   <button class="doc-open-link" data-open-id="${doc.id}">
-    <img src="assets/icons/open.png" 
+    <img src="assests/icons/open.png" 
          style="width:16px;height:16px;vertical-align:middle;margin-left:6px;">
     פתיחת קובץ
   </button>
