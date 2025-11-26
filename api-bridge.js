@@ -640,6 +640,7 @@ console.log('💡 Debug: Run testAuth() to check authentication');
 // ===============================
 
 // כמה אחסון יש למשתמשת (ב־GB)
+// 🔧 שונה ל-0.5GB (500MB) כדי שהפס יזוז יותר עם קבצים קטנים
 const STORAGE_LIMIT_GB = 0.5;
 const STORAGE_LIMIT_BYTES = STORAGE_LIMIT_GB * 1024 * 1024 * 1024;
 
@@ -696,7 +697,7 @@ function updateStorageUsageWidget() {
   }
 
   const GB       = 1024 * 1024 * 1024;
-  const TOTAL_GB = 0.5; // כאן משנים אם בעתיד Free/Pro/Premium
+  const TOTAL_GB = 0.5; // 🔧 שונה ל-500MB כדי שהפס יזוז יותר
 
   const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
 
@@ -743,10 +744,23 @@ function updateStorageUsageWidget() {
   if (!Number.isFinite(usedPct) || usedPct < 0) usedPct = 0;
   if (usedPct > 100) usedPct = 100;
 
+  // 🔧 תצוגה חכמה: MB אם המכסה קטנה מ-1GB, אחרת GB
+  let textValue;
+  if (TOTAL_GB < 1) {
+    // מציגים ב-MB
+    const MB = 1024 * 1024;
+    const usedMB = usedBytes / MB;
+    const totalMB = TOTAL_GB * 1024; // המרה מGB ל-MB
+    const freeMB = Math.max(0, totalMB - usedMB);
+    textValue = `אחסון פנוי: ${freeMB.toFixed(0)}MB מתוך ${totalMB.toFixed(0)}MB`;
+  } else {
+    // מציגים ב-GB
+    textValue = `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
+  }
+
   // 🔧 הגדרה מאולצת - מוודא שזה יעבוד!
   const widthValue = usedPct.toFixed(1) + "%";
   const percentValue = Math.round(usedPct) + "%";
-  const textValue = `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
   
   // נסיון 1: setProperty עם important
   barFill.style.setProperty('width', widthValue, 'important');
