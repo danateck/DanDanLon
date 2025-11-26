@@ -4213,14 +4213,30 @@ async function renderPending() {
       const membersBar = document.createElement("div");
       membersBar.className = "cozy-head";
       membersBar.innerHTML = `
-        <h3 style="margin:0;">משתתפים</h3>
-        <div style="display:flex;gap:8px; align-items:center;flex-wrap:wrap;width:100%;">
-          <input id="detail_inv_email" placeholder="הוסף מייל לשיתוף"
-                 style="padding:.5rem;border:1px solid #2b3c3c;border-radius:10px;background:#d7d7c7;      font-family: "Rubik", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-color:#e0f0ee;flex:1;min-width:200px;max-width:100%;box-sizing:border-box;">
-          <button id="detail_inv_btn" class="btn-cozy" style="white-space:nowrap;">הוסף משתתף</button>
-        </div>
-      `;
+  <h3 style="margin:0;">משתתפים</h3>
+  <div style="display:flex;gap:8px; align-items:center;flex-wrap:wrap;width:100%;">
+    
+    <input id="detail_inv_email" placeholder="הוסף מייל לשיתוף"
+      style="
+        padding:.5rem;
+        border:1px solid #2b3c3c;
+        border-radius:10px;
+        background:#d7d7c7;
+        color:#000;
+        flex:1;
+        min-width:200px;
+        max-width:100%;
+        box-sizing:border-box;
+        font-family: 'Rubik', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      ">
+    
+    <button id="detail_inv_btn" class="btn-cozy" style="white-space:nowrap;">
+      הוסף משתתף
+    </button>
+
+  </div>
+`;
+
       topBlocksContainer.appendChild(membersBar);
       // בלוק 2: רשימת משתתפים
       const membersList = document.createElement("div");
