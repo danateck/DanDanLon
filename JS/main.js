@@ -347,13 +347,23 @@ function updateStorageUsageWidget() {
     !d._trashed
   );
 
-  let usedBytes = 0;
+    let usedBytes = 0;
   for (const d of ownerDocs) {
-    const size = Number(d.fileSize || d.file_size || 0);
-    if (!Number.isNaN(size) && size > 0) {
-      usedBytes += size;
+    // ננסה לקחת גודל אמיתי מהשרת
+    let size = Number(
+      d.fileSize ??
+      d.file_size ??
+      d.size
+    );
+
+    // אם אין גודל אמיתי → נניח בערך 200KB כדי שהפס יזוז
+    if (!Number.isFinite(size) || size <= 0) {
+      size = 200 * 1024; // 200KB ברירת מחדל
     }
+
+    usedBytes += size;
   }
+
 
   const usedGB  = usedBytes / GB;
   const freeGB  = Math.max(0, TOTAL_GB - usedGB);
@@ -2437,45 +2447,50 @@ if (mode !== "recycle") {
       }
     });
     const deleteBtn = document.createElement("button");
-    deleteBtn.className = "doc-action-btn danger";
-    deleteBtn.textContent = "מחיקה לצמיתות 🗑️";
-    deleteBtn.addEventListener("click", async () => {
-      const confirmDelete = localStorage.getItem("confirmDelete") !== "false";
-      if (confirmDelete) {
-  showConfirm(
-    "למחוק לצמיתות? אי אפשר לשחזר.",
-    () => {
-      // הקוד שהיה אמור לרוץ אם המשתמשת לחצה "כן"
-      continueDelete();
-    }
-  );
-  return;
-}
-
-// אם confirmDelete = false → ממשיכים רגיל
-continueDelete();
-
-      try {
-        if (window.deleteDocForever && window.deleteDocForever !== deleteDocForever) {
-          await window.deleteDocForever(doc.id);
-        } else if (typeof deleteDocForever === "function") {
-          await deleteDocForever(doc.id);
-        } else {
-          console.error("❌ deleteDocForever function not found");
-          return;
-        }
-        if (typeof openRecycleView === "function") {
-          openRecycleView();
-        } else {
-          window.location.reload();
-        }
-      } catch (err) {
-        console.error("❌ Delete forever failed:", err);
-        if (typeof showNotification === "function") {
-          showNotification("שגיאה במחיקת המסמך", true);
-        }
+deleteBtn.className = "doc-action-btn danger";
+deleteBtn.textContent = "מחיקה לצמיתות 🗑️";
+deleteBtn.addEventListener("click", async () => {
+  // פונקציה פנימית שעושה את מחיקת האמת
+  const doDelete = async () => {
+    try {
+      if (window.deleteDocForever && window.deleteDocForever !== deleteDocForever) {
+        await window.deleteDocForever(doc.id);
+      } else if (typeof deleteDocForever === "function") {
+        await deleteDocForever(doc.id);
+      } else {
+        console.error("❌ deleteDocForever function not found");
+        return;
       }
-    });
+
+      if (typeof openRecycleView === "function") {
+        openRecycleView();
+      } else {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("❌ Delete forever failed:", err);
+      if (typeof showNotification === "function") {
+        showNotification("שגיאה במחיקת המסמך", true);
+      }
+    }
+  };
+
+  const confirmDelete = localStorage.getItem("confirmDelete") !== "false";
+
+  if (confirmDelete) {
+    showConfirm(
+      "למחוק לצמיתות? אי אפשר לשחזר.",
+      () => {
+        // כאן אין async, אבל זה בסדר לקרוא לפונקציה אסינכרונית בלי await
+        doDelete();
+      }
+    );
+  } else {
+    // אם ביטלת את ההודעה בהגדרות – מוחק ישר
+    await doDelete();
+  }
+});
+
     actions.appendChild(restoreBtn);
     actions.appendChild(deleteBtn);
   }
