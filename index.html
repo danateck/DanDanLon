@@ -93,7 +93,14 @@ html {
       position: relative;
       box-shadow: 4px 0 16px rgba(0,0,0,0.3);
       padding: 1rem 1rem 0;
-      overflow-y: auto; /* גלילה אם התוכן גבוה */
+      overflow: hidden; /* ✅ שינוי: לא overflow-y כדי שsidebar-bottom יהיה נראה */
+    }
+    
+    /* ✅ תוכן הsidebar שיכול להיות ארוך */
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 1rem;
     }
 
     .sidebar > div {
@@ -101,13 +108,14 @@ html {
     }
 
     .sidebar-bottom {
-      position: absolute;
-      bottom: 1.56rem;
-      left: 0;
+      position: relative; /* ✅ שינוי: relative במקום absolute */
       width: 100%;
-      padding: 0 1rem;
+      padding: 0.75rem 1rem;
       box-sizing: border-box;
       border-top: 1px solid rgba(255,255,255,0.12);
+      margin-top: auto; /* ✅ דוחף את זה לתחתית */
+      flex-shrink: 0; /* ✅ מונע כיווץ */
+      background: inherit; /* ✅ רקע כמו הsidebar */
     }
 
     .logout-btn {
@@ -2156,7 +2164,7 @@ body::-webkit-scrollbar-thumb:hover,
   <div class="dashboard">
     <!-- ===== SIDEBAR ===== -->
     <aside class="sidebar" id="sidebarDrawer">
-      <div>
+      <div class="sidebar-content">
 <div class="brand-block">
   <div class="brand-row">
 
