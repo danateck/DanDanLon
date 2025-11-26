@@ -604,8 +604,8 @@ select, .btn{
       font-size: .8rem;
       line-height: 1.4;
       color: var(--text-dark);
-      bottom: 50px !important;
       display: flex;
+      padding-bottom: 80px;
       flex-direction: column;
       gap: .5rem;
       width: 100%; max-width: none; 
@@ -633,16 +633,19 @@ select, .btn{
       font-size: .8rem;
       font-weight: 600;
       color: #d9d9d9;
+      left: 50%;
       text-decoration: none;
+      position: absolute;
       background: #60683f;
       padding: .5rem .9rem;
       padding-right: 11px;
       width: fit-content;
       font-family: 'Rubik', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-
+bottom: 50px;
       border-radius: var(--radius-sm);
       box-shadow: 0 6px 14px rgba(0,0,0,0.25);
       transition: background .18s, color .18s;
+      transform: translateX(-50%);
       display: inline-block;
     }
     .doc-open-link:hover {
