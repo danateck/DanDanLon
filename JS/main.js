@@ -268,7 +268,7 @@ function isFirebaseAvailable() {
 window.bootFromCloud = async function() {
   console.log("🚀 bootFromCloud called");
   // ❌ REMOVE THIS – it can block forever
-  // await waitForFirebase();
+  // await waitForFirebase(כ);
   const me = getCurrentUserEmail();
   console.log("👤 Boot user:", me);
   if (!me || !isFirebaseAvailable()) {
@@ -7849,9 +7849,7 @@ async function resizeImageToDataUrl(file, maxSize = 256) {
 const STORAGE_LIMIT_GB = 5; // מגבלת אחסון (כמו שכתבת)
 const STORAGE_LIMIT_BYTES = STORAGE_LIMIT_GB * 1024 * 1024 * 1024;
 
-function normalizeEmail(email) {
-  return (email || "").trim().toLowerCase();
-}
+
 
 function getDocSizeBytes(doc) {
   if (!doc || typeof doc !== "object") return 0;
