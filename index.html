@@ -1992,11 +1992,17 @@ body::-webkit-scrollbar-thumb:hover,
 
 
 
-.brand-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+@media (min-width: 761px) {
+  .brand-row {
+    justify-content: flex-start !important;
+    gap: 6px !important;
+  }
+
+  .brand-left {
+    margin-right: 0 !important;
+  }
 }
+
 
 .brand-left {
   display: flex;
