@@ -653,31 +653,78 @@ function computeStorageUsage() {
   return { usedBytes, percent, totalBytes: STORAGE_LIMIT_BYTES };
 }
 
+// ===============================
+// 📦 WIDGET אחסון – חישוב ועדכון
+// ===============================
 function updateStorageUsageWidget() {
-  const barEl = document.getElementById("storageUsageBarFill");
+  const barFill   = document.getElementById("storageUsageBarFill");
+  const textEl    = document.getElementById("storageUsageText");
   const percentEl = document.getElementById("storageUsagePercent");
-  const textEl = document.getElementById("storageUsageText");
 
-  if (!barEl || !percentEl || !textEl) {
-    console.warn("⚠️ Storage widget elements not found in DOM");
+  if (!barFill || !textEl || !percentEl) {
+    console.warn("⚠️ Storage widget elements not found");
     return;
   }
 
-  const { usedBytes, percent, totalBytes } = computeStorageUsage();
-  const usedGB = usedBytes / (1024 * 1024 * 1024);
-  const totalGB = totalBytes / (1024 * 1024 * 1024);
+  const GB       = 1024 * 1024 * 1024;
+  const TOTAL_GB = 5; // כאן משנים אם בעתיד Free/Pro/Premium
 
-  barEl.style.width = percent + "%";
-  percentEl.textContent = percent + "%";
-  textEl.textContent =
-    `אחסון בשימוש: ${usedGB.toFixed(1)}GB מתוך ${totalGB.toFixed(1)}GB`;
+  const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
 
-  console.log("📦 Storage widget updated:", {
-    docs: Array.isArray(window.allDocsData) ? window.allDocsData.length : 0,
+  const me = (typeof getCurrentUserEmail === "function")
+    ? getCurrentUserEmail()
+    : null;
+
+  // אין משתמש – מציגים הכל פנוי
+  if (!me) {
+    barFill.style.width   = "0%";
+    percentEl.textContent = "0%";
+    textEl.textContent    = `אחסון פנוי: ${TOTAL_GB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
+    console.log("💾 Storage widget: no user");
+    return;
+  }
+
+  const meNorm = me.toLowerCase();
+
+  // מסמכים ששייכים למשתמשת, לא בסל מחזור
+  const myDocs = docs.filter(d =>
+    d &&
+    d.owner &&
+    d.owner.toLowerCase() === meNorm &&
+    !d._trashed
+  );
+
+  let usedBytes = 0;
+  for (const d of myDocs) {
+    // מנסה גודל אמיתי מהשרת
+    let size = Number(d.fileSize ?? d.file_size ?? d.size);
+
+    // אם אין גודל – נניח 300KB כדי שהפס יזוז
+    if (!Number.isFinite(size) || size <= 0) {
+      size = 300 * 1024;
+    }
+
+    usedBytes += size;
+  }
+
+  const usedGB = usedBytes / GB;
+  const freeGB = Math.max(0, TOTAL_GB - usedGB);
+
+  let usedPct = TOTAL_GB > 0 ? (usedGB / TOTAL_GB) * 100 : 0;
+  if (!Number.isFinite(usedPct) || usedPct < 0) usedPct = 0;
+  if (usedPct > 100) usedPct = 100;
+
+  barFill.style.width   = usedPct.toFixed(1) + "%";
+  percentEl.textContent = Math.round(usedPct) + "%";
+  textEl.textContent    = `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
+
+  console.log("💾 Storage widget updated:", {
+    totalDocs: docs.length,
+    myDocs: myDocs.length,
     usedBytes,
-    percent
+    usedPct
   });
 }
 
-// שיהיה גלובלי, כדי שמודולים אחרים יוכלו להשתמש בזה
+// שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
 window.updateStorageUsageWidget = updateStorageUsageWidget;
