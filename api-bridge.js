@@ -714,15 +714,29 @@ function updateStorageUsageWidget() {
   if (!Number.isFinite(usedPct) || usedPct < 0) usedPct = 0;
   if (usedPct > 100) usedPct = 100;
 
-  barFill.style.width   = usedPct.toFixed(1) + "%";
+  // 🔧 הגדרת הערכים בכוח - מוודא שזה יעבוד גם אם יש CSS שדורס
+  barFill.style.setProperty('width', usedPct.toFixed(1) + "%", 'important');
+  barFill.setAttribute('data-width', usedPct.toFixed(1) + "%"); // גיבוי
+  
   percentEl.textContent = Math.round(usedPct) + "%";
+  percentEl.setAttribute('data-value', Math.round(usedPct) + "%"); // גיבוי
+  
   textEl.textContent    = `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
+  textEl.setAttribute('data-text', `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`); // גיבוי
 
   console.log("💾 Storage widget updated:", {
     totalDocs: docs.length,
     myDocs: myDocs.length,
     usedBytes,
-    usedPct
+    usedPct,
+    // 🔍 DEBUG: ערכים שנקבעו
+    setWidth: usedPct.toFixed(1) + "%",
+    setPercent: Math.round(usedPct) + "%",
+    setText: `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`,
+    // 🔍 DEBUG: האם האלמנטים בפועל התעדכנו?
+    actualWidth: barFill.style.width,
+    actualPercent: percentEl.textContent,
+    actualText: textEl.textContent
   });
 }
 
