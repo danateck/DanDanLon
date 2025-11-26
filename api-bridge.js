@@ -518,7 +518,17 @@ async function downloadDocument(docId, fileName) {
 
   try {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE}/api/docs/${docId}/download`, { headers });
+    
+    // 🔧 Timeout ארוך יותר לקבצים גדולים (60 שניות במקום 10)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    
+    const res = await fetch(`${API_BASE}/api/docs/${docId}/download`, { 
+      headers,
+      signal: controller.signal 
+    });
+    
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -527,6 +537,20 @@ async function downloadDocument(docId, fileName) {
     }
 
     const contentType = res.headers.get("Content-Type") || "";
+    const contentLength = res.headers.get("Content-Length");
+    
+    // 🔍 הצגת גודל הקובץ
+    if (contentLength) {
+      const sizeMB = (parseInt(contentLength) / (1024 * 1024)).toFixed(2);
+      console.log(`📦 File size: ${sizeMB}MB`);
+      
+      // אם זה קובץ גדול מ-50MB, הזהר את המשתמש
+      if (parseInt(contentLength) > 50 * 1024 * 1024) {
+        console.warn("⚠️ Large file detected (>50MB), this might take a while...");
+      }
+    }
+    
+    // 🔧 טיפול בקבצים גדולים - הצגת progress
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
 
@@ -657,12 +681,17 @@ function computeStorageUsage() {
 // 📦 WIDGET אחסון – חישוב ועדכון
 // ===============================
 function updateStorageUsageWidget() {
+  console.log("🔄 updateStorageUsageWidget called");
+  
   const barFill   = document.getElementById("storageUsageBarFill");
   const textEl    = document.getElementById("storageUsageText");
   const percentEl = document.getElementById("storageUsagePercent");
 
   if (!barFill || !textEl || !percentEl) {
     console.warn("⚠️ Storage widget elements not found");
+    console.log("  barFill:", barFill);
+    console.log("  textEl:", textEl);
+    console.log("  percentEl:", percentEl);
     return;
   }
 
@@ -677,7 +706,7 @@ function updateStorageUsageWidget() {
 
   // אין משתמש – מציגים הכל פנוי
   if (!me) {
-    barFill.style.width   = "0%";
+    barFill.style.setProperty('width', '0%', 'important');
     percentEl.textContent = "0%";
     textEl.textContent    = `אחסון פנוי: ${TOTAL_GB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
     console.log("💾 Storage widget: no user");
@@ -714,27 +743,44 @@ function updateStorageUsageWidget() {
   if (!Number.isFinite(usedPct) || usedPct < 0) usedPct = 0;
   if (usedPct > 100) usedPct = 100;
 
-  // 🔧 הגדרת הערכים בכוח - מוודא שזה יעבוד גם אם יש CSS שדורס
-  barFill.style.setProperty('width', usedPct.toFixed(1) + "%", 'important');
-  barFill.setAttribute('data-width', usedPct.toFixed(1) + "%"); // גיבוי
+  // 🔧 הגדרה מאולצת - מוודא שזה יעבוד!
+  const widthValue = usedPct.toFixed(1) + "%";
+  const percentValue = Math.round(usedPct) + "%";
+  const textValue = `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
   
-  percentEl.textContent = Math.round(usedPct) + "%";
-  percentEl.setAttribute('data-value', Math.round(usedPct) + "%"); // גיבוי
+  // נסיון 1: setProperty עם important
+  barFill.style.setProperty('width', widthValue, 'important');
   
-  textEl.textContent    = `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
-  textEl.setAttribute('data-text', `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`); // גיבוי
+  // נסיון 2: ישירות על ה-attribute
+  barFill.setAttribute('style', `width: ${widthValue} !important`);
+  
+  // נסיון 3: שמירה ב-dataset כגיבוי
+  barFill.dataset.width = widthValue;
+  
+  // עדכון הטקסטים
+  percentEl.textContent = percentValue;
+  percentEl.dataset.value = percentValue;
+  
+  textEl.textContent = textValue;
+  textEl.dataset.text = textValue;
+  
+  // 🔧 כיפוף - נאלץ את הדפדפן לרענן
+  void barFill.offsetHeight; // Trigger reflow
+  barFill.style.display = 'block';
 
   console.log("💾 Storage widget updated:", {
     totalDocs: docs.length,
     myDocs: myDocs.length,
     usedBytes,
-    usedPct,
-    // 🔍 DEBUG: ערכים שנקבעו
-    setWidth: usedPct.toFixed(1) + "%",
-    setPercent: Math.round(usedPct) + "%",
-    setText: `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`,
-    // 🔍 DEBUG: האם האלמנטים בפועל התעדכנו?
-    actualWidth: barFill.style.width,
+    usedGB: usedGB.toFixed(3),
+    usedPct: usedPct.toFixed(2),
+    // ערכים שנקבעו
+    setWidth: widthValue,
+    setPercent: percentValue,
+    setText: textValue,
+    // בדיקה שזה באמת עבד
+    actualStyleWidth: barFill.style.width,
+    actualAttrStyle: barFill.getAttribute('style'),
     actualPercent: percentEl.textContent,
     actualText: textEl.textContent
   });

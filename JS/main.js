@@ -6177,8 +6177,14 @@ document.addEventListener("click", async (e) => {
     const urlParams = new URLSearchParams(window.location.search);
     folderId = urlParams.get("sharedFolder");
   }
-  if (!folderId) {
+  
+  // 🔍 בדיקה מחמירה: רק אם יש folderId וגם categoryTitle אומר "אחסון משותף"
+  const categoryTitle = document.getElementById("categoryTitle");
+  const isSharedView = categoryTitle?.textContent === "אחסון משותף";
+  
+  if (!folderId || !isSharedView) {
     // לא בתיקייה משותפת – הליסנרים האחרים מטפלים
+    console.log("📝 Not in shared folder view, letting other handlers take over");
     return;
   }
 
