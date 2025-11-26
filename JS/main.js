@@ -4221,7 +4221,7 @@ async function renderPending() {
       const membersBar = document.createElement("div");
       membersBar.className = "cozy-head";
       membersBar.innerHTML = `
-  <h3 style="margin:0;">משתתפים</h3>
+  <h3 style="margin:0 padding-left:10px;">משתתפים</h3>
   <div style="display:flex;gap:8px; align-items:center;flex-wrap:wrap;width:100%;">
     
     <input id="detail_inv_email" placeholder="הוסף מייל לשיתוף"
