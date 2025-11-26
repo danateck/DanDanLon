@@ -2181,7 +2181,8 @@ if (mode !== "recycle") {
   // כפתור עריכה
   const editBtn = document.createElement("button");
   editBtn.className = "doc-action-btn";
-  editBtn.textContent = "עריכה ✏️";
+  editBtn.innerHTML = `עריכה <img src="assests/icons/edit.png" style="width:16px;height:16px;vertical-align:middle;">`;
+
   editBtn.addEventListener("click", () => {
   // מי המשתמש המחובר כרגע
   const me = typeof getCurrentUserEmail === "function"
