@@ -4214,9 +4214,10 @@ async function renderPending() {
       membersBar.className = "cozy-head";
       membersBar.innerHTML = `
         <h3 style="margin:0;">משתתפים</h3>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;">
+        <div style="display:flex;gap:8px; align-items:center;flex-wrap:wrap;width:100%;">
           <input id="detail_inv_email" placeholder="הוסף מייל לשיתוף"
-                 style="padding:.5rem;border:1px solid #2b3c3c;border-radius:10px;background:#101a1a;color:#e0f0ee;flex:1;min-width:200px;max-width:100%;box-sizing:border-box;">
+                 style="padding:.5rem;border:1px solid #2b3c3c;border-radius:10px;background:#d7d7c7;      font-family: "Rubik", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+color:#e0f0ee;flex:1;min-width:200px;max-width:100%;box-sizing:border-box;">
           <button id="detail_inv_btn" class="btn-cozy" style="white-space:nowrap;">הוסף משתתף</button>
         </div>
       `;
