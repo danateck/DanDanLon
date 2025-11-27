@@ -3136,6 +3136,11 @@ if (topLogoutBtn) {
       document.querySelectorAll(".menu-item").forEach(i => i.classList.remove("active"));
       e.currentTarget.classList.add("active");
       
+      // 📱 סגירת המניו במובייל אחרי לחיצה
+      if (sidebar && window.innerWidth <= 760) {
+        sidebar.classList.remove("open");
+      }
+      
       if (view === "home" && typeof renderHome === 'function') {
         renderHome();
       } else if (view === "shared" && typeof openSharedView === 'function') {
