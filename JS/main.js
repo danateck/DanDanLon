@@ -773,6 +773,21 @@ openBtn?.addEventListener("click", () => {
 closeBtn?.addEventListener("click", () => {
   sidebar.classList.remove("open");
 });
+
+// לסגור את המניו אוטומטית במובייל כשבוחרים פריט
+function shouldCloseSidebarOnClick() {
+  // אותו breakpoint כמו ב־CSS (760px)
+  return window.matchMedia("(max-width: 760px)").matches;
+}
+
+document.querySelectorAll(".menu-item").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (shouldCloseSidebarOnClick()) {
+      sidebar?.classList.remove("open");
+    }
+  });
+});
+
 document.getElementById("premiumBtn")?.addEventListener("click", () => {
   document.getElementById("premiumPanel")?.classList.remove("hidden");
 });
