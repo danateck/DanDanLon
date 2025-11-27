@@ -7019,7 +7019,11 @@ function buildProfileCard(profile) {
   // 🔹 כפתור עריכה
   const editBtn = document.createElement("button");
   editBtn.className = "profile-edit-btn";
-  editBtn.textContent = "✏️";
+  editBtn.innerHTML = `
+  <img src="assests/icons/edit.png" 
+       style="width:18px;height:18px;">
+`;
+
   editBtn.style.position = "absolute";
   editBtn.style.top = "6px";
   editBtn.style.left = "6px";
@@ -7037,7 +7041,10 @@ function buildProfileCard(profile) {
   // 🔹 כפתור מחיקה
   const deleteBtn = document.createElement("button");
   deleteBtn.className = "profile-delete-btn";
-  deleteBtn.textContent = "🗑️";
+  deleteBtn.innerHTML = `
+  <img src="assests/icons/trash.png" style="width:18px;height:18px;">
+`;
+
   deleteBtn.style.position = "absolute";
   deleteBtn.style.top = "6px";
   deleteBtn.style.right = "6px";
@@ -7062,7 +7069,12 @@ function buildProfileCard(profile) {
   // 🔹 כפתור שיתוף חדש
   const shareBtn = document.createElement("button");
   shareBtn.className = "profile-share-btn";
-  shareBtn.textContent = "🔗 שיתוף";
+  shareBtn.innerHTML = `
+  <img src="assests/icons/share.png" 
+       style="width:16px;height:16px;vertical-align:middle;margin-left:6px;">
+  שיתוף
+`;
+
   shareBtn.style.position = "absolute";
   shareBtn.style.bottom = "6px";
   shareBtn.style.left = "6px";
@@ -7087,7 +7099,7 @@ function buildProfileCard(profile) {
   circle.style.width = "72px";
   circle.style.height = "72px";
   circle.style.borderRadius = "50%";
-  circle.style.border = "2px solid #4b6bfb";
+  circle.style.border = "2px solid #2f5018ff";
   circle.style.display = "flex";
   circle.style.alignItems = "center";
   circle.style.justifyContent = "center";
