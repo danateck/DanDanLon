@@ -7071,7 +7071,7 @@ function buildProfileCard(profile) {
   shareBtn.className = "profile-share-btn";
   shareBtn.innerHTML = `
   <img src="assests/icons/share-profile.png" 
-       style="width:16px;height:16px;vertical-align:middle;margin-left:6px;">
+       style="width:16px;height:16px;vertical-align:middle;margin-left:-1px;">
   שיתוף
 `;
 
