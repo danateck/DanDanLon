@@ -7070,7 +7070,7 @@ function buildProfileCard(profile) {
   const shareBtn = document.createElement("button");
   shareBtn.className = "profile-share-btn";
   shareBtn.innerHTML = `
-  <img src="assests/icons/share.png" 
+  <img src="assests/icons/share-profile.png" 
        style="width:16px;height:16px;vertical-align:middle;margin-left:6px;">
   שיתוף
 `;
