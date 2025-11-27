@@ -621,6 +621,8 @@ select, .btn{
       display: flex;
       flex-direction: column;
       gap: .25rem;
+      min-height: 120px;  /* ✅ גובה מינימלי קבוע */
+      flex: 1;            /* ✅ תופס שטח */
     }
 
     .doc-open-link {
@@ -2231,7 +2233,7 @@ body::-webkit-scrollbar-thumb:hover,
   .sidebar {
     display: flex !important;
     flex-direction: column !important;
-    height: 100dvh !important;     /* ✅ dvh במקום vh - מתחשב בUI של הדפדפן */
+    height: 100dvh !important;
     max-height: 100dvh !important;
     overflow: hidden !important;
   }
@@ -2240,7 +2242,7 @@ body::-webkit-scrollbar-thumb:hover,
     flex: 1 !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding-bottom: 1rem !important; /* מרווח נוסף */
+    padding-bottom: 1rem !important;
   }
 
   .sidebar-bottom {
@@ -2248,7 +2250,7 @@ body::-webkit-scrollbar-thumb:hover,
     bottom: auto !important;
     margin-top: 0 !important;
     padding: 0.75rem 1rem !important;
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important; /* ✅ safe area ל-iOS */
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
     background: linear-gradient(180deg, var(--bg-sidebar-from) 0%, var(--bg-sidebar-to) 100%);
     flex-shrink: 0 !important;
     z-index: 10;
