@@ -2795,32 +2795,34 @@ window.openRecycleView = function () {
 };
 // 4. SHARED VIEW
 window.openSharedView = function() {
-  const searchInput = document.getElementById("categorySearch");
-  if (searchInput) {
-    // באחסון משותף לא רוצים חיפוש במסמכים
-    searchInput.style.display = "none";
-  }
   console.log("🤝 Opening shared view");
+
   const categoryTitle = document.getElementById("categoryTitle");
-  const docsList = document.getElementById("docsList");
-  const homeView = document.getElementById("homeView");
-  const categoryView = document.getElementById("categoryView");
+  const docsList      = document.getElementById("docsList");
+  const homeView      = document.getElementById("homeView");
+  const categoryView  = document.getElementById("categoryView");
+  const searchBar     = document.getElementById("categorySearch");
+  const subfoldersBar = document.getElementById("subfoldersBar");
 
-   const searchBar = document.getElementById("categorySearch");
-  if (searchBar) searchBar.style.display = "none";
+  // באחסון משותף לא רוצים חיפוש במסמכים
+  if (searchBar) {
+    searchBar.value = "";
+    searchBar.style.display = "none";
+  }
 
-
+  // להעלים את שורת תתי־התיקיות
   if (subfoldersBar) {
-  subfoldersBar.innerHTML = "";
-  subfoldersBar.classList.add("hidden");
-}
-
-
+    subfoldersBar.innerHTML = "";
+    subfoldersBar.classList.add("hidden");
+    // אם את משתמשת ב-style.display במקום hidden:
+    // subfoldersBar.style.display = "none";
+  }
 
   if (!categoryTitle || !docsList) {
     console.error("❌ Shared view elements not found");
     return;
   }
+
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
