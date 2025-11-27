@@ -2114,29 +2114,34 @@ body::-webkit-scrollbar-thumb:hover,
 .search-wrapper {
   display: flex;
   align-items: center;
-  width: clamp(150px, 60vw, 260px); /* במקום width: 260px; */
+  /* רספונסיבי: עד 260px, אבל לא יותר מ־80% מרוחב המסך */
+  width: min(260px, 80vw);
+  max-width: 100%;
   background: #f3f3f1;
   border-radius: 30px;
   border: 1px solid #d3d3d3;
   flex-direction: row-reverse;
   overflow: hidden;
+  margin-inline: auto; /* שיישב יפה באמצע */
 }
+
 
 @media (max-width: 480px) {
   .search-wrapper {
-    width: 80vw;          /* 80% מרוחב המסך */
+    width: 70vw;        /* עוד יותר קטן במובייל */
   }
 
   .search-input {
-    font-size: 12px;
-    padding: 8px 10px;
+    font-size: 0.8rem;
+    padding: 6px 8px;
   }
 
   .search-btn {
-    width: 34px;
+    width: 32px;
     height: 32px;
   }
 }
+
 
 
 .search-btn {
