@@ -7079,7 +7079,7 @@ function buildProfileCard(profile) {
   shareBtn.style.bottom = "6px";
   shareBtn.style.left = "6px";
   shareBtn.style.border = "none";
-  shareBtn.style.background = "rgba(75, 251, 154, 0.12)";
+  shareBtn.style.background = "rgba(48, 182, 108, 0.12)";
   shareBtn.style.borderRadius = "8px";
   shareBtn.style.fontSize = "0.70rem";
   shareBtn.style.padding = "2px 6px";
@@ -7581,7 +7581,7 @@ window.openProfilesView = async function() {
   plusCircle.style.width = "72px";
   plusCircle.style.height = "72px";
   plusCircle.style.borderRadius = "50%";
-  plusCircle.style.border = "2px dashed #4b6bfb";
+  plusCircle.style.border = "2px dashed #4a641dff";
   plusCircle.style.display = "flex";
   plusCircle.style.alignItems = "center";
   plusCircle.style.justifyContent = "center";
