@@ -2331,7 +2331,7 @@ if (mode !== "recycle") {
   if (mode !== "shared") {
     const shareBtn = document.createElement("button");
     shareBtn.className = "doc-action-btn";
-    shareBtn.innerHTML = `
+   shareBtn.innerHTML = `
   <img src="assests/icons/share.png" class="btn-icon" alt="">
   הכנס לתיקייה משותפת
 `;
@@ -7824,12 +7824,10 @@ function initProfileModalEvents() {
   if (!file) return;
 
   try {
-    // שמירת הקובץ המקורי למשתנה גלובלי
-    window.currentProfilePhotoFile = file;
-    
-    // ⭐ מקטין לתצוגה בלבד
-    const dataUrl = await resizeImageToDataUrl(file, 512);
-    preview.style.backgroundImage = `url(${dataUrl})`;
+    // ⭐ מקטין ואז שומר
+    const dataUrl = await resizeImageToDataUrl(file, 256);
+    currentProfilePhotoDataUrl = dataUrl;
+    preview.style.backgroundImage = `url(${currentProfilePhotoDataUrl})`;
     preview.style.backgroundSize = "cover";
     preview.style.backgroundPosition = "center center";
     preview.style.cursor = "move";
@@ -7837,8 +7835,7 @@ function initProfileModalEvents() {
     
     // ✅ הוספת יכולת הזזה (drag)
     let isDragging = false;
-    let startX, startY;
-    window.currentProfilePhotoPosition = { x: 50, y: 50 }; // שמירת המיקום הגלובלי
+    let startX, startY, currentX = 50, currentY = 50;
     
     const dragStart = (e) => {
       isDragging = true;
@@ -7854,9 +7851,9 @@ function initProfileModalEvents() {
       const clientY = e.clientY || e.touches[0].clientY;
       const deltaX = (clientX - startX) / 2;
       const deltaY = (clientY - startY) / 2;
-      window.currentProfilePhotoPosition.x += deltaX;
-      window.currentProfilePhotoPosition.y += deltaY;
-      preview.style.backgroundPosition = `${window.currentProfilePhotoPosition.x}% ${window.currentProfilePhotoPosition.y}%`;
+      currentX += deltaX;
+      currentY += deltaY;
+      preview.style.backgroundPosition = `${currentX}% ${currentY}%`;
       startX = clientX;
       startY = clientY;
     };
@@ -7883,7 +7880,6 @@ function initProfileModalEvents() {
     document.ontouchend = dragEnd;
 
   } catch (err) {
-
     console.error("❌ Failed to process profile image:", err);
     alert("התמונה גדולה או בעייתית מדי, אשתמש רק באות של השם 😊");
     currentProfilePhotoDataUrl = null;
@@ -7900,7 +7896,7 @@ function initProfileModalEvents() {
   // שמירה
   // שמירה
   if (saveBtn) {
-    saveBtn.addEventListener("click", async () => {
+    saveBtn.addEventListener("click", () => {
       const nameInput  = document.getElementById("profileFullName");
       const idInput    = document.getElementById("profileIdNumber");
       const birthInput = document.getElementById("profileBirthDate");
@@ -7912,22 +7908,6 @@ function initProfileModalEvents() {
       if (!fullName || !birthDate) {
         alert("חובה למלא שם ותאריך לידה 🙂");
         return;
-      }
-
-      // ✅ אם יש תמונה, ליצור אותה עם ה-crop הנכון
-      let finalPhotoDataUrl = null;
-      if (window.currentProfilePhotoFile && window.currentProfilePhotoPosition) {
-        try {
-          finalPhotoDataUrl = await cropImageToDataUrl(
-            window.currentProfilePhotoFile,
-            window.currentProfilePhotoPosition.x,
-            window.currentProfilePhotoPosition.y,
-            256
-          );
-        } catch (err) {
-          console.error("Failed to crop image:", err);
-          finalPhotoDataUrl = null;
-        }
       }
 
       const age = calcAgeFromBirthDate(birthDate);
@@ -7948,8 +7928,8 @@ function initProfileModalEvents() {
             idNumber,
             birthDate,
             age: age ?? null,
-            thumbnailDataUrl: finalPhotoDataUrl != null
-              ? finalPhotoDataUrl
+            thumbnailDataUrl: currentProfilePhotoDataUrl != null
+              ? currentProfilePhotoDataUrl
               : profiles[idx].thumbnailDataUrl || null
           };
         }
@@ -7963,11 +7943,10 @@ function initProfileModalEvents() {
           idNumber,
           birthDate,
           age: age ?? null,
-          thumbnailDataUrl: finalPhotoDataUrl || null
+          thumbnailDataUrl: currentProfilePhotoDataUrl || null
         };
         profiles.push(profile);
       }
-
 
       saveProfiles(profiles);
       closeProfileModal();
@@ -8055,54 +8034,6 @@ async function resizeImageToDataUrl(file, maxSize = 256) {
     reader.readAsDataURL(file);
   });
 }
-
-// פונקציה חדשה ליצירת תמונה עם crop לפי המיקום שנבחר
-async function cropImageToDataUrl(file, positionX = 50, positionY = 50, size = 256) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = e => {
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-
-        // חישוב גודל התמונה כדי למלא את הריבוע
-        const scale = Math.max(size / img.width, size / img.height);
-        const scaledWidth = img.width * scale;
-        const scaledHeight = img.height * scale;
-
-        // חישוב מיקום לפי האחוזים שהמשתמש בחר
-        const offsetX = ((scaledWidth - size) * positionX) / 100;
-        const offsetY = ((scaledHeight - size) * positionY) / 100;
-
-        // ציור התמונה עם ה-offset
-        ctx.drawImage(
-          img,
-          -offsetX,
-          -offsetY,
-          scaledWidth,
-          scaledHeight
-        );
-
-        try {
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          resolve(dataUrl);
-        } catch (err) {
-          reject(err);
-        }
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 
 
 
