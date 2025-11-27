@@ -8039,22 +8039,296 @@ async function resizeImageToDataUrl(file, maxSize = 256) {
 
 
 
-// הוסף את הקוד הזה לסוף קובץ main.js
-
 // ============================================
-// תיקונים של דנה - נובמבר 2025
+// תיקון מלא ומעודכן - דנה - דצמבר 2025
 // ============================================
 
-console.log("🔧 טוען תיקונים של דנה...");
+console.log("🔧 טוען תיקונים מעודכנים...");
 
 // ============================================
-// תיקון 1: שינוי צבע רקע של מודל "בחר תיקייה משותפת"
+// תיקון 1: הסרת "משתתפים בפרופיל" מכל מקום
 // ============================================
 (function() {
-  // תופס את הפונקציה המקורית שיוצרת את המודל
-  const originalCreateShareModal = window.createShareFolderModal || function() {};
+  console.log("🔧 מתקן: הסרת משתתפים בפרופיל...");
   
-  // עוקף את יצירת המודל
+  // פונקציה שמסירה את ה-bar של המשתתפים
+  function removeParticipantsBar() {
+    const bar = document.getElementById("profile-participants-bar");
+    if (bar) {
+      bar.remove();
+      console.log("✅ משתתפים בפרופיל הוסרו");
+    }
+  }
+  
+  // הסר בכל פעם שהעמוד משתנה
+  const observer = new MutationObserver(() => {
+    removeParticipantsBar();
+  });
+  
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  // הסר גם עכשיו
+  removeParticipantsBar();
+  
+  // Override את הפונקציה שיוצרת את המשתתפים
+  const originalRenderProfileParticipantsBar = window.renderProfileParticipantsBar;
+  window.renderProfileParticipantsBar = function() {
+    // לא עושה כלום - מבטל את ההצגה
+    console.log("🚫 ביטול הצגת משתתפים בפרופיל");
+    removeParticipantsBar();
+  };
+  
+  console.log("✅ תיקון משתתפים בפרופיל הותקן");
+})();
+
+// ============================================
+// תיקון 2: חיפוש עובד בסל מחזור
+// ============================================
+(function() {
+  console.log("🔧 מתקן: חיפוש בסל מחזור...");
+  
+  const originalOpenRecycleView = window.openRecycleView;
+  
+  if (typeof originalOpenRecycleView === 'function') {
+    window.openRecycleView = function() {
+      // קריאה לפונקציה המקורית
+      const result = originalOpenRecycleView.apply(this, arguments);
+      
+      // הצג את שורת החיפוש
+      setTimeout(() => {
+        const searchInput = document.getElementById("categorySearch");
+        if (searchInput) {
+          searchInput.style.display = "";
+          searchInput.value = "";
+          console.log("✅ שורת חיפוש הוצגה בסל מחזור");
+        }
+        
+        // הסתר תתי קטגוריות
+        const subcategoriesBox = document.getElementById("subcategoriesBox");
+        if (subcategoriesBox) {
+          subcategoriesBox.style.display = "none";
+        }
+      }, 50);
+      
+      return result;
+    };
+    console.log("✅ openRecycleView עודכן");
+  }
+})();
+
+// ============================================
+// תיקון 3: הסרת חיפוש מפרופילים (עמוד ראשי)
+// ============================================
+(function() {
+  console.log("🔧 מתקן: הסרת חיפוש מפרופילים...");
+  
+  const originalOpenProfilesView = window.openProfilesView;
+  
+  if (typeof originalOpenProfilesView === 'function') {
+    window.openProfilesView = async function() {
+      const result = await originalOpenProfilesView.apply(this, arguments);
+      
+      // הסתר את שורת החיפוש
+      setTimeout(() => {
+        const searchInput = document.getElementById("categorySearch");
+        if (searchInput) {
+          searchInput.style.display = "none";
+          searchInput.value = "";
+          console.log("✅ שורת חיפוש הוסתרה בפרופילים");
+        }
+        
+        // הסתר תתי קטגוריות
+        const subcategoriesBox = document.getElementById("subcategoriesBox");
+        if (subcategoriesBox) {
+          subcategoriesBox.style.display = "none";
+        }
+      }, 50);
+      
+      return result;
+    };
+    console.log("✅ openProfilesView עודכן");
+  }
+})();
+
+// ============================================
+// תיקון 4: חיפוש עובד בתיקייה של פרופיל
+// ============================================
+(function() {
+  console.log("🔧 מתקן: חיפוש בתיקייה של פרופיל...");
+  
+  const originalOpenProfileCategory = window.openProfileCategory;
+  
+  if (typeof originalOpenProfileCategory === 'function') {
+    window.openProfileCategory = function() {
+      const result = originalOpenProfileCategory.apply(this, arguments);
+      
+      // הצג את שורת החיפוש
+      setTimeout(() => {
+        const searchInput = document.getElementById("categorySearch");
+        if (searchInput) {
+          searchInput.style.display = "";
+          searchInput.value = "";
+          console.log("✅ שורת חיפוש הוצגה בתיקייה של פרופיל");
+        }
+        
+        // הסתר תתי קטגוריות
+        const subcategoriesBox = document.getElementById("subcategoriesBox");
+        if (subcategoriesBox) {
+          subcategoriesBox.style.display = "none";
+        }
+      }, 50);
+      
+      return result;
+    };
+    console.log("✅ openProfileCategory עודכן");
+  }
+})();
+
+// ============================================
+// תיקון 5: הסרת חיפוש מאחסון משותף (עמוד ראשי)
+// ============================================
+(function() {
+  console.log("🔧 מתקן: הסרת חיפוש מאחסון משותף...");
+  
+  const originalOpenSharedView = window.openSharedView;
+  
+  if (typeof originalOpenSharedView === 'function') {
+    window.openSharedView = function() {
+      const result = originalOpenSharedView.apply(this, arguments);
+      
+      // הסתר את שורת החיפוש
+      setTimeout(() => {
+        const searchInput = document.getElementById("categorySearch");
+        if (searchInput) {
+          searchInput.style.display = "none";
+          searchInput.value = "";
+          console.log("✅ שורת חיפוש הוסתרה באחסון משותף");
+        }
+        
+        // הסתר תתי קטגוריות
+        const subcategoriesBox = document.getElementById("subcategoriesBox");
+        if (subcategoriesBox) {
+          subcategoriesBox.style.display = "none";
+        }
+      }, 50);
+      
+      return result;
+    };
+    console.log("✅ openSharedView עודכן");
+  }
+})();
+
+// ============================================
+// תיקון 6: חיפוש עובד בתיקייה משותפת ספציפית
+// ============================================
+(function() {
+  console.log("🔧 מתקן: חיפוש בתיקייה משותפת...");
+  
+  const originalOpenSharedFolder = window.openSharedFolder;
+  
+  if (typeof originalOpenSharedFolder === 'function') {
+    window.openSharedFolder = async function(folderId) {
+      const result = await originalOpenSharedFolder.apply(this, arguments);
+      
+      // הצג את שורת החיפוש
+      setTimeout(() => {
+        const searchInput = document.getElementById("categorySearch");
+        if (searchInput) {
+          searchInput.style.display = "";
+          searchInput.value = "";
+          console.log("✅ שורת חיפוש הוצגה בתיקייה משותפת");
+        }
+        
+        // הסתר תתי קטגוריות
+        const subcategoriesBox = document.getElementById("subcategoriesBox");
+        if (subcategoriesBox) {
+          subcategoriesBox.style.display = "none";
+        }
+      }, 100);
+      
+      return result;
+    };
+    console.log("✅ openSharedFolder עודכן");
+  }
+})();
+
+// ============================================
+// תיקון 7: החיפוש בפועל - עובד בכל מקום
+// ============================================
+(function() {
+  console.log("🔧 מתקן: פונקציונליות חיפוש...");
+  
+  const searchInput = document.getElementById("categorySearch");
+  if (!searchInput) {
+    console.warn("⚠️ לא נמצאה שורת חיפוש");
+    return;
+  }
+  
+  // הסר את כל ה-listeners הישנים
+  const newSearchInput = searchInput.cloneNode(true);
+  searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+  
+  // הוסף listener חדש שעובד
+  newSearchInput.addEventListener("input", function(e) {
+    const searchTerm = (e.target.value || "").trim().toLowerCase();
+    
+    console.log("🔍 מחפש:", searchTerm);
+    
+    // מצא את כל כרטיסי המסמכים
+    const docCards = document.querySelectorAll(".doc-card:not(.profile-card)");
+    let visibleCount = 0;
+    
+    docCards.forEach(card => {
+      const title = (card.querySelector(".doc-card-title")?.textContent || "").toLowerCase();
+      const org = (card.querySelector(".doc-card-org")?.textContent || "").toLowerCase();
+      const meta = (card.querySelector(".doc-card-meta")?.textContent || "").toLowerCase();
+      const allText = (card.textContent || "").toLowerCase();
+      
+      const matches = !searchTerm || 
+                     title.includes(searchTerm) || 
+                     org.includes(searchTerm) || 
+                     meta.includes(searchTerm) ||
+                     allText.includes(searchTerm);
+      
+      if (matches) {
+        card.style.display = "";
+        visibleCount++;
+      } else {
+        card.style.display = "none";
+      }
+    });
+    
+    console.log(`✅ נמצאו ${visibleCount} מסמכים מתוך ${docCards.length}`);
+    
+    // הצג/הסתר הודעת "אין תוצאות"
+    const parentContainer = document.getElementById("docsList") || document.querySelector(".docs-grid");
+    
+    if (parentContainer) {
+      // הסר הודעות קודמות
+      const existingMsg = parentContainer.querySelector(".no-results-message");
+      if (existingMsg) existingMsg.remove();
+      
+      // אם אין תוצאות והיו מסמכים
+      if (visibleCount === 0 && docCards.length > 0 && searchTerm) {
+        const msg = document.createElement("div");
+        msg.className = "no-results-message";
+        msg.style.cssText = "opacity:.7;padding:20px;text-align:center;grid-column:1/-1;width:100%;";
+        msg.textContent = `לא נמצאו מסמכים עבור "${searchTerm}"`;
+        parentContainer.appendChild(msg);
+      }
+    }
+  });
+  
+  console.log("✅ חיפוש חדש הותקן ועובד!");
+})();
+
+// ============================================
+// תיקון 8: צבע רקע של מודל "בחר תיקייה משותפת"
+// ============================================
+(function() {
   const style = document.createElement('style');
   style.textContent = `
     /* רקע של כפתורי התיקיות במודל */
@@ -8074,302 +8348,40 @@ console.log("🔧 טוען תיקונים של דנה...");
     }
   `;
   document.head.appendChild(style);
-  console.log("✅ צבע מודל תיקייה משותפת עודכן ל-#e1e3d5");
+  console.log("✅ צבע מודל תיקייה משותפת עודכן");
 })();
 
 // ============================================
-// תיקון 2 + 3: הסרת חיפוש ותתי קטגוריות באחסון משותף
+// תיקון 9: ניקוי כללי של המסך
 // ============================================
 (function() {
-  const originalOpenSharedView = window.openSharedView;
-  
-  if (typeof originalOpenSharedView === 'function') {
-    window.openSharedView = function() {
-      // קריאה לפונקציה המקורית
-      const result = originalOpenSharedView.apply(this, arguments);
-      
-      // הסתרת שורת חיפוש
-      const searchInput = document.getElementById("categorySearch");
-      if (searchInput) {
-        searchInput.style.display = "none";
-        console.log("✅ שורת חיפוש הוסתרה באחסון משותף");
-      }
-      
-      // הסתרת תתי קטגוריות
-      const subcategoriesBox = document.getElementById("subcategoriesBox");
-      if (subcategoriesBox) {
-        subcategoriesBox.style.display = "none";
-        console.log("✅ תתי קטגוריות הוסתרו באחסון משותף");
-      }
-      
-      return result;
-    };
-    console.log("✅ openSharedView עודכן - חיפוש ותתי קטגוריות מוסתרים");
-  }
-})();
-
-// ============================================
-// תיקון 4: תיקון חיפוש בתיקייה משותפת ספציפית
-// ============================================
-(function() {
-  console.log("🔧 מתקן חיפוש בתיקייה משותפת...");
-  
-  // מצא את שורת החיפוש
-  const searchInput = document.getElementById("categorySearch");
-  if (!searchInput) {
-    console.warn("⚠️ לא נמצאה שורת חיפוש");
-    return;
-  }
-  
-  // הוסף event listener חדש שמטפל בתיקיות משותפות
-  searchInput.addEventListener("input", function(e) {
-    const searchTerm = (e.target.value || "").trim().toLowerCase();
-    
-    // בדוק אם אנחנו בתיקייה משותפת
-    const urlParams = new URLSearchParams(window.location.search);
-    const sharedFolderId = urlParams.get('sharedFolder');
-    
-    if (!sharedFolderId) {
-      // אם לא בתיקייה משותפת, תן לפונקציה הרגילה לעבוד
-      return;
-    }
-    
-    // אם בתיקייה משותפת - סנן את המסמכים
-    console.log("🔍 מחפש בתיקייה משותפת:", searchTerm);
-    
-    // מצא את כל כרטיסי המסמכים
-    const docCards = document.querySelectorAll(".doc-card");
-    let visibleCount = 0;
-    
-    docCards.forEach(card => {
-      const title = (card.querySelector(".doc-card-title")?.textContent || "").toLowerCase();
-      const org = (card.querySelector(".doc-card-org")?.textContent || "").toLowerCase();
-      const meta = (card.querySelector(".doc-card-meta")?.textContent || "").toLowerCase();
-      
-      const matches = !searchTerm || 
-                     title.includes(searchTerm) || 
-                     org.includes(searchTerm) || 
-                     meta.includes(searchTerm);
-      
-      if (matches) {
-        card.style.display = "";
-        visibleCount++;
-      } else {
-        card.style.display = "none";
-      }
-    });
-    
-    console.log(`✅ נמצאו ${visibleCount} מסמכים מתוך ${docCards.length}`);
-    
-    // הצג הודעה אם אין תוצאות
-    const docsGrid = document.querySelector(".docs-grid");
-    if (docsGrid && visibleCount === 0 && docCards.length > 0) {
-      // הסר הודעות קודמות
-      const existingMsg = docsGrid.querySelector(".no-results-message");
-      if (existingMsg) existingMsg.remove();
-      
-      // הוסף הודעה חדשה
-      const msg = document.createElement("div");
-      msg.className = "no-results-message";
-      msg.style.cssText = "opacity:.7;padding:20px;text-align:center;grid-column:1/-1;";
-      msg.textContent = `לא נמצאו מסמכים עבור "${searchTerm}"`;
-      docsGrid.appendChild(msg);
-    } else {
-      // הסר הודעה אם יש תוצאות
-      const existingMsg = docsGrid?.querySelector(".no-results-message");
-      if (existingMsg) existingMsg.remove();
-    }
-  }, true); // true = capture phase, כדי לתפוס לפני event handlers אחרים
-  
-  console.log("✅ חיפוש בתיקייה משותפת תוקן");
-})();
-
-// ============================================
-// תיקון 5: הסרת שורת חיפוש בפרופילים
-// ============================================
-(function() {
-  const originalOpenProfilesView = window.openProfilesView;
-  
-  if (typeof originalOpenProfilesView === 'function') {
-    window.openProfilesView = async function() {
-      // קריאה לפונקציה המקורית
-      const result = await originalOpenProfilesView.apply(this, arguments);
-      
-      // הסתרת שורת חיפוש
-      const searchInput = document.getElementById("categorySearch");
-      if (searchInput) {
-        searchInput.style.display = "none";
-        console.log("✅ שורת חיפוש הוסתרה בפרופילים");
-      }
-      
-      // הסתרת תתי קטגוריות
-      const subcategoriesBox = document.getElementById("subcategoriesBox");
-      if (subcategoriesBox) {
-        subcategoriesBox.style.display = "none";
-        console.log("✅ תתי קטגוריות הוסתרו בפרופילים");
-      }
-      
-      return result;
-    };
-    console.log("✅ openProfilesView עודכן - חיפוש מוסתר");
-  }
-})();
-
-// ============================================
-// תיקון 6: תיקון חיפוש בתיקייה של פרופיל ובסל מחזור
-// ============================================
-(function() {
-  console.log("🔧 מתקן חיפוש בפרופילים וסל מחזור...");
-  
-  const searchInput = document.getElementById("categorySearch");
-  if (!searchInput) {
-    console.warn("⚠️ לא נמצאה שורת חיפוש");
-    return;
-  }
-  
-  // הוסף event listener נוסף שמטפל בפרופילים וסל מחזור
-  searchInput.addEventListener("input", function(e) {
-    const searchTerm = (e.target.value || "").trim().toLowerCase();
-    const categoryTitle = document.getElementById("categoryTitle");
-    
-    if (!categoryTitle) return;
-    
-    const title = categoryTitle.textContent || "";
-    
-    // בדוק אם אנחנו בפרופיל או בסל מחזור
-    const isProfile = title.includes("פרופיל:");
-    const isRecycle = title === "סל מחזור";
-    
-    if (!isProfile && !isRecycle) {
-      // לא בפרופיל ולא בסל מחזור, תן לפונקציה הרגילה לעבוד
-      return;
-    }
-    
-    console.log("🔍 מחפש ב" + (isProfile ? "פרופיל" : "סל מחזור") + ":", searchTerm);
-    
-    // מצא את כל כרטיסי המסמכים
-    const docCards = document.querySelectorAll(".doc-card");
-    let visibleCount = 0;
-    
-    docCards.forEach(card => {
-      const title = (card.querySelector(".doc-card-title")?.textContent || "").toLowerCase();
-      const org = (card.querySelector(".doc-card-org")?.textContent || "").toLowerCase();
-      const meta = (card.querySelector(".doc-card-meta")?.textContent || "").toLowerCase();
-      
-      const matches = !searchTerm || 
-                     title.includes(searchTerm) || 
-                     org.includes(searchTerm) || 
-                     meta.includes(searchTerm);
-      
-      if (matches) {
-        card.style.display = "";
-        visibleCount++;
-      } else {
-        card.style.display = "none";
-      }
-    });
-    
-    console.log(`✅ נמצאו ${visibleCount} מסמכים מתוך ${docCards.length}`);
-    
-    // הצג הודעה אם אין תוצאות
-    const docsList = document.getElementById("docsList");
-    if (docsList && visibleCount === 0 && docCards.length > 0) {
-      // הסר הודעות קודמות
-      const existingMsg = docsList.querySelector(".no-results-message");
-      if (existingMsg) existingMsg.remove();
-      
-      // הוסף הודעה חדשה
-      const msg = document.createElement("div");
-      msg.className = "no-results-message";
-      msg.style.cssText = "opacity:.7;padding:20px;text-align:center;";
-      msg.textContent = `לא נמצאו מסמכים עבור "${searchTerm}"`;
-      docsList.appendChild(msg);
-    } else {
-      // הסר הודעה אם יש תוצאות
-      const existingMsg = docsList?.querySelector(".no-results-message");
-      if (existingMsg) existingMsg.remove();
-    }
-  }, true); // true = capture phase
-  
-  console.log("✅ חיפוש בפרופילים וסל מחזור תוקן");
-})();
-
-// ============================================
-// תיקון נוסף: הצגת שורת חיפוש בתיקייה משותפת ספציפית
-// ============================================
-(function() {
-  // Override את הפונקציה שפותחת תיקייה משותפת ספציפית
-  const originalHandler = window.openSharedFolder;
-  
-  if (typeof originalHandler === 'function') {
-    window.openSharedFolder = async function(folderId) {
-      const result = await originalHandler.apply(this, arguments);
-      
-      // הצג את שורת החיפוש בתיקייה משותפת ספציפית
-      setTimeout(() => {
-        const searchInput = document.getElementById("categorySearch");
-        if (searchInput) {
-          searchInput.style.display = "";
-          searchInput.value = ""; // נקה חיפושים קודמים
-          console.log("✅ שורת חיפוש הוצגה בתיקייה משותפת ספציפית");
-        }
-        
-        // הסתר תתי קטגוריות
-        const subcategoriesBox = document.getElementById("subcategoriesBox");
-        if (subcategoriesBox) {
-          subcategoriesBox.style.display = "none";
-          console.log("✅ תתי קטגוריות הוסתרו בתיקייה משותפת ספציפית");
-        }
-      }, 100);
-      
-      return result;
-    };
-    console.log("✅ openSharedFolder עודכן - חיפוש מוצג בתיקייה ספציפית");
-  }
-})();
-
-// ============================================
-// תיקון נוסף: הצגת חיפוש בתיקייה של פרופיל ספציפי
-// ============================================
-(function() {
-  // כשפותחים קטגוריה בפרופיל, הצג חיפוש
-  const originalOpenCategoryView = window.openCategoryView;
-  
-  if (typeof originalOpenCategoryView === 'function') {
-    const newOpenCategoryView = function(categoryName, subfolderName) {
-      const result = originalOpenCategoryView.apply(this, arguments);
-      
-      // בדוק אם זו תיקייה בפרופיל
+  // וודא שאין "משתתפים בפרופיל" בשום מקום
+  setInterval(() => {
+    const bar = document.getElementById("profile-participants-bar");
+    if (bar) {
+      // בדוק אם אנחנו בפרופיל
       const categoryTitle = document.getElementById("categoryTitle");
-      if (categoryTitle) {
-        const title = categoryTitle.textContent || "";
-        const isProfileCategory = title.includes("פרופיל:") && title.includes("–");
-        
-        if (isProfileCategory) {
-          // הצג חיפוש בתיקייה של פרופיל
-          setTimeout(() => {
-            const searchInput = document.getElementById("categorySearch");
-            if (searchInput) {
-              searchInput.style.display = "";
-              searchInput.value = "";
-              console.log("✅ חיפוש הוצג בתיקייה של פרופיל");
-            }
-            
-            // הסתר תתי קטגוריות
-            const subcategoriesBox = document.getElementById("subcategoriesBox");
-            if (subcategoriesBox) {
-              subcategoriesBox.style.display = "none";
-            }
-          }, 100);
-        }
-      }
+      const isInProfile = categoryTitle && categoryTitle.textContent.includes("פרופיל:");
       
-      return result;
-    };
-    
-    window.openCategoryView = newOpenCategoryView;
-    console.log("✅ openCategoryView עודכן לתמיכה בחיפוש בפרופילים");
-  }
+      if (!isInProfile || bar.parentElement) {
+        // אם לא בפרופיל, או אם זה בכלל קיים - הסר!
+        bar.remove();
+        console.log("🧹 ניקוי: הוסרה bar של משתתפים");
+      }
+    }
+  }, 1000);
+  
+  console.log("✅ ניקוי אוטומטי הותקן");
 })();
 
-console.log("✅ כל התיקונים של דנה נטענו בהצלחה!");
+console.log("✅ כל התיקונים המעודכנים נטענו בהצלחה!");
+console.log("📋 סיכום:");
+console.log("  ✅ 1. הסרת 'משתתפים בפרופיל' מכל מקום");
+console.log("  ✅ 2. חיפוש עובד בסל מחזור");
+console.log("  ✅ 3. אין חיפוש בפרופילים (עמוד ראשי)");
+console.log("  ✅ 4. חיפוש עובד בתיקייה של פרופיל");
+console.log("  ✅ 5. אין חיפוש באחסון משותף (עמוד ראשי)");
+console.log("  ✅ 6. חיפוש עובד בתיקייה משותפת ספציפית");
+console.log("  ✅ 7. חיפוש כללי משופר");
+console.log("  ✅ 8. צבע מודל #e1e3d5");
+console.log("  ✅ 9. ניקוי אוטומטי");
