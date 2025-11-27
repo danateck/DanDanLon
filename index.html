@@ -2225,6 +2225,31 @@ body::-webkit-scrollbar-thumb:hover,
 
 
 
+@media (max-width: 760px) {
+  .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    overflow-y: auto !important; /* גלילה כן */
+  }
+
+  .sidebar-content {
+    flex: 1 1 auto !important; /* שיתפוס את כל המקום הזמין */
+    overflow-y: auto !important; 
+  }
+
+  .sidebar-bottom {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: #aaab84;
+    padding-bottom: 14px;
+    margin-top: 0 !important;
+  }
+}
+
+
+
+
 
   </style>
 </head>
