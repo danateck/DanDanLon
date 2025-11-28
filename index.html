@@ -83,10 +83,349 @@ html {
     }
 
 
-    .theme-dark .body {
-      background: #191919 !important;
-  
+
+    /* ============================================
+       🌙 DARK MODE - PROFESSIONAL DARK GREEN THEME
+       ============================================ */
+    
+    .theme-dark {
+      /* רקע כללי - ירוק כהה עמוק */
+      --bg-app: #0a0f0d;
+      --bg-card: #121816;
+      
+      /* סיידבר - גרדיאנט ירוק כהה */
+      --bg-sidebar-from: #1a2520;
+      --bg-sidebar-to: #0f1814;
+      
+      /* גבולות רכים */
+      --border-soft: rgba(82, 152, 115, 0.15);
+      
+      /* טקסט */
+      --text-dark: #b8c9c0;
+      --text-mid: #e8f0ec;
+      
+      /* אקסנטים ירוקים */
+      --accent-soft: #2d5a43;
+      --accent-strong: #3d7a59;
+      
+      /* צללים עמוקים */
+      --shadow-card: 0 12px 40px rgba(0, 0, 0, 0.6);
+      --shadow-topbar: 0 2px 12px rgba(0, 0, 0, 0.5);
+      --shadow-btn: 0 6px 20px rgba(0, 0, 0, 0.4);
+      
+      /* גרדיאנט לכפתורים */
+      --grad-btn: linear-gradient(135deg, #1e4d3a, #2d6b4d);
     }
+    
+    /* רקע גוף */
+    .theme-dark body {
+      background: #0a0f0d !important;
+      color: #b8c9c0;
+    }
+    
+    /* סיידבר */
+    .theme-dark .sidebar {
+      background: linear-gradient(180deg, #1a2520 0%, #0f1814 100%) !important;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.8);
+      border-left: 1px solid rgba(82, 152, 115, 0.15);
+    }
+    
+    /* לוגו וברנדינג */
+    .theme-dark .brand-name {
+      color: #a8d4ba;
+      text-shadow: 0 2px 8px rgba(168, 212, 186, 0.3);
+    }
+    
+    .theme-dark .brand-sub {
+      color: #7a9b88;
+    }
+    
+    /* פאנל משתמש */
+    .theme-dark .user-panel {
+      background: rgba(45, 90, 67, 0.2);
+      border: 1px solid rgba(82, 152, 115, 0.25);
+      backdrop-filter: blur(10px);
+    }
+    
+    .theme-dark .user-panel-name {
+      color: #c5e3d2;
+    }
+    
+    .theme-dark .user-panel-mail {
+      color: #8ba89a;
+    }
+    
+    /* פריטי תפריט */
+    .theme-dark .menu-item {
+      color: #9eb8a9;
+      border: 1px solid transparent;
+      transition: all 0.25s ease;
+    }
+    
+    .theme-dark .menu-item:hover {
+      background: rgba(45, 90, 67, 0.3);
+      border-color: rgba(82, 152, 115, 0.3);
+      color: #c5e3d2;
+      transform: translateX(-3px);
+    }
+    
+    .theme-dark .menu-item.active {
+      background: rgba(61, 122, 89, 0.25);
+      border-color: rgba(82, 152, 115, 0.4);
+      color: #d4f0e0;
+      box-shadow: 0 4px 12px rgba(45, 90, 67, 0.3);
+    }
+    
+    /* כפתור יציאה */
+    .theme-dark .logout-btn {
+      background: rgba(30, 77, 58, 0.4);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #c5e3d2;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+    
+    .theme-dark .logout-btn:hover {
+      background: rgba(45, 90, 67, 0.5);
+      border-color: rgba(82, 152, 115, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+    }
+    
+    /* בר עליון */
+    .theme-dark .top-bar {
+      background: rgba(18, 24, 22, 0.95);
+      border-bottom: 1px solid rgba(82, 152, 115, 0.15);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .theme-dark .top-actions .btn {
+      background: rgba(45, 90, 67, 0.3);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #b8c9c0;
+    }
+    
+    .theme-dark .top-actions .btn:hover {
+      background: rgba(61, 122, 89, 0.4);
+      color: #d4f0e0;
+      border-color: rgba(82, 152, 115, 0.5);
+    }
+    
+    /* כרטיסי קטגוריות */
+    .theme-dark .category-card {
+      background: rgba(18, 24, 22, 0.6);
+      border: 1px solid rgba(82, 152, 115, 0.2);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    
+    .theme-dark .category-card:hover {
+      background: rgba(26, 37, 32, 0.7);
+      border-color: rgba(82, 152, 115, 0.35);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    }
+    
+    .theme-dark .category-title {
+      color: #c5e3d2;
+    }
+    
+    .theme-dark .category-count {
+      color: #8ba89a;
+    }
+    
+    /* כרטיסי מסמכים */
+    .theme-dark .doc-card {
+      background: rgba(18, 24, 22, 0.7);
+      border: 1px solid rgba(82, 152, 115, 0.2);
+      backdrop-filter: blur(10px);
+    }
+    
+    .theme-dark .doc-card:hover {
+      background: rgba(26, 37, 32, 0.8);
+      border-color: rgba(82, 152, 115, 0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    
+    .theme-dark .doc-card-title {
+      color: #d4f0e0;
+    }
+    
+    .theme-dark .doc-card-org,
+    .theme-dark .doc-card-meta {
+      color: #9eb8a9;
+    }
+    
+    /* כפתורים */
+    .theme-dark .btn-primary,
+    .theme-dark .upload-btn {
+      background: linear-gradient(135deg, #1e4d3a, #2d6b4d);
+      border: 1px solid rgba(82, 152, 115, 0.4);
+      color: #e8f0ec;
+      box-shadow: 0 6px 20px rgba(30, 77, 58, 0.4);
+    }
+    
+    .theme-dark .btn-primary:hover,
+    .theme-dark .upload-btn:hover {
+      background: linear-gradient(135deg, #2d6b4d, #3d7a59);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(45, 107, 77, 0.5);
+    }
+    
+    /* כפתורי פעולה על מסמכים */
+    .theme-dark .doc-action-btn {
+      background: rgba(18, 24, 22, 0.8);
+      border: 1px solid rgba(82, 152, 115, 0.25);
+      color: #b8c9c0;
+    }
+    
+    .theme-dark .doc-action-btn:hover {
+      background: rgba(45, 90, 67, 0.4);
+      border-color: rgba(82, 152, 115, 0.4);
+      color: #d4f0e0;
+    }
+    
+    .theme-dark .doc-action-btn.danger {
+      background: rgba(90, 30, 30, 0.3);
+      border-color: rgba(200, 80, 80, 0.3);
+      color: #ffb3b3;
+    }
+    
+    .theme-dark .doc-action-btn.danger:hover {
+      background: rgba(120, 40, 40, 0.5);
+      border-color: rgba(220, 100, 100, 0.5);
+    }
+    
+    .theme-dark .doc-action-btn.restore {
+      background: rgba(30, 77, 58, 0.3);
+      border-color: rgba(82, 152, 115, 0.3);
+      color: #a8d4ba;
+    }
+    
+    /* שדות טקסט */
+    .theme-dark input[type="text"],
+    .theme-dark input[type="email"],
+    .theme-dark input[type="password"],
+    .theme-dark textarea,
+    .theme-dark select {
+      background: rgba(18, 24, 22, 0.6);
+      border: 1px solid rgba(82, 152, 115, 0.25);
+      color: #e8f0ec;
+      backdrop-filter: blur(8px);
+    }
+    
+    .theme-dark input:focus,
+    .theme-dark textarea:focus,
+    .theme-dark select:focus {
+      background: rgba(26, 37, 32, 0.8);
+      border-color: rgba(82, 152, 115, 0.5);
+      box-shadow: 0 0 0 3px rgba(45, 90, 67, 0.2);
+    }
+    
+    .theme-dark input::placeholder,
+    .theme-dark textarea::placeholder {
+      color: #7a9b88;
+    }
+    
+    /* מודלים */
+    .theme-dark .modal {
+      background: #121816;
+      border: 1px solid rgba(82, 152, 115, 0.3);
+    }
+    
+    .theme-dark .modal-head {
+      background: #1a2520;
+      border-bottom: 1px solid rgba(82, 152, 115, 0.25);
+      color: #c5e3d2;
+    }
+    
+    .theme-dark .modal-foot {
+      background: #1a2520;
+      border-top: 1px solid rgba(82, 152, 115, 0.25);
+    }
+    
+    .theme-dark .scroll-area {
+      background: #121816;
+    }
+    
+    .theme-dark .modal-backdrop {
+      background: rgba(5, 8, 7, 0.85);
+      backdrop-filter: blur(4px);
+    }
+    
+    /* התראות */
+    .theme-dark .eco-alert {
+      background: rgba(18, 24, 22, 0.95);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #e8f0ec;
+      backdrop-filter: blur(12px);
+    }
+    
+    .theme-dark .eco-success {
+      border-color: rgba(82, 152, 115, 0.5);
+      background: rgba(30, 77, 58, 0.95);
+    }
+    
+    .theme-dark .eco-error {
+      border-color: rgba(200, 80, 80, 0.5);
+      background: rgba(90, 30, 30, 0.95);
+    }
+    
+    /* חיפוש */
+    .theme-dark #categorySearch {
+      background: rgba(18, 24, 22, 0.8);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #e8f0ec;
+    }
+    
+    .theme-dark #categorySearch:focus {
+      background: rgba(26, 37, 32, 0.9);
+      border-color: rgba(82, 152, 115, 0.6);
+      box-shadow: 0 0 0 3px rgba(45, 90, 67, 0.3);
+    }
+    
+    /* scrollbar מעוצב */
+    .theme-dark ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    
+    .theme-dark ::-webkit-scrollbar-track {
+      background: rgba(10, 15, 13, 0.5);
+      border-radius: 5px;
+    }
+    
+    .theme-dark ::-webkit-scrollbar-thumb {
+      background: rgba(45, 90, 67, 0.6);
+      border-radius: 5px;
+      border: 2px solid rgba(10, 15, 13, 0.5);
+    }
+    
+    .theme-dark ::-webkit-scrollbar-thumb:hover {
+      background: rgba(61, 122, 89, 0.8);
+    }
+    
+    /* פאנל הגדרות */
+    .theme-dark #settingsPanel .modal {
+      background: #121816;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    }
+    
+    /* מצב compact */
+    .theme-dark.density-compact .doc-card {
+      background: rgba(18, 24, 22, 0.5);
+    }
+    
+    /* hover effects מחוזקים */
+    .theme-dark .interactive-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .theme-dark .interactive-hover:hover {
+      filter: brightness(1.15);
+    }
+
 
     .sidebar {
       background: #aaab84;
@@ -2599,10 +2938,18 @@ body::-webkit-scrollbar-thumb:hover,
 
 
 .theme-dark .top-left .page-title {
-  color: #ffffff !important;
+  color: #9f9f9f !important;
 }
 
 
+.theme-dark .folder-icon {
+    width: 40px;
+    height: 32px;
+    border-radius: 6px;
+    background: #e3d097;
+    box-shadow: 0 6px 12px rgb(13 12 4 / 62%);
+    position: relative;
+}
   </style>
 </head>
 
