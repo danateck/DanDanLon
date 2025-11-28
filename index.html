@@ -426,6 +426,313 @@ html {
       filter: brightness(1.15);
     }
 
+    /* ============================================
+       🔧 תיקונים נוספים למצב כהה
+       ============================================ */
+    
+    /* תתי קטגוריות (subcategories) */
+    .theme-dark .subcategory-btn,
+    .theme-dark .subfolder-btn {
+      background: rgba(18, 24, 22, 0.7);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #c5e3d2;
+    }
+    
+    .theme-dark .subcategory-btn:hover,
+    .theme-dark .subfolder-btn:hover {
+      background: rgba(45, 90, 67, 0.5);
+      border-color: rgba(82, 152, 115, 0.5);
+      color: #d4f0e0;
+    }
+    
+    .theme-dark .subcategory-btn.active,
+    .theme-dark .subfolder-btn.active {
+      background: rgba(61, 122, 89, 0.4);
+      border-color: rgba(82, 152, 115, 0.6);
+      color: #e8f0ec;
+    }
+    
+    /* סלקט של מיון (תאריך העלאה וכו') */
+    .theme-dark #sortSelect {
+      background: rgba(18, 24, 22, 0.7);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #c5e3d2;
+    }
+    
+    .theme-dark #sortSelect:focus {
+      background: rgba(26, 37, 32, 0.9);
+      border-color: rgba(82, 152, 115, 0.6);
+    }
+    
+    /* אייקון פרופיל */
+    .theme-dark .profile-card {
+      background: rgba(18, 24, 22, 0.6);
+      border: 1px solid rgba(82, 152, 115, 0.2);
+    }
+    
+    .theme-dark .profile-card:hover {
+      background: rgba(26, 37, 32, 0.7);
+      border-color: rgba(82, 152, 115, 0.35);
+    }
+    
+    .theme-dark .profile-avatar {
+      background: rgba(45, 90, 67, 0.3);
+      border: 2px solid rgba(82, 152, 115, 0.4);
+    }
+    
+    .theme-dark .profile-name {
+      color: #c5e3d2;
+    }
+    
+    /* כפתורי פרופיל (עריכה, מחיקה וכו') */
+    .theme-dark .profile-btn,
+    .theme-dark .profile-action-btn {
+      background: rgba(18, 24, 22, 0.7);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #b8c9c0;
+    }
+    
+    .theme-dark .profile-btn:hover,
+    .theme-dark .profile-action-btn:hover {
+      background: rgba(45, 90, 67, 0.5);
+      color: #d4f0e0;
+    }
+    
+    /* כרטיסי תיקיות משותפות */
+    .theme-dark .shared-folder-card,
+    .theme-dark .folder-card {
+      background: rgba(18, 24, 22, 0.6);
+      border: 1px solid rgba(82, 152, 115, 0.2);
+    }
+    
+    .theme-dark .shared-folder-card:hover,
+    .theme-dark .folder-card:hover {
+      background: rgba(26, 37, 32, 0.7);
+      border-color: rgba(82, 152, 115, 0.4);
+    }
+    
+    .theme-dark .folder-select-btn {
+      background: rgba(18, 24, 22, 0.7) !important;
+      border: 1px solid rgba(82, 152, 115, 0.3) !important;
+      color: #c5e3d2 !important;
+    }
+    
+    .theme-dark .folder-select-btn:hover {
+      background: rgba(45, 90, 67, 0.5) !important;
+      border-color: rgba(82, 152, 115, 0.5) !important;
+    }
+    
+    /* מודל עריכת מסמך */
+    .theme-dark #editModal .modal,
+    .theme-dark #shareFolderModal .modal,
+    .theme-dark #createFolderModal .modal {
+      background: #121816 !important;
+    }
+    
+    .theme-dark #editModal .modal-head,
+    .theme-dark #shareFolderModal .modal-head,
+    .theme-dark #createFolderModal .modal-head {
+      background: #1a2520 !important;
+    }
+    
+    .theme-dark #editModal .scroll-area,
+    .theme-dark #shareFolderModal .scroll-area,
+    .theme-dark #createFolderModal .scroll-area {
+      background: #121816 !important;
+    }
+    
+    .theme-dark #editModal .modal-foot,
+    .theme-dark #shareFolderModal .modal-foot,
+    .theme-dark #createFolderModal .modal-foot {
+      background: #1a2520 !important;
+    }
+    
+    /* כפתור סגירה במודלים */
+    .theme-dark .modal-close {
+      color: #c5e3d2;
+      background: transparent;
+    }
+    
+    .theme-dark .modal-close:hover {
+      color: #e8f0ec;
+      background: rgba(45, 90, 67, 0.2);
+    }
+    
+    /* חלון CONFIRM */
+    .theme-dark #eco-confirm-overlay {
+      background: rgba(5, 8, 7, 0.85);
+      backdrop-filter: blur(4px);
+    }
+    
+    .theme-dark #eco-confirm-overlay .popup,
+    .theme-dark .popup {
+      background: #121816;
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    }
+    
+    .theme-dark #eco-confirm-message,
+    .theme-dark .popup p {
+      color: #c5e3d2;
+    }
+    
+    .theme-dark #eco-confirm-yes,
+    .theme-dark .popup .btn-primary {
+      background: linear-gradient(135deg, #1e4d3a, #2d6b4d);
+      border: 1px solid rgba(82, 152, 115, 0.4);
+      color: #e8f0ec;
+    }
+    
+    .theme-dark #eco-confirm-no,
+    .theme-dark .popup .btn-cancel {
+      background: rgba(90, 30, 30, 0.3);
+      border: 1px solid rgba(200, 80, 80, 0.3);
+      color: #ffb3b3;
+    }
+    
+    .theme-dark #eco-confirm-no:hover,
+    .theme-dark .popup .btn-cancel:hover {
+      background: rgba(120, 40, 40, 0.5);
+    }
+    
+    /* אזור subcategoriesBox */
+    .theme-dark #subcategoriesBox {
+      background: transparent;
+    }
+    
+    /* כפתורי קטגוריות */
+    .theme-dark .category-btn {
+      background: rgba(18, 24, 22, 0.7);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #c5e3d2;
+    }
+    
+    .theme-dark .category-btn:hover {
+      background: rgba(45, 90, 67, 0.5);
+      border-color: rgba(82, 152, 115, 0.5);
+    }
+    
+    /* טבלאות ורשימות */
+    .theme-dark table {
+      background: rgba(18, 24, 22, 0.5);
+      border-color: rgba(82, 152, 115, 0.2);
+    }
+    
+    .theme-dark th {
+      background: rgba(26, 37, 32, 0.7);
+      color: #c5e3d2;
+      border-color: rgba(82, 152, 115, 0.25);
+    }
+    
+    .theme-dark td {
+      color: #b8c9c0;
+      border-color: rgba(82, 152, 115, 0.15);
+    }
+    
+    .theme-dark tr:hover {
+      background: rgba(45, 90, 67, 0.15);
+    }
+    
+    /* badges ותגיות */
+    .theme-dark .badge,
+    .theme-dark .tag {
+      background: rgba(45, 90, 67, 0.3);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      color: #a8d4ba;
+    }
+    
+    /* loading spinners */
+    .theme-dark .spinner,
+    .theme-dark .loading {
+      border-color: rgba(82, 152, 115, 0.2);
+      border-top-color: #3d7a59;
+    }
+    
+    /* empty states */
+    .theme-dark .empty-state,
+    .theme-dark .no-results {
+      color: #8ba89a;
+    }
+    
+    /* כפתורי Toggle/Switch */
+    .theme-dark .switch input:checked + label {
+      background: linear-gradient(135deg, #1e4d3a, #2d6b4d);
+    }
+    
+    .theme-dark .switch label {
+      background: rgba(18, 24, 22, 0.6);
+      border: 1px solid rgba(82, 152, 115, 0.3);
+    }
+    
+    /* dropdown menus */
+    .theme-dark .dropdown-menu {
+      background: #121816;
+      border: 1px solid rgba(82, 152, 115, 0.3);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+    
+    .theme-dark .dropdown-item {
+      color: #c5e3d2;
+    }
+    
+    .theme-dark .dropdown-item:hover {
+      background: rgba(45, 90, 67, 0.3);
+    }
+    
+    /* tooltips */
+    .theme-dark .tooltip {
+      background: #1a2520;
+      border: 1px solid rgba(82, 152, 115, 0.4);
+      color: #c5e3d2;
+    }
+    
+    /* progress bars */
+    .theme-dark .progress-bar {
+      background: rgba(18, 24, 22, 0.5);
+    }
+    
+    .theme-dark .progress-fill {
+      background: linear-gradient(135deg, #1e4d3a, #2d6b4d);
+    }
+    
+    /* dividers */
+    .theme-dark hr,
+    .theme-dark .divider {
+      border-color: rgba(82, 152, 115, 0.2);
+    }
+    
+    /* כפתור "הוסף תיקייה" וכפתורים כלליים נוספים */
+    .theme-dark .add-folder-btn,
+    .theme-dark .create-btn {
+      background: linear-gradient(135deg, #1e4d3a, #2d6b4d);
+      border: 1px solid rgba(82, 152, 115, 0.4);
+      color: #e8f0ec;
+    }
+    
+    /* רקע של כל האפליקציה במצב כהה */
+    .theme-dark .dashboard,
+    .theme-dark .main-content {
+      background: #0a0f0d;
+    }
+    
+    /* כרטיסי פרטי משתמש */
+    .theme-dark .user-info-card {
+      background: rgba(18, 24, 22, 0.7);
+      border: 1px solid rgba(82, 152, 115, 0.25);
+    }
+    
+    /* רשימת משתתפים */
+    .theme-dark .participant-item {
+      background: rgba(18, 24, 22, 0.6);
+      border: 1px solid rgba(82, 152, 115, 0.2);
+      color: #c5e3d2;
+    }
+    
+    .theme-dark .participant-item:hover {
+      background: rgba(26, 37, 32, 0.7);
+    }
+
+
 
     .sidebar {
       background: #aaab84;
