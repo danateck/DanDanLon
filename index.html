@@ -3521,8 +3521,7 @@ if (topLogoutBtn) {
 
 
 
-
-function updateMenuIconsForTheme() {
+  function updateMenuIconsForTheme() {
   const isDark = document.documentElement.classList.contains("theme-dark"); // במקום body
 
   document.querySelectorAll(".menu-icon").forEach(icon => {
@@ -3536,10 +3535,6 @@ function updateMenuIconsForTheme() {
     }
   });
 }
-
-
-
-
 
   // Theme switcher
 const themeLight = document.getElementById("themeLight");
