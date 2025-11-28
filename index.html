@@ -546,10 +546,21 @@ html {
       background: #121816 !important;
     }
     
+    /* חיזוק מיוחד למודל shareFolderModal */
+    .theme-dark #shareFolderModal > .modal {
+      background: #121816 !important;
+      border: 1px solid rgba(82, 152, 115, 0.3) !important;
+    }
+    
     .theme-dark #editModal .modal-head,
     .theme-dark #shareFolderModal .modal-head,
     .theme-dark #createFolderModal .modal-head {
       background: #1a2520 !important;
+      color: #c5e3d2 !important;
+    }
+    
+    .theme-dark #shareFolderModal .modal-head h2 {
+      color: #c5e3d2 !important;
     }
     
     .theme-dark #editModal .scroll-area,
@@ -558,10 +569,44 @@ html {
       background: #121816 !important;
     }
     
+    .theme-dark #editModal .scroll-area p,
+    .theme-dark #shareFolderModal .scroll-area p,
+    .theme-dark #createFolderModal .scroll-area p {
+      color: #c5e3d2 !important;
+    }
+    
     .theme-dark #editModal .modal-foot,
     .theme-dark #shareFolderModal .modal-foot,
     .theme-dark #createFolderModal .modal-foot {
       background: #1a2520 !important;
+    }
+    
+    /* כפתור ביטול */
+    .theme-dark #shareFolderModal .btn {
+      background: rgba(90, 30, 30, 0.3) !important;
+      border: 1px solid rgba(200, 80, 80, 0.3) !important;
+      color: #ffb3b3 !important;
+    }
+    
+    /* חיזוק נוסף לכפתורי בחירת תיקייה */
+    .theme-dark #shareFolderModal .folder-select-btn {
+      background: rgba(18, 24, 22, 0.7) !important;
+      border: 1px solid rgba(82, 152, 115, 0.3) !important;
+      color: #c5e3d2 !important;
+    }
+    
+    .theme-dark #shareFolderModal .folder-select-btn:hover {
+      background: rgba(45, 90, 67, 0.5) !important;
+      border-color: rgba(82, 152, 115, 0.5) !important;
+    }
+    
+    .theme-dark #shareFolderModal .folder-select-btn div {
+      color: #c5e3d2 !important;
+    }
+    
+    /* רקע המודל */
+    .theme-dark #shareFolderModal.modal-backdrop {
+      background: rgba(5, 8, 7, 0.85) !important;
     }
     
     /* כפתור סגירה במודלים */
