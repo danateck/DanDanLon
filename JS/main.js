@@ -2233,9 +2233,9 @@ editBtn.innerHTML = `עריכה <img src="assests/icons/edit.png" class="edit-ic
   const trashBtn = document.createElement("button");
   trashBtn.className = "doc-action-btn danger";
   trashBtn.innerHTML = 
-  mode === "shared"
-  ? `הסר מהתיקייה <img src="assests/icons/trash.png" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;">`
-  : `העבר לסל מחזור <img src="assests/icons/trash.png" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;">`;
+mode === "shared"
+  ? `הסר מהתיקייה <img src="assests/icons/trash.png" class="trash-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;">`
+  : `העבר לסל מחזור <img src="assests/icons/trash.png" class="trash-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;">`;
 
    trashBtn.addEventListener("click", async () => {
     // 🔥 אם זה בתיקייה משותפת - הסר רק מהתיקייה!
