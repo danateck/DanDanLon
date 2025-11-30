@@ -8397,3 +8397,63 @@ console.log("  ✅ 7. חיפוש כללי משופר");
 console.log("  ✅ 8. צבע מודל #e1e3d5");
 console.log("  ✅ 9. ניקוי אוטומטי");
 
+
+
+
+window.openFolderSelectionModal = function (docId) {
+  const overlay = document.getElementById("chooseFolderOverlay");
+  const mainSel = document.getElementById("mainFolderSelect");
+  const subSel  = document.getElementById("subFolderSelect");
+
+  overlay.style.display = "flex";
+
+  // כל התיקיות הראשיות (קטגוריות)
+  const mains = Object.keys(CATEGORY_KEYWORDS);
+  mainSel.innerHTML = mains.map(m => `<option value="${m}">${m}</option>`).join("");
+
+  function loadSubs() {
+    const chosen = mainSel.value;
+    const subs = SUBFOLDERS_BY_CATEGORY[chosen] || [];
+    subSel.innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join("");
+  }
+
+  mainSel.onchange = loadSubs;
+  loadSubs();
+
+  document.getElementById("cancelFolderSelect").onclick = () => {
+    overlay.style.display = "none";
+  };
+
+  document.getElementById("confirmFolderSelect").onclick = async () => {
+    const cat = mainSel.value;
+    const sub = subSel.value;
+
+    try {
+      // עדכון בשרת (Render)
+      await updateDocument(docId, {
+        category: cat,
+        sub_category: sub
+      });
+
+      // עדכון גם בפיירבייס
+      if (window.db && window.fs) {
+        const ref = window.fs.doc(window.db, "documents", docId);
+        await window.fs.updateDoc(ref, {
+          category: cat,
+          subCategory: sub,
+          lastModified: Date.now()
+        });
+      }
+
+      overlay.style.display = "none";
+      showAlert("📁 הקובץ הועבר לתיקייה החדשה", "success");
+
+      // רענון המסך
+      if (typeof bootFromCloud === "function") bootFromCloud();
+
+    } catch (err) {
+      console.error(err);
+      showAlert("❌ שגיאה בעדכון התיקייה", "error");
+    }
+  };
+};

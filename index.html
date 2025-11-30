@@ -4664,5 +4664,29 @@ async function updateTwoFactorSetting(email, enabled) {
 </div>
 
 
+
+
+
+
+
+
+<!-- בחירת תיקייה ושינוי מיקום קובץ -->
+<div id="chooseFolderOverlay" class="modal-backdrop" style="display:none;">
+  <div class="modal" style="max-width:360px; padding:20px;">
+    <h2 style="margin-top:0;">בחירת תיקייה</h2>
+
+    <label>בחרי תיקייה ראשית:</label>
+    <select id="mainFolderSelect" style="width:100%; margin-bottom:15px;"></select>
+
+    <label>בחרי תת-תיקייה:</label>
+    <select id="subFolderSelect" style="width:100%; margin-bottom:20px;"></select>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button id="cancelFolderSelect" class="btn-cancel">ביטול</button>
+      <button id="confirmFolderSelect" class="btn-primary">בחרי</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

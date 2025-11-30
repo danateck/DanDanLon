@@ -253,7 +253,15 @@ if (typeof window.updateStorageUsageWidget === "function") {
   window.updateStorageUsageWidget();
 }
 
+// פותח חלון בחירה אחרי העלאה
+setTimeout(() => {
+    if (typeof openFolderSelectionModal === "function") {
+        openFolderSelectionModal(doc.id);
+    }
+}, 200);
+
 return doc;
+
 
     
   } catch (error) {
@@ -802,3 +810,14 @@ function updateStorageUsageWidget() {
 
 // שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
 window.updateStorageUsageWidget = updateStorageUsageWidget;
+
+
+
+
+
+
+
+
+
+
+
