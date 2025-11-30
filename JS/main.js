@@ -29,6 +29,8 @@ window.userNow = window.userNow || "";
 
 
 
+
+
 function showAlert(title, type = "info") {
   const icons = {
     success: "✅",
@@ -5748,6 +5750,15 @@ async function uploadScannedPdf() {
       const y = (pdfHeight - imgHeight) / 2;
 
       pdf.addImage(page.dataUrl, "JPEG", x, y, imgWidth, imgHeight);
+      
+      // ✅ הוספת לוגו NestyFile בפינה התחתונה
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150); // אפור בהיר
+      const logoText = "NestyFile";
+      const textWidth = pdf.getTextWidth(logoText);
+      const logoX = pdfWidth - textWidth - 10; // 10pt מהקצה
+      const logoY = pdfHeight - 10; // 10pt מהתחתית
+      pdf.text(logoText, logoX, logoY);
     });
 
     const blob = pdf.output("blob");
