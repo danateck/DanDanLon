@@ -2647,6 +2647,9 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
   const searchInput = document.getElementById("categorySearch");
   if (searchInput) {
     searchInput.style.display = "inline-block";
+    // להראות גם את ה-wrapper
+    const searchWrapper = searchInput.closest('.search-wrapper');
+    if (searchWrapper) searchWrapper.style.display = "";
   }
 
 
@@ -8132,6 +8135,8 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         if (searchInput) {
           searchInput.style.display = "";
           searchInput.value = "";
+          const searchWrapper = searchInput.closest('.search-wrapper');
+          if (searchWrapper) searchWrapper.style.display = "";
           console.log("✅ שורת חיפוש הוצגה בסל מחזור");
         }
         
@@ -8202,6 +8207,8 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         if (searchInput) {
           searchInput.style.display = "";
           searchInput.value = "";
+          const searchWrapper = searchInput.closest('.search-wrapper');
+          if (searchWrapper) searchWrapper.style.display = "";
           console.log("✅ שורת חיפוש הוצגה בתיקייה של פרופיל");
         }
         
@@ -8276,6 +8283,8 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         if (searchInput) {
           searchInput.style.display = "";
           searchInput.value = "";
+          const searchWrapper = searchInput.closest('.search-wrapper');
+          if (searchWrapper) searchWrapper.style.display = "";
           console.log("✅ שורת חיפוש הוצגה בתיקייה משותפת");
         }
         
