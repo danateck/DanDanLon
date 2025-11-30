@@ -8215,14 +8215,17 @@ console.log("🔧 טוען תיקונים מעודכנים...");
       setTimeout(() => {
         const searchInput = document.getElementById("categorySearch");
         if (searchInput) {
-          searchInput.style.display = "none";
+          searchInput.style.display = "none"; // או searchInput.disabled = true;
           searchInput.value = "";
-          console.log("✅ שורת חיפוש הוסתרה באחסון משותף");
+          console.log("✅ הקלט של החיפוש הוסתר באחסון משותף");
         }
-        
 
-        document.getElementById("search-wrapper").style.display = "none";
-
+        // ✅ הסתרת המסגרת של שורת החיפוש (ה־DIV)
+        const searchWrapper = document.querySelector("#categoryView .search-wrapper");
+        if (searchWrapper) {
+          searchWrapper.style.display = "none";
+          console.log("✅ ה-DIV של שורת החיפוש הוסתר באחסון משותף");
+        }
 
         // הסתר תתי קטגוריות
         const subcategoriesBox = document.getElementById("subcategoriesBox");
@@ -8236,6 +8239,7 @@ console.log("🔧 טוען תיקונים מעודכנים...");
     console.log("✅ openSharedView עודכן");
   }
 })();
+
 
 // ============================================
 // תיקון 6: חיפוש עובד בתיקייה משותפת ספציפית
