@@ -2354,7 +2354,7 @@ if (mode !== "recycle") {
               </div>
               <div class="scroll-area" style="max-height: 400px;">
                 <p style="margin-bottom: 1rem;">בחר לאיזו תיקייה להוסיף את המסמך "${doc.title || doc.fileName}"</p>
-<div style="display: flex;flex-direction: column;gap: 0.5rem;padding-left: 0.2rem;">
+<div style="display: flex;flex-direction: column;gap: 0.5rem;padding-left: 1.2rem;">
                   ${folders.map(folder => `
                     <button 
                       class="folder-select-btn" 
