@@ -1036,7 +1036,7 @@ select, .btn{
 }
 
 .theme-dark .tabs-bar {
-  background: #141d19;
+  background: #151f1a !important;
   border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
@@ -1564,6 +1564,11 @@ textarea {
       justify-items: center;
     }
 
+    .theme-dark #backButton .back-icon {
+  content: url("assests/icons/backDark.png");
+}
+
+
 .docs-list.shared-mode {
   display: flex !important;
   flex-direction: column;
@@ -1776,6 +1781,7 @@ body.dark-mode .sidebar {
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   padding: 0 0 10px;
+      padding-left: 19px;
 }
 
 /* Plans grid responsive */
@@ -2000,7 +2006,7 @@ body.dark-mode .sidebar {
 .sf-title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #0e2d28;
+  color: #8f8f8f;
   margin: 0;
   word-break: break-word;
 }
@@ -2083,19 +2089,19 @@ body.dark-mode .sidebar {
 
 
 .theme-dark .pending-wrap {
-  background: #092013;
+  background: #161616;
   color: #555653;
   border: 1px solid #243030;
 }
 
 .theme-dark .cozy-head {
-  background: #092013;
+  background: #161616;
   color: #555653;
   border: 1px solid #243030;
 }
 
 .theme-dark .sf-card {
-  background: #07170c;
+  background: #161616;
   color: #555653;
   border: 1px solid #243030;
 }
@@ -2811,7 +2817,11 @@ ease;
   border-color: #b7ad8c;
 }
 
-
+.theme-dark .subfolders-bar button {
+  background: #1a1a1a;
+  color: #ccc;
+  border-color: #333;
+}
 
 
 
@@ -3322,7 +3332,7 @@ body::-webkit-scrollbar-thumb:hover,
   gap: 6px;
   background: none;
   border: none;
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
   color: #2b2b2b;
   font-family: inherit;
@@ -3334,6 +3344,9 @@ body::-webkit-scrollbar-thumb:hover,
   object-fit: contain;
 }
 
+.theme-dark .back-button {
+  color: #cfcfcf;
+}
 
 .btn-icon {
   width: 18px;
