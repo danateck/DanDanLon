@@ -2199,7 +2199,7 @@ if (mode !== "recycle") {
   // כפתור עריכה
   const editBtn = document.createElement("button");
   editBtn.className = "doc-action-btn";
-  editBtn.innerHTML = `עריכה <img src="assests/icons/edit.png" style="width:16px;height:16px;vertical-align:middle;">`;
+editBtn.innerHTML = `עריכה <img src="assests/icons/edit.png" class="edit-icon" style="width:16px;height:16px;vertical-align:middle;">`;
 
   editBtn.addEventListener("click", () => {
   // מי המשתמש המחובר כרגע
