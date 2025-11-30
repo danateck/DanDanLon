@@ -8213,18 +8213,16 @@ console.log("🔧 טוען תיקונים מעודכנים...");
       
       // הסתר את שורת החיפוש
       setTimeout(() => {
+        // מסתיר את ה־input עצמו
         const searchInput = document.getElementById("categorySearch");
         if (searchInput) {
-          searchInput.style.display = "none"; // או searchInput.disabled = true;
-          searchInput.value = "";
-          console.log("✅ הקלט של החיפוש הוסתר באחסון משותף");
+          searchInput.style.display = "none";
         }
 
-        // ✅ הסתרת המסגרת של שורת החיפוש (ה־DIV)
-        const searchWrapper = document.querySelector("#categoryView .search-wrapper");
+        // ⭐⭐⭐ מסתיר את כל המסגרת — בדיוק מה שרואים בתמונה ⭐⭐⭐
+        const searchWrapper = document.querySelector(".search-wrapper");
         if (searchWrapper) {
           searchWrapper.style.display = "none";
-          console.log("✅ ה-DIV של שורת החיפוש הוסתר באחסון משותף");
         }
 
         // הסתר תתי קטגוריות
