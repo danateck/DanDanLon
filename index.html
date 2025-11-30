@@ -374,7 +374,7 @@ html {
     
     /* חיפוש */
     .theme-dark #categorySearch {
-      background: rgba(18, 24, 22, 0.8);
+      background: rgb(3 4 4 / 85%);
       border: 1px solid rgba(82, 152, 115, 0.3);
       color: #e8f0ec;
     }
@@ -583,7 +583,7 @@ html {
     
     /* כפתור ביטול */
     .theme-dark #shareFolderModal .btn {
-      background: rgba(90, 30, 30, 0.3) !important;
+      background: rgb(67 67 67 / 30%) !important;
       border: 1px solid rgba(200, 80, 80, 0.3) !important;
       color: #ffb3b3 !important;
     }
@@ -3144,7 +3144,9 @@ body::-webkit-scrollbar-thumb:hover,
   overflow: hidden;
 }
 
-
+.theme-dark .search-wrapper {
+  border: 1px solid #787878;
+}
 
 .top-row {
   display: flex;
@@ -3222,6 +3224,9 @@ body::-webkit-scrollbar-thumb:hover,
   justify-content: center;
 }
 
+.theme-dark .search-btn {
+  background: #353e31;
+}
 .search-btn img {
   width: 18px;
   height: 18px;
@@ -3389,7 +3394,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .edit-btn {
   border: 0;
-  border-radius: 6px;
+  border-radius: 1.5rem;
   font-weight: 600;
   padding: .5rem .75rem;
   cursor: pointer;
@@ -3415,7 +3420,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .theme-dark .edit-modal-panel {
-  background: #222b23;
+  background: #1e231f;
   color: #e4e6eb;
 }
 
@@ -3424,7 +3429,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .theme-dark .edit-form input {
-  background: #1a1d23;
+  background: #151a19;
   border-color: rgba(255,255,255,0.16);
   color: #e4e6eb;
 }
@@ -3434,12 +3439,46 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .theme-dark .edit-btn-cancel {
-  background: #7a3131;
+  background: #dc3545;
 }
 
 .theme-dark .edit-btn-save {
-  background: #50846b;
+  background: #c7cac6;
 }
+
+
+
+
+
+
+/* בסיס */
+#sortSelect {
+  margin-right: auto;
+  font-size: .75rem;
+  padding: .4rem .5rem;
+  border-radius: 12px;
+  background: #cacab7;
+  border: 1px solid #999;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: .2s;
+}
+
+/* מצב כהה */
+.theme-dark #sortSelect {
+  background: #262b32;
+  border-color: #444;
+  color: #e4e6eb;
+}
+
+/* הטקסט של ה־options */
+.theme-dark #sortSelect option {
+  background: #1e2128;
+  color: #e4e6eb;
+}
+
+
+
 
   </style>
 </head>
