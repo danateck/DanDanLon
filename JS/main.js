@@ -2331,10 +2331,11 @@ mode === "shared"
   if (mode !== "shared") {
     const shareBtn = document.createElement("button");
     shareBtn.className = "doc-action-btn";
-   shareBtn.innerHTML = `
-  <img src="assests/icons/share.png" class="btn-icon" alt="">
+shareBtn.innerHTML = `
+  <img src="assests/icons/share.png" class="share-icon btn-icon" alt="">
   הכנס לתיקייה משותפת
 `;
+
 
              
 
