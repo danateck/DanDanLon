@@ -4564,64 +4564,72 @@ uploadToSharedBtn.addEventListener("click", async () => {
     // --- מחיקה ---
     if (delId) {
       const folder = window.mySharedFolders?.find(f => f.id === delId);
-      const fname = folder?.name || me.sharedFolders?.[delId]?.name || "תיקייה";
-      showConfirm(
+const fname = folder?.name || me.sharedFolders?.[delId]?.name || "תיקייה";
+
+showConfirm(
   `למחוק לצמיתות את התיקייה "${fname}"? (המסמכים לא יימחקו, רק ינותק השיוך)`,
-  () => {
-    // הקוד שהיה אמור לרוץ אם "כן"
-    deleteFolder(fname);  // או מה שהפונקציה שלך עושה
+  async () => {
+    console.log("🗑️ Deleting folder:", { delId, fname });
+    showLoading("מוחק תיקייה.");
+
+    try {
+      // 🔥 מחיקה מ-Firestore
+      if (isFirebaseAvailable()) {
+        console.log("📡 Deleting from Firestore.");
+        // מחיקת התיקייה עצמה
+        const folderRef = window.fs.doc(window.db, "sharedFolders", delId);
+        await window.fs.deleteDoc(folderRef);
+        console.log("✅ Folder deleted from Firestore");
+
+        // מחיקת כל הרשומות של המסמכים המשותפים בתיקייה
+        const sharedDocsCol = window.fs.collection(window.db, "sharedDocs");
+        const q = window.fs.query(
+          sharedDocsCol,
+          window.fs.where("folderId", "==", delId)
+        );
+        const snap = await window.fs.getDocs(q);
+        const deletePromises = [];
+        snap.forEach(docSnap => {
+          deletePromises.push(window.fs.deleteDoc(docSnap.ref));
+        });
+        await Promise.all(deletePromises);
+        console.log(`✅ Deleted ${deletePromises.length} shared docs`);
+      } else {
+        console.warn("⚠️ Firebase not available, deleting only locally");
+      }
+
+      // מחיקה לוקלית
+      if (typeof deleteSharedFolderEverywhere === "function") {
+        deleteSharedFolderEverywhere(delId);
+      } else {
+        delete me.sharedFolders[delId];
+        for (const d of (allUsersData[userNow].docs || [])) {
+          if (d.sharedFolderId === delId) d.sharedFolderId = null;
+        }
+        saveAllUsersDataToStorage(allUsersData);
+      }
+
+      // רענון רשימת התיקיות המשותפות
+      if (typeof loadSharedFolders === "function") {
+        const folders = await loadSharedFolders();
+        window.mySharedFolders = folders;
+        saveSharedFoldersToCache(folders);
+        console.log("✅ Reloaded shared folders after deletion");
+      }
+
+      hideLoading();
+      showNotification(
+        "התיקייה נמחקה. המסמכים נשארו בארכיונים של בעליהם.",
+        false
+      );
+    } catch (err) {
+      console.error("❌ Error deleting folder:", err);
+      hideLoading();
+      showNotification("שגיאה במחיקת התיקייה", true);
+    }
   }
 );
 
-      console.log("🗑️ Deleting folder:", { delId, fname });
-      showLoading("מוחק תיקייה...");
-      try {
-        // 🔥 מחיקה מ-Firestore
-        if (isFirebaseAvailable()) {
-          console.log("📡 Deleting from Firestore...");
-          // מחק את התיקייה עצמה
-          const folderRef = window.fs.doc(window.db, "sharedFolders", delId);
-          await window.fs.deleteDoc(folderRef);
-          console.log("✅ Folder deleted from Firestore");
-          // מחק את כל המסמכים המשותפים בתיקייה
-          const sharedDocsCol = window.fs.collection(window.db, "sharedDocs");
-          const q = window.fs.query(sharedDocsCol, window.fs.where("folderId", "==", delId));
-          const snap = await window.fs.getDocs(q);
-          const deletePromises = [];
-          snap.forEach(doc => {
-            deletePromises.push(window.fs.deleteDoc(doc.ref));
-          });
-          await Promise.all(deletePromises);
-          console.log(`✅ Deleted ${deletePromises.length} shared docs`);
-        } else {
-          console.warn("⚠️ Firebase not available, deleting only locally");
-        }
-        // מחיקה מקומית
-        if (typeof deleteSharedFolderEverywhere === "function") {
-          deleteSharedFolderEverywhere(delId);
-        } else {
-          // Fallback: מחיקה רק אצלי
-          delete me.sharedFolders[delId];
-          for (const d of (allUsersData[userNow].docs || [])) {
-            if (d.sharedFolderId === delId) d.sharedFolderId = null;
-          }
-          saveAllUsersDataToStorage(allUsersData);
-        }
-        // רענן את window.mySharedFolders
-        if (typeof loadSharedFolders === "function") {
-          const folders = await loadSharedFolders();
-          window.mySharedFolders = folders;
-          saveSharedFoldersToCache(folders);
-          console.log("✅ Reloaded shared folders after deletion");
-        }
-        hideLoading();
-        showNotification("התיקייה נמחקה. המסמכים נשארו בארכיונים של בעליהם. ✅");
-        renderSharedFoldersList();
-      } catch (err) {
-        console.error("❌ Delete failed:", err);
-        hideLoading();
-        showNotification("שגיאה במחיקת התיקייה: " + err.message, true);
-      }
       return;
     }
   });
