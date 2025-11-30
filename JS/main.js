@@ -3466,6 +3466,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     }).render("#paypalButtonsContainer");
   }
 
+const photoPreview = document.getElementById("profilePhotoPreview");
+  const photoInput = document.getElementById("profilePhotoInput");
+
+  if (photoPreview && photoInput) {
+    photoPreview.style.cursor = "pointer"; // שיהיה קליקבילי
+
+    photoPreview.addEventListener("click", () => {
+      photoInput.click(); // 📂 פותח חלון בחירת קובץ
+    });
+  }
+
+
   // חיבור הכפתורים "בחר פרו" / "בחר פרימיום" ל-PayPal
   panel?.querySelectorAll("[data-select-plan]").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
