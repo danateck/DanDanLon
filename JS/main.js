@@ -2821,6 +2821,12 @@ window.openSharedView = function() {
     if (searchWrapper2) searchWrapper2.style.display = "none";
   }
 
+  // ✅ הסתר תתי תיקיות באחסון משותף
+  const subcategoriesBox = document.getElementById("subcategoriesBox");
+  if (subcategoriesBox) {
+    subcategoriesBox.style.display = "none";
+  }
+
   if (!categoryTitle || !docsList) {
     console.error("❌ Shared view elements not found");
     return;
@@ -4069,6 +4075,13 @@ openSharedView = function() {
     const searchWrapper = searchInput.closest('.search-wrapper');
     if (searchWrapper) searchWrapper.style.display = "none";
   }
+  
+  // ✅ הסתר תתי תיקיות באחסון משותף
+  const subcategoriesBox = document.getElementById("subcategoriesBox");
+  if (subcategoriesBox) {
+    subcategoriesBox.style.display = "none";
+  }
+  
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
@@ -4251,9 +4264,16 @@ async function renderPending() {
 
        const searchBar = document.getElementById("categorySearch");
       if (searchBar) {
-        searchBar.style.display = "none";
+        searchBar.style.display = "";
+        searchBar.value = "";
         const searchWrapper = searchBar.closest('.search-wrapper');
-        if (searchWrapper) searchWrapper.style.display = "none";
+        if (searchWrapper) searchWrapper.style.display = "";
+      }
+
+      // ✅ הסתר תתי תיקיות
+      const subcategoriesBox = document.getElementById("subcategoriesBox");
+      if (subcategoriesBox) {
+        subcategoriesBox.style.display = "none";
       }
 
       
@@ -7603,6 +7623,12 @@ window.openProfilesView = async function() {
     if (searchWrapper) searchWrapper.style.display = "none";
   }
 
+  // ✅ הסתר תתי תיקיות בפרופילים
+  const subcategoriesBox = document.getElementById("subcategoriesBox");
+  if (subcategoriesBox) {
+    subcategoriesBox.style.display = "none";
+  }
+
   // 🔥 טעינה מFirestore (מסונכרן!)
   console.log("📥 Loading profiles from Firestore...");
   const profiles = await loadProfilesFromFirestore();
@@ -7797,6 +7823,21 @@ function openProfileCategoryDocs(profile, categoryName) {
   const homeView      = document.getElementById("homeView");
   const categoryView  = document.getElementById("categoryView");
   if (!categoryTitle || !docsList) return;
+
+  // ✅ הצג שורת חיפוש
+  const searchInput = document.getElementById("categorySearch");
+  if (searchInput) {
+    searchInput.style.display = "";
+    searchInput.value = "";
+    const searchWrapper = searchInput.closest('.search-wrapper');
+    if (searchWrapper) searchWrapper.style.display = "";
+  }
+
+  // ✅ הסתר תתי תיקיות
+  const subcategoriesBox = document.getElementById("subcategoriesBox");
+  if (subcategoriesBox) {
+    subcategoriesBox.style.display = "none";
+  }
 
   categoryTitle.textContent = `פרופיל: ${profile.fullName} – ${categoryName}`;
   docsList.classList.remove("shared-mode");
