@@ -2826,6 +2826,13 @@ window.openSharedView = function() {
   if (subcategoriesBox) {
     subcategoriesBox.style.display = "none";
   }
+  
+  // ✅ הסתר את ה-bar של תתי התיקיות
+  const subfoldersBar = document.getElementById("subfoldersBar");
+  if (subfoldersBar) {
+    subfoldersBar.style.display = "none";
+    subfoldersBar.innerHTML = "";
+  }
 
   if (!categoryTitle || !docsList) {
     console.error("❌ Shared view elements not found");
@@ -4082,6 +4089,13 @@ openSharedView = function() {
     subcategoriesBox.style.display = "none";
   }
   
+  // ✅ הסתר את ה-bar של תתי התיקיות
+  const subfoldersBar = document.getElementById("subfoldersBar");
+  if (subfoldersBar) {
+    subfoldersBar.style.display = "none";
+    subfoldersBar.innerHTML = "";
+  }
+  
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
@@ -4274,6 +4288,13 @@ async function renderPending() {
       const subcategoriesBox = document.getElementById("subcategoriesBox");
       if (subcategoriesBox) {
         subcategoriesBox.style.display = "none";
+      }
+      
+      // ✅ הסתר את ה-bar של תתי התיקיות
+      const subfoldersBar = document.getElementById("subfoldersBar");
+      if (subfoldersBar) {
+        subfoldersBar.style.display = "none";
+        subfoldersBar.innerHTML = "";
       }
 
       
@@ -5823,12 +5844,36 @@ if (scanModal) {
     categorySearch.addEventListener("input", (e) => {
       window.currentSearchTerm = e.target.value || "";
 
-      // רק אם מסך קטגוריה פתוח – נרענן את הרשימה
+      // בדוק איזה מסך פתוח ורענן אותו
       if (!categoryView.classList.contains("hidden") && categoryTitle) {
-        window.openCategoryView(
-          categoryTitle.textContent,
-          window.currentSubfolderFilter || null
-        );
+        const currentTitle = categoryTitle.textContent;
+        
+        // בדוק אם זה תיקייה משותפת
+        const urlParams = new URLSearchParams(window.location.search);
+        const sharedFolderId = urlParams.get('sharedFolder');
+        
+        if (sharedFolderId && typeof window.openSharedFolder === 'function') {
+          // תיקייה משותפת ספציפית
+          window.openSharedFolder(sharedFolderId);
+        } else if (currentTitle.startsWith("פרופיל:")) {
+          // תיקייה של פרופיל - נמצא את הפרופיל והקטגוריה
+          const match = currentTitle.match(/פרופיל: (.+?) – (.+)/);
+          if (match) {
+            const profileName = match[1];
+            const categoryName = match[2];
+            const profiles = loadProfiles();
+            const profile = profiles.find(p => p.fullName === profileName);
+            if (profile && typeof openProfileCategoryDocs === 'function') {
+              openProfileCategoryDocs(profile, categoryName);
+            }
+          }
+        } else {
+          // תיקייה רגילה
+          window.openCategoryView(
+            currentTitle,
+            window.currentSubfolderFilter || null
+          );
+        }
       }
     });
   }
@@ -7628,6 +7673,13 @@ window.openProfilesView = async function() {
   if (subcategoriesBox) {
     subcategoriesBox.style.display = "none";
   }
+  
+  // ✅ הסתר את ה-bar של תתי התיקיות
+  const subfoldersBar = document.getElementById("subfoldersBar");
+  if (subfoldersBar) {
+    subfoldersBar.style.display = "none";
+    subfoldersBar.innerHTML = "";
+  }
 
   // 🔥 טעינה מFirestore (מסונכרן!)
   console.log("📥 Loading profiles from Firestore...");
@@ -7838,12 +7890,19 @@ function openProfileCategoryDocs(profile, categoryName) {
   if (subcategoriesBox) {
     subcategoriesBox.style.display = "none";
   }
+  
+  // ✅ הסתר את ה-bar של תתי התיקיות
+  const subfoldersBar = document.getElementById("subfoldersBar");
+  if (subfoldersBar) {
+    subfoldersBar.style.display = "none";
+    subfoldersBar.innerHTML = "";
+  }
 
   categoryTitle.textContent = `פרופיל: ${profile.fullName} – ${categoryName}`;
   docsList.classList.remove("shared-mode");
   docsList.innerHTML = "";
 
-  const docs = (window.allDocsData || [])
+  let docs = (window.allDocsData || [])
     .filter(d => d.category === categoryName)
     .filter(d => Array.isArray(d.recipient))
     .filter(d => {
@@ -7854,6 +7913,33 @@ function openProfileCategoryDocs(profile, categoryName) {
       );
     })
     .filter(d => !d._trashed);
+
+  // 🔍 סינון לפי חיפוש
+  const searchTerm = (window.currentSearchTerm || "").trim();
+  if (searchTerm) {
+    const lower = searchTerm.toLowerCase();
+    docs = docs.filter(doc => {
+      const title    = (doc.title    || "").toLowerCase();
+      const fileName = (doc.fileName || "").toLowerCase();
+      const org      = (doc.org      || "").toLowerCase();
+      const year     = String(doc.year || "");
+      
+      let recipientText = "";
+      if (Array.isArray(doc.recipient)) {
+        recipientText = doc.recipient.join(",").toLowerCase();
+      } else if (doc.recipient) {
+        recipientText = String(doc.recipient).toLowerCase();
+      }
+
+      return (
+        title.includes(lower)       ||
+        fileName.includes(lower)    ||
+        org.includes(lower)         ||
+        year.includes(lower)        ||
+        recipientText.includes(lower)
+      );
+    });
+  }
 
   if (!docs.length) {
     docsList.innerHTML =
@@ -8554,3 +8640,94 @@ window.openFolderSelectionModal = function (docId) {
     }
   };
 };
+
+// ═══════════════════════════════════════════════════════════
+// 🆕 פונקציה שמציגה מסמכים בתיקייה משותפת ספציפית
+// ═══════════════════════════════════════════════════════════
+if (!window.openSharedFolder) {
+  window.openSharedFolder = async function(folderId) {
+    console.log("📂 Opening shared folder:", folderId);
+    
+    const categoryTitle = document.getElementById("categoryTitle");
+    const docsList = document.getElementById("docsList");
+    const homeView = document.getElementById("homeView");
+    const categoryView = document.getElementById("categoryView");
+    
+    if (!categoryTitle || !docsList) {
+      console.error("❌ Required elements not found");
+      return;
+    }
+    
+    try {
+      // מצא את שם התיקייה
+      const folder = window.mySharedFolders?.find(f => f.id === folderId);
+      const folderName = folder?.name || "תיקייה משותפת";
+      
+      categoryTitle.textContent = folderName;
+      docsList.classList.remove("shared-mode");
+      docsList.innerHTML = "<div style='padding:2rem;text-align:center;'>טוען מסמכים...</div>";
+      
+      // טען מסמכים מ-Firestore
+      if (!isFirebaseAvailable()) {
+        docsList.innerHTML = "<div style='padding:2rem;text-align:center;opacity:0.6;'>Firebase לא זמין</div>";
+        return;
+      }
+      
+      const col = window.fs.collection(window.db, "sharedDocs");
+      const q = window.fs.query(col, window.fs.where("folderId", "==", folderId));
+      const snap = await window.fs.getDocs(q);
+      
+      let docs = [];
+      snap.forEach(doc => {
+        docs.push(doc.data());
+      });
+      
+      // 🔍 סינון לפי חיפוש
+      const searchTerm = (window.currentSearchTerm || "").trim();
+      if (searchTerm) {
+        const lower = searchTerm.toLowerCase();
+        docs = docs.filter(doc => {
+          const title    = (doc.title    || "").toLowerCase();
+          const fileName = (doc.fileName || "").toLowerCase();
+          const org      = (doc.org      || "").toLowerCase();
+          const year     = String(doc.year || "");
+          
+          let recipientText = "";
+          if (Array.isArray(doc.recipient)) {
+            recipientText = doc.recipient.join(",").toLowerCase();
+          } else if (doc.recipient) {
+            recipientText = String(doc.recipient).toLowerCase();
+          }
+
+          return (
+            title.includes(lower)       ||
+            fileName.includes(lower)    ||
+            org.includes(lower)         ||
+            year.includes(lower)        ||
+            recipientText.includes(lower)
+          );
+        });
+      }
+      
+      docsList.innerHTML = "";
+      
+      if (docs.length === 0) {
+        docsList.innerHTML = searchTerm 
+          ? `<div style="padding:2rem;text-align:center;opacity:0.6;">לא נמצאו מסמכים התואמים את החיפוש "${searchTerm}"</div>`
+          : `<div style="padding:2rem;text-align:center;opacity:0.6;">אין מסמכים בתיקייה זו</div>`;
+      } else {
+        docs.forEach(doc => {
+          const card = typeof buildDocCard === "function" ? buildDocCard(doc) : null;
+          if (card) docsList.appendChild(card);
+        });
+      }
+      
+      if (homeView) homeView.classList.add("hidden");
+      if (categoryView) categoryView.classList.remove("hidden");
+      
+    } catch (error) {
+      console.error("❌ Error loading shared folder:", error);
+      docsList.innerHTML = `<div style="padding:2rem;text-align:center;opacity:0.6;">שגיאה בטעינת המסמכים: ${error.message}</div>`;
+    }
+  };
+}
