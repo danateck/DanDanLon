@@ -1036,7 +1036,7 @@ select, .btn{
 }
 
 .theme-dark .tabs-bar {
-  background: #16211c;
+  background: #141d19;
   border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
@@ -2764,12 +2764,19 @@ body {
   color: #cbc7be;
         font-family: "Rubik", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   padding: 0.45rem 1rem;
-  border-radius: 12px;
+  border-radius: 21px;
   border: none;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: 0.2s;
+      transition: transform 0.2s 
+ease, box-shadow 0.2s 
+ease;
+}
+
+.theme-dark .small-btn {
+  background: #121c17;
+  color: #e1dfd7;
 }
 
 .small-btn:hover {
@@ -3025,7 +3032,7 @@ body::-webkit-scrollbar-thumb:hover,
   width: 18px;
   height: 18px;
   object-fit: contain;
-  margin-left: -2px; 
+  margin-left: 4px; 
   vertical-align: middle;
 }
 
