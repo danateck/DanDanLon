@@ -4581,63 +4581,62 @@ uploadToSharedBtn.addEventListener("click", async () => {
     if (delId) {
       const folder = window.mySharedFolders?.find(f => f.id === delId);
       const fname = folder?.name || me.sharedFolders?.[delId]?.name || "תיקייה";
+      
       showConfirm(
-  `למחוק לצמיתות את התיקייה "${fname}"? (המסמכים לא יימחקו, רק ינותק השיוך)`,
-  () => {
-    // הקוד שהיה אמור לרוץ אם "כן"
-    deleteFolder(fname);  // או מה שהפונקציה שלך עושה
-  }
-);
-
-      console.log("🗑️ Deleting folder:", { delId, fname });
-      showLoading("מוחק תיקייה...");
-      try {
-        // 🔥 מחיקה מ-Firestore
-        if (isFirebaseAvailable()) {
-          console.log("📡 Deleting from Firestore...");
-          // מחק את התיקייה עצמה
-          const folderRef = window.fs.doc(window.db, "sharedFolders", delId);
-          await window.fs.deleteDoc(folderRef);
-          console.log("✅ Folder deleted from Firestore");
-          // מחק את כל המסמכים המשותפים בתיקייה
-          const sharedDocsCol = window.fs.collection(window.db, "sharedDocs");
-          const q = window.fs.query(sharedDocsCol, window.fs.where("folderId", "==", delId));
-          const snap = await window.fs.getDocs(q);
-          const deletePromises = [];
-          snap.forEach(doc => {
-            deletePromises.push(window.fs.deleteDoc(doc.ref));
-          });
-          await Promise.all(deletePromises);
-          console.log(`✅ Deleted ${deletePromises.length} shared docs`);
-        } else {
-          console.warn("⚠️ Firebase not available, deleting only locally");
-        }
-        // מחיקה מקומית
-        if (typeof deleteSharedFolderEverywhere === "function") {
-          deleteSharedFolderEverywhere(delId);
-        } else {
-          // Fallback: מחיקה רק אצלי
-          delete me.sharedFolders[delId];
-          for (const d of (allUsersData[userNow].docs || [])) {
-            if (d.sharedFolderId === delId) d.sharedFolderId = null;
+        `למחוק לצמיתות את התיקייה "${fname}"? (המסמכים לא יימחקו, רק ינותק השיוך)`,
+        async () => {
+          // ✅ הקוד של המחיקה רץ רק אם לחצו "אישור"
+          console.log("🗑️ Deleting folder:", { delId, fname });
+          showLoading("מוחק תיקייה...");
+          try {
+            // 🔥 מחיקה מ-Firestore
+            if (isFirebaseAvailable()) {
+              console.log("📡 Deleting from Firestore...");
+              // מחק את התיקייה עצמה
+              const folderRef = window.fs.doc(window.db, "sharedFolders", delId);
+              await window.fs.deleteDoc(folderRef);
+              console.log("✅ Folder deleted from Firestore");
+              // מחק את כל המסמכים המשותפים בתיקייה
+              const sharedDocsCol = window.fs.collection(window.db, "sharedDocs");
+              const q = window.fs.query(sharedDocsCol, window.fs.where("folderId", "==", delId));
+              const snap = await window.fs.getDocs(q);
+              const deletePromises = [];
+              snap.forEach(doc => {
+                deletePromises.push(window.fs.deleteDoc(doc.ref));
+              });
+              await Promise.all(deletePromises);
+              console.log(`✅ Deleted ${deletePromises.length} shared docs`);
+            } else {
+              console.warn("⚠️ Firebase not available, deleting only locally");
+            }
+            // מחיקה מקומית
+            if (typeof deleteSharedFolderEverywhere === "function") {
+              deleteSharedFolderEverywhere(delId);
+            } else {
+              // Fallback: מחיקה רק אצלי
+              delete me.sharedFolders[delId];
+              for (const d of (allUsersData[userNow].docs || [])) {
+                if (d.sharedFolderId === delId) d.sharedFolderId = null;
+              }
+              saveAllUsersDataToStorage(allUsersData);
+            }
+            // רענן את window.mySharedFolders
+            if (typeof loadSharedFolders === "function") {
+              const folders = await loadSharedFolders();
+              window.mySharedFolders = folders;
+              saveSharedFoldersToCache(folders);
+              console.log("✅ Reloaded shared folders after deletion");
+            }
+            hideLoading();
+            showNotification("התיקייה נמחקה. המסמכים נשארו בארכיונים של בעליהם. ✅");
+            renderSharedFoldersList();
+          } catch (err) {
+            console.error("❌ Delete failed:", err);
+            hideLoading();
+            showNotification("שגיאה במחיקת התיקייה: " + err.message, true);
           }
-          saveAllUsersDataToStorage(allUsersData);
         }
-        // רענן את window.mySharedFolders
-        if (typeof loadSharedFolders === "function") {
-          const folders = await loadSharedFolders();
-          window.mySharedFolders = folders;
-          saveSharedFoldersToCache(folders);
-          console.log("✅ Reloaded shared folders after deletion");
-        }
-        hideLoading();
-        showNotification("התיקייה נמחקה. המסמכים נשארו בארכיונים של בעליהם. ✅");
-        renderSharedFoldersList();
-      } catch (err) {
-        console.error("❌ Delete failed:", err);
-        hideLoading();
-        showNotification("שגיאה במחיקת התיקייה: " + err.message, true);
-      }
+      );
       return;
     }
   });
@@ -7116,9 +7115,9 @@ function buildProfileCard(profile) {
 
     showConfirm(
       `למחוק את הפרופיל "${profile.fullName}"?`,
-      () => {
-        deleteProfile(profile.id);
-        openProfilesView();
+      async () => {
+        await deleteProfile(profile.id);
+        await openProfilesView();
       }
     );
   });
@@ -7545,8 +7544,14 @@ async function handleProfileInvite(invite, accepted) {
           sharedFromEmail: invite.profileOwner || invite.from || null
         };
         profiles.push(newProfile);
-        if (typeof saveProfiles === "function") {
-          saveProfiles(profiles);
+        
+        // ✅ המתן לסנכרון לפני שממשיך
+        try {
+          await saveProfilesToFirestore(profiles);
+          localStorage.setItem(getProfilesStorageKey(), JSON.stringify(profiles || []));
+          console.log("✅ New profile added and synced");
+        } catch (e) {
+          console.warn("⚠️ Failed to save new profile:", e);
         }
       }
 
@@ -7566,7 +7571,7 @@ async function handleProfileInvite(invite, accepted) {
 
     // רענון מסך פרופילים
     if (typeof openProfilesView === "function") {
-      openProfilesView();
+      await openProfilesView();
     }
   } catch (err) {
     console.error("❌ handleProfileInvite error:", err);
@@ -7928,7 +7933,7 @@ function initProfileModalEvents() {
   // שמירה
   // שמירה
   if (saveBtn) {
-    saveBtn.addEventListener("click", () => {
+    saveBtn.addEventListener("click", async () => {
       const nameInput  = document.getElementById("profileFullName");
       const idInput    = document.getElementById("profileIdNumber");
       const birthInput = document.getElementById("profileBirthDate");
@@ -7980,12 +7985,20 @@ function initProfileModalEvents() {
         profiles.push(profile);
       }
 
-      saveProfiles(profiles);
+      // ✅ המתן לסנכרון לפני שממשיך
+      try {
+        await saveProfilesToFirestore(profiles);
+        localStorage.setItem(getProfilesStorageKey(), JSON.stringify(profiles || []));
+        console.log("✅ Profile saved and synced");
+      } catch (e) {
+        console.warn("⚠️ Failed to save profile:", e);
+      }
+      
       closeProfileModal();
 
       // רענון מסך הפרופילים
       if (typeof openProfilesView === "function") {
-        openProfilesView();
+        await openProfilesView();
       }
     });
   }
@@ -8002,14 +8015,22 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-function deleteProfile(profileId) {
+async function deleteProfile(profileId) {
   const profiles = loadProfiles();
   const updated = profiles.filter(p => p.id !== profileId);
-  saveProfiles(updated);
+  
+  // ✅ חכה לסנכרון לפני שממשיך
+  try {
+    await saveProfilesToFirestore(updated);
+    localStorage.setItem(getProfilesStorageKey(), JSON.stringify(updated || []));
+    console.log("✅ Profile deleted and synced");
+  } catch (e) {
+    console.warn("⚠️ Failed to save profiles:", e);
+  }
 
   // אם אנחנו במסך פרופילים – נרענן
   if (typeof openProfilesView === "function") {
-    openProfilesView();
+    await openProfilesView();
   }
 }
 
