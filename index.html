@@ -3319,6 +3319,128 @@ body::-webkit-scrollbar-thumb:hover,
     box-shadow: 0 6px 12px rgb(13 12 4 / 62%);
     position: relative;
 }
+
+
+
+
+
+/* === Edit Modal Base === */
+
+#editModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  font-family: 'Rubik', system-ui, sans-serif;
+}
+
+.edit-modal-panel {
+  background: var(--bg-card);
+  color: var(--text-dark);
+  min-width: 320px;
+  max-width: 90vw;
+  width: 400px;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.4);
+  padding: 1rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.edit-modal-title {
+  margin: 0;
+  font-size: .9rem;
+  font-weight: 600;
+  color: #000;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  font-size: .8rem;
+}
+
+.edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-form input {
+  width: 100%;
+  padding: .4rem;
+  border-radius: 6px;
+  border: 1px solid #bbb;
+  font-family: inherit;
+  font-size: .8rem;
+}
+
+.edit-buttons-row {
+  display: flex;
+  gap: .5rem;
+  margin-top: .75rem;
+  justify-content: flex-end;
+}
+
+.edit-btn {
+  border: 0;
+  border-radius: 6px;
+  font-weight: 600;
+  padding: .5rem .75rem;
+  cursor: pointer;
+  font-family: 'Rubik', system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
+}
+
+/* כפתורים בבירור (מצב רגיל) */
+.edit-btn-cancel {
+  background: #a83737;
+  color: #fff;
+}
+
+.edit-btn-save {
+  background: #60683f;
+  color: #fff;
+}
+
+/* === Dark Mode for Edit Modal === */
+
+.theme-dark #editModal {
+  background: rgba(0,0,0,.7);
+}
+
+.theme-dark .edit-modal-panel {
+  background: #1e2128;
+  color: #e4e6eb;
+}
+
+.theme-dark .edit-modal-title {
+  color: #e4e6eb;
+}
+
+.theme-dark .edit-form input {
+  background: #1a1d23;
+  border-color: rgba(255,255,255,0.16);
+  color: #e4e6eb;
+}
+
+.theme-dark .edit-form input::placeholder {
+  color: rgba(228,230,235,0.5);
+}
+
+.theme-dark .edit-btn-cancel {
+  background: #b34747;
+}
+
+.theme-dark .edit-btn-save {
+  background: #4a9470;
+}
+
   </style>
 </head>
 
@@ -3750,119 +3872,74 @@ body::-webkit-scrollbar-thumb:hover,
   </div>
 
 
-  <!-- עורך מסמך -->
 <!-- עורך מסמך -->
-<div id="editModal" class="hidden" style="
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  font-family: 'Rubik', system-ui, sans-serif;
-">
-  <div style="
-    background: #e1e3d5;
-    color: #131e07;
-    min-width: 320px;
-    max-width: 90vw;
-    width: 400px;
-    border-radius: 12px;
-    box-shadow: 0 20px 40px rgba(0,0,0,.4);
-    padding: 1rem 1rem 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: .75rem;
-  ">
+<div id="editModal" class="hidden">
+  <div class="edit-modal-panel">
 
-    <h2 style="margin:0; font-size:.9rem; font-weight:600; color:#000;">
+    <h2 class="edit-modal-title">
       עריכת פרטי המסמך
     </h2>
 
-    <form id="editForm" style="display:flex; flex-direction:column; gap:.5rem; font-size:.8rem; background-color: #e1e3d5;">
+    <form id="editForm" class="edit-form">
 
       <label>
         שם קובץ:
-        <input id="edit_title" type="text" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_title" type="text">
       </label>
 
       <label>
         ארגון:
-        <input id="edit_org" type="text" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_org" type="text">
       </label>
 
       <label>
         שנה:
-        <input id="edit_year" type="number" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_year" type="number">
       </label>
 
       <label>
         שייך ל (מופרד בפסיקים):
-        <input id="edit_recipient" type="text" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_recipient" type="text">
       </label>
 
       <label>
         תאריך קנייה / התחלה (yyyy-mm-dd):
-        <input id="edit_warrantyStart" type="date" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_warrantyStart" type="date">
       </label>
 
       <label>
         תוקף אחריות עד (yyyy-mm-dd):
-        <input id="edit_warrantyExpiresAt" type="date" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_warrantyExpiresAt" type="date">
       </label>
 
       <label>
         מחיקה אוטומטית אחרי (yyyy-mm-dd):
-        <input id="edit_autoDeleteAfter" type="date" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_autoDeleteAfter" type="date">
       </label>
 
       <label>
         קטגוריה:
-        <input id="edit_category" type="text" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_category" type="text">
       </label>
 
       <label>
         שותף עם (אימיילים בפסיקים):
-        <input id="edit_sharedWith" type="text" style="width:100%; padding:.4rem; border-radius:6px; border:1px solid #bbb;">
+        <input id="edit_sharedWith" type="text">
       </label>
 
-      <div style="display:flex; gap:.5rem; margin-top:.75rem; justify-content:flex-end;">
-        <button type="button" id="editCancelBtn"
-  style="
-    background:#a83737;
-    color:#fff;
-    border:0;
-    border-radius:6px;
-    font-weight:600;
-    padding:.5rem .75rem;
-    cursor:pointer;
-    font-family: 'Rubik', system-ui, -apple-system, BlinkMacSystemFont,
-      'Segoe UI', Roboto, sans-serif;
-  ">
-  ביטול
-</button>
+      <div class="edit-buttons-row">
+        <button type="button" id="editCancelBtn" class="edit-btn edit-btn-cancel">
+          ביטול
+        </button>
 
-
-        <button type="submit" id="editSaveBtn"
-  style="
-    background:#60683f;
-    color:#fff;
-    border:0;
-    border-radius:6px;
-    font-weight:600;
-    padding:.5rem .75rem;
-    cursor:pointer;
-    font-family: 'Rubik', system-ui, -apple-system, BlinkMacSystemFont,
-      'Segoe UI', Roboto, sans-serif;
-  ">
-  שמירה
-</button>
-
+        <button type="submit" id="editSaveBtn" class="edit-btn edit-btn-save">
+          שמירה
+        </button>
       </div>
     </form>
   </div>
 </div>
+
 
 
 
