@@ -2039,12 +2039,17 @@ body.dark-mode .sidebar {
   color: #142220;
   border: 1px solid #2b3c3c;
   border-radius: 10px;
-  padding: .42rem .6rem;
+  padding: .52rem 0.68rem;
+          font-family: "Rubik", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
   font-size: .78rem;
   cursor: pointer;
   white-space: nowrap;
 }
 
+.theme-dark .btn-min {
+  background: #ffffffc7;
+}
 .btn-min:hover {
   background: #e1e3d5;
 }
@@ -2075,6 +2080,28 @@ body.dark-mode .sidebar {
   margin-top: 14px;
 }
 
+
+.theme-dark .pending-wrap {
+  background: #092114;
+  color: #555653;
+  border: 1px solid #243030;
+}
+
+.theme-dark .cozy-head {
+  background: #092114;
+  color: #555653;
+  border: 1px solid #243030;
+}
+
+.theme-dark .sf-card {
+  background: #07170c;
+  color: #555653;
+  border: 1px solid #243030;
+}
+
+.theme-dark .sf-ico {
+  background: #5c635603;
+}
 /* Container ראשי - ממורכז באמצע */
 .shared-container {
   max-width: 900px;
@@ -3450,18 +3477,15 @@ body::-webkit-scrollbar-thumb:hover,
 
 
 .theme-dark #sortSelect {
-  background: #262b32 !important;
+background: var(--bg-card);
   border-color: #444 !important;
   color: #e4e6eb !important;
 }
 
 .theme-dark #sortSelect option {
-  background: #1e2128 !important;
+background: var(--bg-card);
   color: #e4e6eb !important;
 }
-
-
-
 
 
 /* בסיס */
@@ -3470,7 +3494,7 @@ body::-webkit-scrollbar-thumb:hover,
   font-size: .75rem;
   padding: .4rem .5rem;
   border-radius: 12px;
-background: rgb(3 4 4 / 85%);
+background: var(--bg-card);
   border: 1px solid #999;
   color: #1a1a1a;
   cursor: pointer;

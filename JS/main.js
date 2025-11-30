@@ -4250,12 +4250,12 @@ async function renderPending() {
       membersBar.className = "cozy-head";
       membersBar.innerHTML = `
   <h3 style="margin:0 padding-left:10px;">משתתפים</h3>
-  <div style="display:flex;gap:8px; align-items:center;flex-wrap:wrap;width:100%;">
+  <div style="display:flex;gap:8px;padding-right: 0.8rem;align-items:center;flex-wrap:wrap;width:100%;">
     
     <input id="detail_inv_email" placeholder="הוסף מייל לשיתוף"
       style="
         padding:.5rem;
-        border:1px solid #2b3c3c;
+        border:1px solid #0a0f0d;
         border-radius:10px;
         background:#d7d7c7;
         color:#000;
