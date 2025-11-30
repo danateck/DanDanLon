@@ -4279,7 +4279,8 @@ async function renderPending() {
        const searchBar = document.getElementById("categorySearch");
       if (searchBar) {
         searchBar.style.display = "";
-        searchBar.value = "";
+        // ❌ לא מנקים את הערך! כדי שאפשר יהיה להקליד
+        // searchBar.value = "";
         const searchWrapper = searchBar.closest('.search-wrapper');
         if (searchWrapper) searchWrapper.style.display = "";
       }
@@ -7880,7 +7881,8 @@ function openProfileCategoryDocs(profile, categoryName) {
   const searchInput = document.getElementById("categorySearch");
   if (searchInput) {
     searchInput.style.display = "";
-    searchInput.value = "";
+    // ❌ לא מנקים את הערך! כדי שאפשר יהיה להקליד
+    // searchInput.value = "";
     const searchWrapper = searchInput.closest('.search-wrapper');
     if (searchWrapper) searchWrapper.style.display = "";
   }
@@ -8354,7 +8356,8 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         const searchInput = document.getElementById("categorySearch");
         if (searchInput) {
           searchInput.style.display = "";
-          searchInput.value = "";
+          // ❌ לא מנקים כדי שאפשר להקליד
+          // searchInput.value = "";
           const searchWrapper = searchInput.closest('.search-wrapper');
           if (searchWrapper) searchWrapper.style.display = "";
           console.log("✅ שורת חיפוש הוצגה בתיקייה של פרופיל");
@@ -8430,7 +8433,8 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         const searchInput = document.getElementById("categorySearch");
         if (searchInput) {
           searchInput.style.display = "";
-          searchInput.value = "";
+          // ❌ לא מנקים כדי שאפשר להקליד
+          // searchInput.value = "";
           const searchWrapper = searchInput.closest('.search-wrapper');
           if (searchWrapper) searchWrapper.style.display = "";
           console.log("✅ שורת חיפוש הוצגה בתיקייה משותפת");
