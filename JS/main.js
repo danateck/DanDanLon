@@ -2801,6 +2801,9 @@ window.openSharedView = function() {
   if (searchInput) {
     // באחסון משותף לא רוצים חיפוש במסמכים
     searchInput.style.display = "none";
+    // הסתרת גם ה-wrapper
+    const searchWrapper = searchInput.closest('.search-wrapper');
+    if (searchWrapper) searchWrapper.style.display = "none";
   }
   console.log("🤝 Opening shared view");
   const categoryTitle = document.getElementById("categoryTitle");
@@ -2809,7 +2812,11 @@ window.openSharedView = function() {
   const categoryView = document.getElementById("categoryView");
 
    const searchBar = document.getElementById("categorySearch");
-  if (searchBar) searchBar.style.display = "none";
+  if (searchBar) {
+    searchBar.style.display = "none";
+    const searchWrapper2 = searchBar.closest('.search-wrapper');
+    if (searchWrapper2) searchWrapper2.style.display = "none";
+  }
 
   if (!categoryTitle || !docsList) {
     console.error("❌ Shared view elements not found");
@@ -4056,6 +4063,8 @@ openSharedView = function() {
   if (searchInput) {
     // באחסון משותף לא רוצים חיפוש במסמכים
     searchInput.style.display = "none";
+    const searchWrapper = searchInput.closest('.search-wrapper');
+    if (searchWrapper) searchWrapper.style.display = "none";
   }
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
@@ -4238,7 +4247,11 @@ async function renderPending() {
 
 
        const searchBar = document.getElementById("categorySearch");
-      if (searchBar) searchBar.style.display = "none";
+      if (searchBar) {
+        searchBar.style.display = "none";
+        const searchWrapper = searchBar.closest('.search-wrapper');
+        if (searchWrapper) searchWrapper.style.display = "none";
+      }
 
       
       // 🧭 עדכן URL עם ?sharedFolder=...
@@ -7578,6 +7591,8 @@ window.openProfilesView = async function() {
     searchInput.value = "";
     searchInput.style.display = "none";      // מסתיר
     window.currentSearchTerm = "";           // מנקה את החיפוש הגלובלי
+    const searchWrapper = searchInput.closest('.search-wrapper');
+    if (searchWrapper) searchWrapper.style.display = "none";
   }
 
   // 🔥 טעינה מFirestore (מסונכרן!)
@@ -7670,6 +7685,8 @@ function openProfileCategories(profileId) {
   if (searchInput) {
     // בפרופילים לא רוצים חיפוש במסמכים
     searchInput.style.display = "none";
+    const searchWrapper = searchInput.closest('.search-wrapper');
+    if (searchWrapper) searchWrapper.style.display = "none";
   }
 
   categoryTitle.textContent = `פרופיל: ${profile.fullName}`;
@@ -8149,6 +8166,8 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         if (searchInput) {
           searchInput.style.display = "none";
           searchInput.value = "";
+          const searchWrapper = searchInput.closest('.search-wrapper');
+          if (searchWrapper) searchWrapper.style.display = "none";
           console.log("✅ שורת חיפוש הוסתרה בפרופילים");
         }
         
