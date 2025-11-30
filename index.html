@@ -3503,7 +3503,9 @@ background: var(--bg-card);
 }
 
 
-
+.theme-dark .doc-open-link{
+      background: #387457 !important;
+}
 
 
 /* === מצב כהה לשורת "הוסף מייל לשיתוף" === */
@@ -3515,6 +3517,60 @@ background: var(--bg-card);
 .theme-dark #detail_inv_email::placeholder {
   color: rgba(228, 230, 235, 0.5) !important;
 }
+
+
+
+
+/* ==== מצב כהה למודל הוספת פרופיל ==== */
+
+.theme-dark #profileModalBackdrop {
+  background: rgba(0,0,0,0.6) !important;
+}
+
+.theme-dark #profileModalBackdrop .modal-panel {
+  background: #1e2128 !important;
+  color: #e4e6eb !important;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6) !important;
+}
+
+.theme-dark #profileModalBackdrop h2 {
+  color: #e4e6eb !important;
+}
+
+.theme-dark #profileModalBackdrop input[type="text"],
+.theme-dark #profileModalBackdrop input[type="date"],
+.theme-dark #profileModalBackdrop input[type="file"] {
+  background: #13161b !important;
+  border-color: #3a3f47 !important;
+  color: #e4e6eb !important;
+}
+
+.theme-dark #profileModalBackdrop input::placeholder {
+  color: rgba(228,230,235,0.5) !important;
+}
+
+.theme-dark #profileModalBackdrop #profilePhotoPreview {
+  border-color: #6a7dfb !important;
+  color: #fff !important;
+  background: #2a2e36 !important;
+}
+
+.theme-dark #profileModalBackdrop button {
+  color: #e4e6eb !important;
+}
+
+/* כפתור ביטול */
+.theme-dark #profileModalCancelBtn {
+  background: #3a3f47 !important;
+}
+
+/* כפתור שמירה */
+.theme-dark #profileModalSaveBtn {
+  background: #4b6bfb !important;
+  color: #fff !important;
+}
+
 
 
   </style>
