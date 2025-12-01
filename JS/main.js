@@ -5920,7 +5920,8 @@ async function uploadScannedPdf() {
       format: "a4",
     });
 
-    scannedPages.forEach((page, idx) => {
+    for (let idx = 0; idx < scannedPages.length; idx++) {
+      const page = scannedPages[idx];
       if (idx > 0) pdf.addPage();
       // תמיכה גם ב-string וגם באובייקט עם dataUrl
       const pageDataUrl = typeof page === 'string' ? page : page.dataUrl;
@@ -5941,30 +5942,64 @@ async function uploadScannedPdf() {
 
       pdf.addImage(pageDataUrl, "JPEG", x, y, imgWidth, imgHeight);
       
-      // ✅ הוספת לוגו NestyFile בפינה התחתונה
-      // טוען את הלוגו מהתיקייה
-      const logoPath = "assests/icons/logo.png";
+      // ✅ יצירת סימן מים מקצועי עם לוגו + טקסט
+      const watermarkCanvas = document.createElement('canvas');
+      watermarkCanvas.width = 300;
+      watermarkCanvas.height = 80;
+      const wctx = watermarkCanvas.getContext('2d');
       
-      // גודל הלוגו - 60x60 (גדול!)
-      const logoSize = 60;
-      const logoX = pdfWidth - logoSize - 20; // 20pt מהקצה
-      const logoY = pdfHeight - logoSize - 20; // 20pt מהתחתית
+      // רקע שקוף
+      wctx.clearRect(0, 0, watermarkCanvas.width, watermarkCanvas.height);
       
-      try {
-        pdf.addImage(logoPath, "PNG", logoX, logoY, logoSize, logoSize, undefined, 'NONE');
-      } catch (e) {
-        console.warn("לא הצלחתי לטעון את הלוגו:", e);
-      }
+      // טעינת הלוגו
+      const logoImg = new Image();
+      logoImg.crossOrigin = "anonymous";
+      logoImg.src = "assests/icons/logo.png";
       
-      // טקסט "NestyFile" ליד הלוגו - גדול יותר!
-      pdf.setFontSize(16); // גודל טקסט גדול
-      pdf.setTextColor(60, 60, 60); // אפור כהה
-      const logoText = "NestyFile";
-      const textWidth = pdf.getTextWidth(logoText);
-      const textX = logoX - textWidth - 8; // 8pt משמאל ללוגו
-      const textY = logoY + (logoSize / 2) + 5; // מרכז אנכי של הלוגו
-      pdf.text(logoText, textX, textY);
-    });
+      await new Promise((resolve) => {
+        logoImg.onload = () => {
+          // שקיפות כללית
+          wctx.globalAlpha = 0.3; // 30% שקיפות - שקוף נעים!
+          
+          // מציירים את הלוגו בצד ימין (כי אנחנו ב-RTL)
+          const logoSize = 50;
+          const logoX = watermarkCanvas.width - logoSize - 10;
+          const logoY = (watermarkCanvas.height - logoSize) / 2;
+          wctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+          
+          // טקסט NestyFile בצד שמאל של הלוגו עם פונט Google
+          wctx.font = "bold 28px 'Heebo', 'Rubik', Arial, sans-serif"; // פונט Google Heebo
+          wctx.fillStyle = "#2c3e50"; // צבע אפור-כחלחל
+          wctx.textAlign = "right";
+          wctx.textBaseline = "middle";
+          
+          const textX = logoX - 15; // 15pt משמאל ללוגו
+          const textY = watermarkCanvas.height / 2;
+          wctx.fillText("NestyFile", textX, textY);
+          
+          resolve();
+        };
+        logoImg.onerror = () => {
+          // אם הלוגו לא נטען, רק טקסט
+          wctx.globalAlpha = 0.3;
+          wctx.font = "bold 28px 'Heebo', 'Rubik', Arial, sans-serif";
+          wctx.fillStyle = "#2c3e50";
+          wctx.textAlign = "center";
+          wctx.textBaseline = "middle";
+          wctx.fillText("NestyFile", watermarkCanvas.width / 2, watermarkCanvas.height / 2);
+          resolve();
+        };
+      });
+      
+      // המרה ל-dataURL והוספה ל-PDF
+      const watermarkDataUrl = watermarkCanvas.toDataURL('image/png');
+      const wmWidth = 150; // גודל בעמוד
+      const wmHeight = 40;
+      const wmX = pdfWidth - wmWidth - 30; // 30pt מהקצה הימני
+      const wmY = pdfHeight - wmHeight - 30; // 30pt מהתחתית
+      
+      pdf.addImage(watermarkDataUrl, "PNG", wmX, wmY, wmWidth, wmHeight);
+    }
 
     const blob = pdf.output("blob");
     const fileName = `scan_${new Date().toISOString().replace(/[:.]/g, "-")}.pdf`;
@@ -9124,7 +9159,7 @@ if (!window.openSharedFolder) {
 
 
 
-// ✨ משפר "סריקה" של תמונה – מלבין ומחדד
+// ✨ משפר "סריקה" של תמונה – מלבין ומחדד (אדפטיבי)
 async function enhanceScanImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -9138,11 +9173,33 @@ async function enhanceScanImage(file) {
       // שלב 1: מציירים את התמונה המקורית
       ctx.drawImage(img, 0, 0);
 
-      // שלב 2: עיבוד פיקסלים להפיכה לסריקה מקצועית
+      // שלב 2: עיבוד פיקסלים אדפטיבי
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      // עוברים על כל פיקסל
+      // 📊 בודקים את בהירות הרקע הממוצעת (דגימה של 10% מהפיקסלים)
+      let totalBrightness = 0;
+      let sampleCount = 0;
+      for (let i = 0; i < data.length; i += 40) { // דוגמים כל 10 פיקסלים
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        totalBrightness += gray;
+        sampleCount++;
+      }
+      const avgBrightness = totalBrightness / sampleCount;
+
+      // 🎯 בוחרים רמת עיבוד לפי הבהירות הממוצעת
+      let processingMode;
+      if (avgBrightness > 200) {
+        processingMode = "light"; // תמונה כבר בהירה - עיבוד מינימלי
+      } else if (avgBrightness > 150) {
+        processingMode = "medium"; // עיבוד בינוני
+      } else {
+        processingMode = "aggressive"; // תמונה כהה - עיבוד אגרסיבי
+      }
+
+      console.log(`📸 Scan processing mode: ${processingMode} (avg brightness: ${avgBrightness.toFixed(1)})`);
+
+      // עיבוד הפיקסלים לפי המצב
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
@@ -9151,32 +9208,55 @@ async function enhanceScanImage(file) {
         // המרה לגווני אפור (grayscale)
         const gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
-        // סף (threshold) אגרסיבי: כל מה שמעל 180 הופך ללבן טהור (255)
-        // כל מה שמתחת - נהיה כהה יותר
         let newValue;
-        if (gray > 180) {
-          newValue = 255; // רקע לבן טהור
-        } else if (gray > 120) {
-          // אזור אמצע - נדחף לבן
-          newValue = Math.min(255, gray * 1.5);
-        } else {
-          // טקסט/קווים כהים - נחדד לשחור
-          newValue = Math.max(0, gray * 0.6);
+        
+        if (processingMode === "light") {
+          // עיבוד קל - רק קונטרסט עדין
+          if (gray > 220) {
+            newValue = 255;
+          } else if (gray > 160) {
+            newValue = Math.min(255, gray * 1.15); // הבהרה עדינה
+          } else if (gray > 80) {
+            newValue = gray; // לא נוגעים באמצע
+          } else {
+            newValue = Math.max(0, gray * 0.85); // החשכה עדינה
+          }
+        } else if (processingMode === "medium") {
+          // עיבוד בינוני
+          if (gray > 190) {
+            newValue = 255;
+          } else if (gray > 140) {
+            newValue = Math.min(255, gray * 1.3);
+          } else if (gray > 90) {
+            newValue = gray * 1.05;
+          } else {
+            newValue = Math.max(0, gray * 0.75);
+          }
+        } else { // aggressive
+          // עיבוד אגרסיבי - לתמונות כהות
+          if (gray > 180) {
+            newValue = 255;
+          } else if (gray > 120) {
+            newValue = Math.min(255, gray * 1.5);
+          } else {
+            newValue = Math.max(0, gray * 0.65);
+          }
         }
 
         // מחליפים את כל הצבעים בערך החדש (שחור-לבן)
         data[i] = newValue;
         data[i + 1] = newValue;
         data[i + 2] = newValue;
-        // data[i + 3] זה alpha, לא נוגעים
       }
 
       // מחזירים את הפיקסלים המעובדים ל-canvas
       ctx.putImageData(imageData, 0, 0);
 
-      // שלב 3: עוד קצת חידוד ובהירות
-      ctx.filter = "contrast(1.4) brightness(1.1)";
-      ctx.drawImage(canvas, 0, 0);
+      // שלב 3: חידוד עדין בלבד (לא מוסיפים brightness נוסף)
+      if (processingMode !== "light") {
+        ctx.filter = "contrast(1.2)"; // קונטרסט עדין יותר
+        ctx.drawImage(canvas, 0, 0);
+      }
 
       // הופכים חזרה לקובץ חדש
       canvas.toBlob((blob) => {
@@ -9186,7 +9266,7 @@ async function enhanceScanImage(file) {
           { type: "image/jpeg" }
         );
         resolve(enhancedFile);
-      }, "image/jpeg", 0.95); // איכות גבוהה יותר
+      }, "image/jpeg", 0.95); // איכות גבוהה
     };
 
     img.src = URL.createObjectURL(file);
