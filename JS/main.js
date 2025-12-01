@@ -1436,12 +1436,6 @@ window.CATEGORY_KEYWORDS = {
     "תלושי משכורת": ["תלוש", "תלוש שכר", "תלוש משכורת", "משכורת חודשית"],
     "חשבוניות מס": ["חשבונית מס", "עצמאי", "פרילנס", "קבלה על שכר"]
   },
-  "עסק": {
-    "_main": ["עסק", "עסקי", "חברה", "עצמאי", "ע\"מ", "בע\"מ"],
-    "אישיים": ["אישי", "פרטי", "אישיים"],
-    "חשבוניות ספקים": ["חשבונית ספק", "ספקים", "תשלום לספק"],
-    "חשבוניות לקוחות": ["חשבונית ללקוח", "לקוחות", "תשלום מלקוח", "מכירה"]
-  },
   "בית": {
     "_main": ["בית", "דירה", "מגורים"],
     "חשמל": ["חשמל", "חברת החשמל", "קריאת מונה חשמל"],
@@ -2653,9 +2647,6 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
   const searchInput = document.getElementById("categorySearch");
   if (searchInput) {
     searchInput.style.display = "inline-block";
-    // להראות גם את ה-wrapper
-    const searchWrapper = searchInput.closest('.search-wrapper');
-    if (searchWrapper) searchWrapper.style.display = "";
   }
 
 
@@ -2810,9 +2801,6 @@ window.openSharedView = function() {
   if (searchInput) {
     // באחסון משותף לא רוצים חיפוש במסמכים
     searchInput.style.display = "none";
-    // הסתרת גם ה-wrapper
-    const searchWrapper = searchInput.closest('.search-wrapper');
-    if (searchWrapper) searchWrapper.style.display = "none";
   }
   console.log("🤝 Opening shared view");
   const categoryTitle = document.getElementById("categoryTitle");
@@ -2821,24 +2809,7 @@ window.openSharedView = function() {
   const categoryView = document.getElementById("categoryView");
 
    const searchBar = document.getElementById("categorySearch");
-  if (searchBar) {
-    searchBar.style.display = "none";
-    const searchWrapper2 = searchBar.closest('.search-wrapper');
-    if (searchWrapper2) searchWrapper2.style.display = "none";
-  }
-
-  // ✅ הסתר תתי תיקיות באחסון משותף
-  const subcategoriesBox = document.getElementById("subcategoriesBox");
-  if (subcategoriesBox) {
-    subcategoriesBox.style.display = "none";
-  }
-  
-  // ✅ הסתר את ה-bar של תתי התיקיות
-  const subfoldersBar = document.getElementById("subfoldersBar");
-  if (subfoldersBar) {
-    subfoldersBar.style.display = "none";
-    subfoldersBar.innerHTML = "";
-  }
+  if (searchBar) searchBar.style.display = "none";
 
   if (!categoryTitle || !docsList) {
     console.error("❌ Shared view elements not found");
@@ -4085,23 +4056,7 @@ openSharedView = function() {
   if (searchInput) {
     // באחסון משותף לא רוצים חיפוש במסמכים
     searchInput.style.display = "none";
-    const searchWrapper = searchInput.closest('.search-wrapper');
-    if (searchWrapper) searchWrapper.style.display = "none";
   }
-  
-  // ✅ הסתר תתי תיקיות באחסון משותף
-  const subcategoriesBox = document.getElementById("subcategoriesBox");
-  if (subcategoriesBox) {
-    subcategoriesBox.style.display = "none";
-  }
-  
-  // ✅ הסתר את ה-bar של תתי התיקיות
-  const subfoldersBar = document.getElementById("subfoldersBar");
-  if (subfoldersBar) {
-    subfoldersBar.style.display = "none";
-    subfoldersBar.innerHTML = "";
-  }
-  
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
@@ -4283,26 +4238,7 @@ async function renderPending() {
 
 
        const searchBar = document.getElementById("categorySearch");
-      if (searchBar) {
-        searchBar.style.display = "";
-        // ❌ לא מנקים את הערך! כדי שאפשר יהיה להקליד
-        // searchBar.value = "";
-        const searchWrapper = searchBar.closest('.search-wrapper');
-        if (searchWrapper) searchWrapper.style.display = "";
-      }
-
-      // ✅ הסתר תתי תיקיות
-      const subcategoriesBox = document.getElementById("subcategoriesBox");
-      if (subcategoriesBox) {
-        subcategoriesBox.style.display = "none";
-      }
-      
-      // ✅ הסתר את ה-bar של תתי התיקיות
-      const subfoldersBar = document.getElementById("subfoldersBar");
-      if (subfoldersBar) {
-        subfoldersBar.style.display = "none";
-        subfoldersBar.innerHTML = "";
-      }
+      if (searchBar) searchBar.style.display = "none";
 
       
       // 🧭 עדכן URL עם ?sharedFolder=...
@@ -4629,62 +4565,63 @@ uploadToSharedBtn.addEventListener("click", async () => {
     if (delId) {
       const folder = window.mySharedFolders?.find(f => f.id === delId);
       const fname = folder?.name || me.sharedFolders?.[delId]?.name || "תיקייה";
-      
       showConfirm(
-        `למחוק לצמיתות את התיקייה "${fname}"? (המסמכים לא יימחקו, רק ינותק השיוך)`,
-        async () => {
-          // ✅ הקוד של המחיקה רץ רק אם לחצו "אישור"
-          console.log("🗑️ Deleting folder:", { delId, fname });
-          showLoading("מוחק תיקייה...");
-          try {
-            // 🔥 מחיקה מ-Firestore
-            if (isFirebaseAvailable()) {
-              console.log("📡 Deleting from Firestore...");
-              // מחק את התיקייה עצמה
-              const folderRef = window.fs.doc(window.db, "sharedFolders", delId);
-              await window.fs.deleteDoc(folderRef);
-              console.log("✅ Folder deleted from Firestore");
-              // מחק את כל המסמכים המשותפים בתיקייה
-              const sharedDocsCol = window.fs.collection(window.db, "sharedDocs");
-              const q = window.fs.query(sharedDocsCol, window.fs.where("folderId", "==", delId));
-              const snap = await window.fs.getDocs(q);
-              const deletePromises = [];
-              snap.forEach(doc => {
-                deletePromises.push(window.fs.deleteDoc(doc.ref));
-              });
-              await Promise.all(deletePromises);
-              console.log(`✅ Deleted ${deletePromises.length} shared docs`);
-            } else {
-              console.warn("⚠️ Firebase not available, deleting only locally");
-            }
-            // מחיקה מקומית
-            if (typeof deleteSharedFolderEverywhere === "function") {
-              deleteSharedFolderEverywhere(delId);
-            } else {
-              // Fallback: מחיקה רק אצלי
-              delete me.sharedFolders[delId];
-              for (const d of (allUsersData[userNow].docs || [])) {
-                if (d.sharedFolderId === delId) d.sharedFolderId = null;
-              }
-              saveAllUsersDataToStorage(allUsersData);
-            }
-            // רענן את window.mySharedFolders
-            if (typeof loadSharedFolders === "function") {
-              const folders = await loadSharedFolders();
-              window.mySharedFolders = folders;
-              saveSharedFoldersToCache(folders);
-              console.log("✅ Reloaded shared folders after deletion");
-            }
-            hideLoading();
-            showNotification("התיקייה נמחקה. המסמכים נשארו בארכיונים של בעליהם. ✅");
-            renderSharedFoldersList();
-          } catch (err) {
-            console.error("❌ Delete failed:", err);
-            hideLoading();
-            showNotification("שגיאה במחיקת התיקייה: " + err.message, true);
-          }
+  `למחוק לצמיתות את התיקייה "${fname}"? (המסמכים לא יימחקו, רק ינותק השיוך)`,
+  () => {
+    // הקוד שהיה אמור לרוץ אם "כן"
+    deleteFolder(fname);  // או מה שהפונקציה שלך עושה
+  }
+);
+
+      console.log("🗑️ Deleting folder:", { delId, fname });
+      showLoading("מוחק תיקייה...");
+      try {
+        // 🔥 מחיקה מ-Firestore
+        if (isFirebaseAvailable()) {
+          console.log("📡 Deleting from Firestore...");
+          // מחק את התיקייה עצמה
+          const folderRef = window.fs.doc(window.db, "sharedFolders", delId);
+          await window.fs.deleteDoc(folderRef);
+          console.log("✅ Folder deleted from Firestore");
+          // מחק את כל המסמכים המשותפים בתיקייה
+          const sharedDocsCol = window.fs.collection(window.db, "sharedDocs");
+          const q = window.fs.query(sharedDocsCol, window.fs.where("folderId", "==", delId));
+          const snap = await window.fs.getDocs(q);
+          const deletePromises = [];
+          snap.forEach(doc => {
+            deletePromises.push(window.fs.deleteDoc(doc.ref));
+          });
+          await Promise.all(deletePromises);
+          console.log(`✅ Deleted ${deletePromises.length} shared docs`);
+        } else {
+          console.warn("⚠️ Firebase not available, deleting only locally");
         }
-      );
+        // מחיקה מקומית
+        if (typeof deleteSharedFolderEverywhere === "function") {
+          deleteSharedFolderEverywhere(delId);
+        } else {
+          // Fallback: מחיקה רק אצלי
+          delete me.sharedFolders[delId];
+          for (const d of (allUsersData[userNow].docs || [])) {
+            if (d.sharedFolderId === delId) d.sharedFolderId = null;
+          }
+          saveAllUsersDataToStorage(allUsersData);
+        }
+        // רענן את window.mySharedFolders
+        if (typeof loadSharedFolders === "function") {
+          const folders = await loadSharedFolders();
+          window.mySharedFolders = folders;
+          saveSharedFoldersToCache(folders);
+          console.log("✅ Reloaded shared folders after deletion");
+        }
+        hideLoading();
+        showNotification("התיקייה נמחקה. המסמכים נשארו בארכיונים של בעליהם. ✅");
+        renderSharedFoldersList();
+      } catch (err) {
+        console.error("❌ Delete failed:", err);
+        hideLoading();
+        showNotification("שגיאה במחיקת התיקייה: " + err.message, true);
+      }
       return;
     }
   });
@@ -5404,85 +5341,9 @@ function showScanCropEditor(file, onDone) {
 
       const scale = canvasW / img.width; // יחס תרגום תמונה→קנבס
 
-      // ✅ זיהוי קצוות אוטומטי - מנסה למצוא את המסמך בתמונה
-      function detectDocumentEdges() {
-        // יצירת canvas זמני לעיבוד
-        const tempCanvas = document.createElement('canvas');
-        const tempW = Math.min(400, img.width); // מקטינים לביצועים
-        const tempH = (img.height * tempW) / img.width;
-        tempCanvas.width = tempW;
-        tempCanvas.height = tempH;
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        // ציור התמונה מוקטנת
-        tempCtx.drawImage(img, 0, 0, tempW, tempH);
-        
-        try {
-          const imageData = tempCtx.getImageData(0, 0, tempW, tempH);
-          const data = imageData.data;
-          
-          // מציאת גבולות הצבע - אזור כהה מוקף ברקע בהיר
-          let minX = tempW, maxX = 0, minY = tempH, maxY = 0;
-          let foundEdge = false;
-          
-          const edgeMargin = tempW * 0.05; // 5% מהשוליים
-          const threshold = 120; // סף בהירות
-          
-          // סריקת שורות (Y)
-          for (let y = edgeMargin; y < tempH - edgeMargin; y += 2) {
-            let darkPixels = 0;
-            for (let x = edgeMargin; x < tempW - edgeMargin; x += 2) {
-              const i = (y * tempW + x) * 4;
-              const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-              if (brightness < threshold) darkPixels++;
-            }
-            // אם יש מספיק פיקסלים כהים, זה חלק מהמסמך
-            if (darkPixels > (tempW - 2 * edgeMargin) * 0.3) {
-              if (y < minY) minY = y;
-              if (y > maxY) maxY = y;
-              foundEdge = true;
-            }
-          }
-          
-          // סריקת עמודות (X)
-          for (let x = edgeMargin; x < tempW - edgeMargin; x += 2) {
-            let darkPixels = 0;
-            for (let y = edgeMargin; y < tempH - edgeMargin; y += 2) {
-              const i = (y * tempW + x) * 4;
-              const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-              if (brightness < threshold) darkPixels++;
-            }
-            if (darkPixels > (tempH - 2 * edgeMargin) * 0.3) {
-              if (x < minX) minX = x;
-              if (x > maxX) maxX = x;
-              foundEdge = true;
-            }
-          }
-          
-          if (foundEdge && maxX > minX && maxY > minY) {
-            // המרה חזרה לגודל המקורי
-            const scaleBack = img.width / tempW;
-            const padding = img.width * 0.02; // ריפוד קטן
-            
-            return {
-              x: Math.max(0, minX * scaleBack - padding),
-              y: Math.max(0, minY * scaleBack - padding),
-              w: Math.min(img.width, (maxX - minX) * scaleBack + padding * 2),
-              h: Math.min(img.height, (maxY - minY) * scaleBack + padding * 2)
-            };
-          }
-        } catch (e) {
-          console.warn('זיהוי קצוות אוטומטי נכשל:', e);
-        }
-        
-        // אם לא הצלחנו לזהות - חיתוך ברירת מחדל
-        return null;
-      }
-
       // cropRect נשמר ביחידות של התמונה (לא הקנבס)
-      const autoDetected = detectDocumentEdges();
       const marginFactor = 0.08; // חיתוך אוטומטי התחלתי
-      let cropRect = autoDetected || {
+      let cropRect = {
         x: img.width * marginFactor,
         y: img.height * marginFactor,
         w: img.width * (1 - 2 * marginFactor),
@@ -5741,37 +5602,6 @@ function showScanCropEditor(file, onDone) {
           octx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
         }
 
-        // ✅ עיבוד תמונה לסקן - רקע לבן וניגודיות גבוהה
-        const imageData = octx.getImageData(0, 0, outW, outH);
-        const data = imageData.data;
-        
-        // המרה לגווני אפור והגברת ניגודיות
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          
-          // המרה לגווני אפור
-          let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-          
-          // הגברת ניגודיות - פיקסלים בהירים יותר לבן, כהים יותר לשחור
-          const contrast = 1.3; // מקדם ניגודיות
-          const threshold = 128; // סף
-          gray = ((gray - threshold) * contrast) + threshold;
-          
-          // הבהרה כללית - הופך את הרקע ללבן יותר
-          gray = gray + 30;
-          
-          // חיתוך לטווח 0-255
-          gray = Math.max(0, Math.min(255, gray));
-          
-          data[i] = gray;
-          data[i + 1] = gray;
-          data[i + 2] = gray;
-        }
-        
-        octx.putImageData(imageData, 0, 0);
-
         const page = {
           dataUrl: outCanvas.toDataURL("image/jpeg", 0.95),
           width: outW,
@@ -5863,30 +5693,6 @@ async function uploadScannedPdf() {
       const y = (pdfHeight - imgHeight) / 2;
 
       pdf.addImage(page.dataUrl, "JPEG", x, y, imgWidth, imgHeight);
-      
-      // ✅ הוספת לוגו NestyFile בפינה התחתונה
-      // טוען את הלוגו מהתיקייה
-      const logoPath = "assests/icons/logo.png";
-      
-      // גודל הלוגו - 60x60 (גדול!)
-      const logoSize = 60;
-      const logoX = pdfWidth - logoSize - 20; // 20pt מהקצה
-      const logoY = pdfHeight - logoSize - 20; // 20pt מהתחתית
-      
-      try {
-        pdf.addImage(logoPath, "PNG", logoX, logoY, logoSize, logoSize, undefined, 'NONE');
-      } catch (e) {
-        console.warn("לא הצלחתי לטעון את הלוגו:", e);
-      }
-      
-      // טקסט "NestyFile" ליד הלוגו - גדול יותר!
-      pdf.setFontSize(16); // גודל טקסט גדול
-      pdf.setTextColor(60, 60, 60); // אפור כהה
-      const logoText = "NestyFile";
-      const textWidth = pdf.getTextWidth(logoText);
-      const textX = logoX - textWidth - 8; // 8pt משמאל ללוגו
-      const textY = logoY + (logoSize / 2) + 5; // מרכז אנכי של הלוגו
-      pdf.text(logoText, textX, textY);
     });
 
     const blob = pdf.output("blob");
@@ -5982,36 +5788,12 @@ if (scanModal) {
     categorySearch.addEventListener("input", (e) => {
       window.currentSearchTerm = e.target.value || "";
 
-      // בדוק איזה מסך פתוח ורענן אותו
+      // רק אם מסך קטגוריה פתוח – נרענן את הרשימה
       if (!categoryView.classList.contains("hidden") && categoryTitle) {
-        const currentTitle = categoryTitle.textContent;
-        
-        // בדוק אם זה תיקייה משותפת
-        const urlParams = new URLSearchParams(window.location.search);
-        const sharedFolderId = urlParams.get('sharedFolder');
-        
-        if (sharedFolderId && typeof window.openSharedFolder === 'function') {
-          // תיקייה משותפת ספציפית
-          window.openSharedFolder(sharedFolderId);
-        } else if (currentTitle.startsWith("פרופיל:")) {
-          // תיקייה של פרופיל - נמצא את הפרופיל והקטגוריה
-          const match = currentTitle.match(/פרופיל: (.+?) – (.+)/);
-          if (match) {
-            const profileName = match[1];
-            const categoryName = match[2];
-            const profiles = loadProfiles();
-            const profile = profiles.find(p => p.fullName === profileName);
-            if (profile && typeof openProfileCategoryDocs === 'function') {
-              openProfileCategoryDocs(profile, categoryName);
-            }
-          }
-        } else {
-          // תיקייה רגילה
-          window.openCategoryView(
-            currentTitle,
-            window.currentSubfolderFilter || null
-          );
-        }
+        window.openCategoryView(
+          categoryTitle.textContent,
+          window.currentSubfolderFilter || null
+        );
       }
     });
   }
@@ -7318,9 +7100,9 @@ function buildProfileCard(profile) {
 
     showConfirm(
       `למחוק את הפרופיל "${profile.fullName}"?`,
-      async () => {
-        await deleteProfile(profile.id);
-        await openProfilesView();
+      () => {
+        deleteProfile(profile.id);
+        openProfilesView();
       }
     );
   });
@@ -7747,14 +7529,8 @@ async function handleProfileInvite(invite, accepted) {
           sharedFromEmail: invite.profileOwner || invite.from || null
         };
         profiles.push(newProfile);
-        
-        // ✅ המתן לסנכרון לפני שממשיך
-        try {
-          await saveProfilesToFirestore(profiles);
-          localStorage.setItem(getProfilesStorageKey(), JSON.stringify(profiles || []));
-          console.log("✅ New profile added and synced");
-        } catch (e) {
-          console.warn("⚠️ Failed to save new profile:", e);
+        if (typeof saveProfiles === "function") {
+          saveProfiles(profiles);
         }
       }
 
@@ -7774,7 +7550,7 @@ async function handleProfileInvite(invite, accepted) {
 
     // רענון מסך פרופילים
     if (typeof openProfilesView === "function") {
-      await openProfilesView();
+      openProfilesView();
     }
   } catch (err) {
     console.error("❌ handleProfileInvite error:", err);
@@ -7802,21 +7578,6 @@ window.openProfilesView = async function() {
     searchInput.value = "";
     searchInput.style.display = "none";      // מסתיר
     window.currentSearchTerm = "";           // מנקה את החיפוש הגלובלי
-    const searchWrapper = searchInput.closest('.search-wrapper');
-    if (searchWrapper) searchWrapper.style.display = "none";
-  }
-
-  // ✅ הסתר תתי תיקיות בפרופילים
-  const subcategoriesBox = document.getElementById("subcategoriesBox");
-  if (subcategoriesBox) {
-    subcategoriesBox.style.display = "none";
-  }
-  
-  // ✅ הסתר את ה-bar של תתי התיקיות
-  const subfoldersBar = document.getElementById("subfoldersBar");
-  if (subfoldersBar) {
-    subfoldersBar.style.display = "none";
-    subfoldersBar.innerHTML = "";
   }
 
   // 🔥 טעינה מFirestore (מסונכרן!)
@@ -7909,8 +7670,6 @@ function openProfileCategories(profileId) {
   if (searchInput) {
     // בפרופילים לא רוצים חיפוש במסמכים
     searchInput.style.display = "none";
-    const searchWrapper = searchInput.closest('.search-wrapper');
-    if (searchWrapper) searchWrapper.style.display = "none";
   }
 
   categoryTitle.textContent = `פרופיל: ${profile.fullName}`;
@@ -8014,34 +7773,11 @@ function openProfileCategoryDocs(profile, categoryName) {
   const categoryView  = document.getElementById("categoryView");
   if (!categoryTitle || !docsList) return;
 
-  // ✅ הצג שורת חיפוש
-  const searchInput = document.getElementById("categorySearch");
-  if (searchInput) {
-    searchInput.style.display = "";
-    // ❌ לא מנקים את הערך! כדי שאפשר יהיה להקליד
-    // searchInput.value = "";
-    const searchWrapper = searchInput.closest('.search-wrapper');
-    if (searchWrapper) searchWrapper.style.display = "";
-  }
-
-  // ✅ הסתר תתי תיקיות
-  const subcategoriesBox = document.getElementById("subcategoriesBox");
-  if (subcategoriesBox) {
-    subcategoriesBox.style.display = "none";
-  }
-  
-  // ✅ הסתר את ה-bar של תתי התיקיות
-  const subfoldersBar = document.getElementById("subfoldersBar");
-  if (subfoldersBar) {
-    subfoldersBar.style.display = "none";
-    subfoldersBar.innerHTML = "";
-  }
-
   categoryTitle.textContent = `פרופיל: ${profile.fullName} – ${categoryName}`;
   docsList.classList.remove("shared-mode");
   docsList.innerHTML = "";
 
-  let docs = (window.allDocsData || [])
+  const docs = (window.allDocsData || [])
     .filter(d => d.category === categoryName)
     .filter(d => Array.isArray(d.recipient))
     .filter(d => {
@@ -8052,33 +7788,6 @@ function openProfileCategoryDocs(profile, categoryName) {
       );
     })
     .filter(d => !d._trashed);
-
-  // 🔍 סינון לפי חיפוש
-  const searchTerm = (window.currentSearchTerm || "").trim();
-  if (searchTerm) {
-    const lower = searchTerm.toLowerCase();
-    docs = docs.filter(doc => {
-      const title    = (doc.title    || "").toLowerCase();
-      const fileName = (doc.fileName || "").toLowerCase();
-      const org      = (doc.org      || "").toLowerCase();
-      const year     = String(doc.year || "");
-      
-      let recipientText = "";
-      if (Array.isArray(doc.recipient)) {
-        recipientText = doc.recipient.join(",").toLowerCase();
-      } else if (doc.recipient) {
-        recipientText = String(doc.recipient).toLowerCase();
-      }
-
-      return (
-        title.includes(lower)       ||
-        fileName.includes(lower)    ||
-        org.includes(lower)         ||
-        year.includes(lower)        ||
-        recipientText.includes(lower)
-      );
-    });
-  }
 
   if (!docs.length) {
     docsList.innerHTML =
@@ -8199,7 +7908,7 @@ function initProfileModalEvents() {
   // שמירה
   // שמירה
   if (saveBtn) {
-    saveBtn.addEventListener("click", async () => {
+    saveBtn.addEventListener("click", () => {
       const nameInput  = document.getElementById("profileFullName");
       const idInput    = document.getElementById("profileIdNumber");
       const birthInput = document.getElementById("profileBirthDate");
@@ -8251,20 +7960,12 @@ function initProfileModalEvents() {
         profiles.push(profile);
       }
 
-      // ✅ המתן לסנכרון לפני שממשיך
-      try {
-        await saveProfilesToFirestore(profiles);
-        localStorage.setItem(getProfilesStorageKey(), JSON.stringify(profiles || []));
-        console.log("✅ Profile saved and synced");
-      } catch (e) {
-        console.warn("⚠️ Failed to save profile:", e);
-      }
-      
+      saveProfiles(profiles);
       closeProfileModal();
 
       // רענון מסך הפרופילים
       if (typeof openProfilesView === "function") {
-        await openProfilesView();
+        openProfilesView();
       }
     });
   }
@@ -8281,22 +7982,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-async function deleteProfile(profileId) {
+function deleteProfile(profileId) {
   const profiles = loadProfiles();
   const updated = profiles.filter(p => p.id !== profileId);
-  
-  // ✅ חכה לסנכרון לפני שממשיך
-  try {
-    await saveProfilesToFirestore(updated);
-    localStorage.setItem(getProfilesStorageKey(), JSON.stringify(updated || []));
-    console.log("✅ Profile deleted and synced");
-  } catch (e) {
-    console.warn("⚠️ Failed to save profiles:", e);
-  }
+  saveProfiles(updated);
 
   // אם אנחנו במסך פרופילים – נרענן
   if (typeof openProfilesView === "function") {
-    await openProfilesView();
+    openProfilesView();
   }
 }
 
@@ -8422,8 +8115,6 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         if (searchInput) {
           searchInput.style.display = "";
           searchInput.value = "";
-          const searchWrapper = searchInput.closest('.search-wrapper');
-          if (searchWrapper) searchWrapper.style.display = "";
           console.log("✅ שורת חיפוש הוצגה בסל מחזור");
         }
         
@@ -8458,8 +8149,6 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         if (searchInput) {
           searchInput.style.display = "none";
           searchInput.value = "";
-          const searchWrapper = searchInput.closest('.search-wrapper');
-          if (searchWrapper) searchWrapper.style.display = "none";
           console.log("✅ שורת חיפוש הוסתרה בפרופילים");
         }
         
@@ -8493,10 +8182,7 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         const searchInput = document.getElementById("categorySearch");
         if (searchInput) {
           searchInput.style.display = "";
-          // ❌ לא מנקים כדי שאפשר להקליד
-          // searchInput.value = "";
-          const searchWrapper = searchInput.closest('.search-wrapper');
-          if (searchWrapper) searchWrapper.style.display = "";
+          searchInput.value = "";
           console.log("✅ שורת חיפוש הוצגה בתיקייה של פרופיל");
         }
         
@@ -8570,10 +8256,7 @@ console.log("🔧 טוען תיקונים מעודכנים...");
         const searchInput = document.getElementById("categorySearch");
         if (searchInput) {
           searchInput.style.display = "";
-          // ❌ לא מנקים כדי שאפשר להקליד
-          // searchInput.value = "";
-          const searchWrapper = searchInput.closest('.search-wrapper');
-          if (searchWrapper) searchWrapper.style.display = "";
+          searchInput.value = "";
           console.log("✅ שורת חיפוש הוצגה בתיקייה משותפת");
         }
         
@@ -8781,94 +8464,3 @@ window.openFolderSelectionModal = function (docId) {
     }
   };
 };
-
-// ═══════════════════════════════════════════════════════════
-// 🆕 פונקציה שמציגה מסמכים בתיקייה משותפת ספציפית
-// ═══════════════════════════════════════════════════════════
-if (!window.openSharedFolder) {
-  window.openSharedFolder = async function(folderId) {
-    console.log("📂 Opening shared folder:", folderId);
-    
-    const categoryTitle = document.getElementById("categoryTitle");
-    const docsList = document.getElementById("docsList");
-    const homeView = document.getElementById("homeView");
-    const categoryView = document.getElementById("categoryView");
-    
-    if (!categoryTitle || !docsList) {
-      console.error("❌ Required elements not found");
-      return;
-    }
-    
-    try {
-      // מצא את שם התיקייה
-      const folder = window.mySharedFolders?.find(f => f.id === folderId);
-      const folderName = folder?.name || "תיקייה משותפת";
-      
-      categoryTitle.textContent = folderName;
-      docsList.classList.remove("shared-mode");
-      docsList.innerHTML = "<div style='padding:2rem;text-align:center;'>טוען מסמכים...</div>";
-      
-      // טען מסמכים מ-Firestore
-      if (!isFirebaseAvailable()) {
-        docsList.innerHTML = "<div style='padding:2rem;text-align:center;opacity:0.6;'>Firebase לא זמין</div>";
-        return;
-      }
-      
-      const col = window.fs.collection(window.db, "sharedDocs");
-      const q = window.fs.query(col, window.fs.where("folderId", "==", folderId));
-      const snap = await window.fs.getDocs(q);
-      
-      let docs = [];
-      snap.forEach(doc => {
-        docs.push(doc.data());
-      });
-      
-      // 🔍 סינון לפי חיפוש
-      const searchTerm = (window.currentSearchTerm || "").trim();
-      if (searchTerm) {
-        const lower = searchTerm.toLowerCase();
-        docs = docs.filter(doc => {
-          const title    = (doc.title    || "").toLowerCase();
-          const fileName = (doc.fileName || "").toLowerCase();
-          const org      = (doc.org      || "").toLowerCase();
-          const year     = String(doc.year || "");
-          
-          let recipientText = "";
-          if (Array.isArray(doc.recipient)) {
-            recipientText = doc.recipient.join(",").toLowerCase();
-          } else if (doc.recipient) {
-            recipientText = String(doc.recipient).toLowerCase();
-          }
-
-          return (
-            title.includes(lower)       ||
-            fileName.includes(lower)    ||
-            org.includes(lower)         ||
-            year.includes(lower)        ||
-            recipientText.includes(lower)
-          );
-        });
-      }
-      
-      docsList.innerHTML = "";
-      
-      if (docs.length === 0) {
-        docsList.innerHTML = searchTerm 
-          ? `<div style="padding:2rem;text-align:center;opacity:0.6;">לא נמצאו מסמכים התואמים את החיפוש "${searchTerm}"</div>`
-          : `<div style="padding:2rem;text-align:center;opacity:0.6;">אין מסמכים בתיקייה זו</div>`;
-      } else {
-        docs.forEach(doc => {
-          const card = typeof buildDocCard === "function" ? buildDocCard(doc) : null;
-          if (card) docsList.appendChild(card);
-        });
-      }
-      
-      if (homeView) homeView.classList.add("hidden");
-      if (categoryView) categoryView.classList.remove("hidden");
-      
-    } catch (error) {
-      console.error("❌ Error loading shared folder:", error);
-      docsList.innerHTML = `<div style="padding:2rem;text-align:center;opacity:0.6;">שגיאה בטעינת המסמכים: ${error.message}</div>`;
-    }
-  };
-}
