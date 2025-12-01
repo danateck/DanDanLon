@@ -8995,14 +8995,24 @@ window.openFolderSelectionModal = function (docId) {
 
   overlay.style.display = "flex";
 
+  // מצא את המסמך כדי לדעת מה התיקייה הנוכחית שלו
+  const doc = window.allDocsData?.find(d => d.id === docId);
+  const currentCategory = doc?.category || "אחר";
+  const currentSubCategory = doc?.subCategory || doc?.sub_category || null;
+
   // כל התיקיות הראשיות (קטגוריות)
   const mains = Object.keys(CATEGORY_KEYWORDS);
-  mainSel.innerHTML = mains.map(m => `<option value="${m}">${m}</option>`).join("");
+  mainSel.innerHTML = mains.map(m => `<option value="${m}" ${m === currentCategory ? 'selected' : ''}>${m}</option>`).join("");
 
   function loadSubs() {
     const chosen = mainSel.value;
     const subs = SUBFOLDERS_BY_CATEGORY[chosen] || [];
-    subSel.innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join("");
+    if (subs.length > 0) {
+      subSel.innerHTML = '<option value="">ללא תת-תיקייה</option>' + 
+                        subs.map(s => `<option value="${s}" ${s === currentSubCategory ? 'selected' : ''}>${s}</option>`).join("");
+    } else {
+      subSel.innerHTML = '<option value="">אין תתי-תיקיות</option>';
+    }
   }
 
   mainSel.onchange = loadSubs;
