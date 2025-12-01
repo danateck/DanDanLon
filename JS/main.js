@@ -9159,7 +9159,7 @@ if (!window.openSharedFolder) {
 
 
 
-// ✨ משפר "סריקה" של תמונה – מלבין ומחדד (אדפטיבי)
+// ✨ משפר "סריקה" של תמונה – מלבין ומחדד (גרסה שמרנית)
 async function enhanceScanImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -9173,33 +9173,23 @@ async function enhanceScanImage(file) {
       // שלב 1: מציירים את התמונה המקורית
       ctx.drawImage(img, 0, 0);
 
-      // שלב 2: עיבוד פיקסלים אדפטיבי
+      // שלב 2: עיבוד עדין בלבד - לא נאבד תוכן!
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      // 📊 בודקים את בהירות הרקע הממוצעת (דגימה של 10% מהפיקסלים)
-      let totalBrightness = 0;
-      let sampleCount = 0;
-      for (let i = 0; i < data.length; i += 40) { // דוגמים כל 10 פיקסלים
+      // 📊 ספירת פיקסלים בהירים ממש (רקע)
+      let veryBrightPixels = 0;
+      let totalPixels = data.length / 4;
+      
+      for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        totalBrightness += gray;
-        sampleCount++;
+        if (gray > 230) veryBrightPixels++;
       }
-      const avgBrightness = totalBrightness / sampleCount;
+      
+      const brightPercentage = (veryBrightPixels / totalPixels) * 100;
+      console.log(`📸 Bright pixels: ${brightPercentage.toFixed(1)}% - using conservative mode`);
 
-      // 🎯 בוחרים רמת עיבוד לפי הבהירות הממוצעת
-      let processingMode;
-      if (avgBrightness > 200) {
-        processingMode = "light"; // תמונה כבר בהירה - עיבוד מינימלי
-      } else if (avgBrightness > 150) {
-        processingMode = "medium"; // עיבוד בינוני
-      } else {
-        processingMode = "aggressive"; // תמונה כהה - עיבוד אגרסיבי
-      }
-
-      console.log(`📸 Scan processing mode: ${processingMode} (avg brightness: ${avgBrightness.toFixed(1)})`);
-
-      // עיבוד הפיקסלים לפי המצב
+      // 🎯 עיבוד שמרני - לא נהרוס תוכן!
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
@@ -9210,37 +9200,25 @@ async function enhanceScanImage(file) {
 
         let newValue;
         
-        if (processingMode === "light") {
-          // עיבוד קל - רק קונטרסט עדין
-          if (gray > 220) {
-            newValue = 255;
-          } else if (gray > 160) {
-            newValue = Math.min(255, gray * 1.15); // הבהרה עדינה
-          } else if (gray > 80) {
-            newValue = gray; // לא נוגעים באמצע
-          } else {
-            newValue = Math.max(0, gray * 0.85); // החשכה עדינה
-          }
-        } else if (processingMode === "medium") {
-          // עיבוד בינוני
-          if (gray > 190) {
-            newValue = 255;
-          } else if (gray > 140) {
-            newValue = Math.min(255, gray * 1.3);
-          } else if (gray > 90) {
-            newValue = gray * 1.05;
-          } else {
-            newValue = Math.max(0, gray * 0.75);
-          }
-        } else { // aggressive
-          // עיבוד אגרסיבי - לתמונות כהות
-          if (gray > 180) {
-            newValue = 255;
-          } else if (gray > 120) {
-            newValue = Math.min(255, gray * 1.5);
-          } else {
-            newValue = Math.max(0, gray * 0.65);
-          }
+        // ⚠️ CRITICAL: סף גבוה מאוד - רק רקע ממש לבן יהפוך ל-255
+        if (gray > 240) {
+          // רק פיקסלים ממש לבנים
+          newValue = 255;
+        } else if (gray > 200) {
+          // אפור בהיר - הבהרה עדינה בלבד
+          newValue = Math.min(255, gray + 15);
+        } else if (gray > 150) {
+          // אפור בינוני - הבהרה קלה
+          newValue = Math.min(255, gray + 10);
+        } else if (gray > 100) {
+          // אפור כהה - לא נוגעים
+          newValue = gray;
+        } else if (gray > 60) {
+          // טקסט - החשכה עדינה
+          newValue = Math.max(0, gray - 10);
+        } else {
+          // טקסט כהה - החשכה קצת יותר
+          newValue = Math.max(0, gray - 15);
         }
 
         // מחליפים את כל הצבעים בערך החדש (שחור-לבן)
@@ -9252,11 +9230,9 @@ async function enhanceScanImage(file) {
       // מחזירים את הפיקסלים המעובדים ל-canvas
       ctx.putImageData(imageData, 0, 0);
 
-      // שלב 3: חידוד עדין בלבד (לא מוסיפים brightness נוסף)
-      if (processingMode !== "light") {
-        ctx.filter = "contrast(1.2)"; // קונטרסט עדין יותר
-        ctx.drawImage(canvas, 0, 0);
-      }
+      // שלב 3: קונטרסט עדין מאוד בלבד
+      ctx.filter = "contrast(1.15)";
+      ctx.drawImage(canvas, 0, 0);
 
       // הופכים חזרה לקובץ חדש
       canvas.toBlob((blob) => {
