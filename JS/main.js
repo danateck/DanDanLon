@@ -5818,6 +5818,10 @@ function showScanCropEditor(file, onDone) {
 // צילום עמוד חדש (או החלפת עמוד קיים)
 // עוזר קטן – ממיר Blob/DataURL ל-DataURL אם צריך
 async function toDataUrl(page) {
+  // אם זה אובייקט עם dataUrl
+  if (page && typeof page === 'object' && page.dataUrl) {
+    return page.dataUrl;
+  }
   if (page instanceof Blob || page instanceof File) {
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
