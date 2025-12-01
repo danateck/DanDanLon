@@ -6104,88 +6104,11 @@ async function processScanWithOpenCv(sourceCanvas) {
     cv.resize(src, src, dsize, 0, 0, cv.INTER_AREA);
   }
 
-  // אפור + טשטוש + קנטים
-  let gray = new cv.Mat();
-  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-  cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
-
-  let edged = new cv.Mat();
-  cv.Canny(gray, edged, 50, 150);
-
-  // חיפוש קונטור הכי גדול עם 4 פינות (דף)
-  let contours = new cv.MatVector();
-  let hierarchy = new cv.Mat();
-  cv.findContours(edged, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
-
-  let maxArea = 0;
-  let pageCnt = null;
-  for (let i = 0; i < contours.size(); ++i) {
-    let cnt = contours.get(i);
-    let area = cv.contourArea(cnt);
-    if (area < 1000) { cnt.delete(); continue; }
-    let peri = cv.arcLength(cnt, true);
-    let approx = new cv.Mat();
-    cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-    if (approx.rows === 4 && area > maxArea) {
-      maxArea = area;
-      if (pageCnt) pageCnt.delete();
-      pageCnt = approx;
-    } else {
-      approx.delete();
-    }
-    cnt.delete();
-  }
-
-  let warped = new cv.Mat();
-
- function sortCorners(pts) {
-  const sums = pts.map(p => p.x + p.y);
-  const difs = pts.map(p => p.x - p.y);
-
-  const tl = pts[sums.indexOf(Math.min(...sums))];
-  const br = pts[sums.indexOf(Math.max(...sums))];
-  const tr = pts[difs.indexOf(Math.max(...difs))];
-  const bl = pts[difs.indexOf(Math.min(...difs))];
-
-  return [tl, tr, br, bl];
-}
-
-  if (pageCnt) {
-    function getPoint(mat, idx) {
-      return { x: mat.intAt(idx, 0) / scale, y: mat.intAt(idx, 1) / scale };
-    }
-    let pts = [];
-    for (let i = 0; i < 4; i++) pts.push(getPoint(pageCnt, i));
-    pts = sortCorners(pts);
-
-    const widthA = Math.hypot(pts[2].x - pts[3].x, pts[2].y - pts[3].y);
-    const widthB = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-    const maxWidth = Math.max(widthA, widthB);
-
-    const heightA = Math.hypot(pts[1].x - pts[2].x, pts[1].y - pts[2].y);
-    const heightB = Math.hypot(pts[0].x - pts[3].x, pts[0].y - pts[3].y);
-    const maxHeight = Math.max(heightA, heightB);
-
-    const dstCoords = cv.matFromArray(4, 1, cv.CV_32FC2, [
-      0, 0,
-      maxWidth - 1, 0,
-      maxWidth - 1, maxHeight - 1,
-      0, maxHeight - 1
-    ]);
-    const srcCoords = cv.matFromArray(4, 1, cv.CV_32FC2, [
-      pts[0].x, pts[0].y,
-      pts[1].x, pts[1].y,
-      pts[2].x, pts[2].y,
-      pts[3].x, pts[3].y
-    ]);
-    let M = cv.getPerspectiveTransform(srcCoords, dstCoords);
-    let dsize = new cv.Size(Math.round(maxWidth), Math.round(maxHeight));
-    let highres = orig.clone();
-    cv.warpPerspective(highres, warped, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
-    srcCoords.delete(); dstCoords.delete(); M.delete(); highres.delete(); pageCnt.delete();
-  } else {
-    warped = orig.clone();
-  }
+  // ⚠️ לא עושים חיפוש קצוות וחיתוך אוטומטי - זה גורם לחיתוך יתר!
+  // פשוט משתמשים בתמונה המקורית המלאה
+  console.log("📸 Skipping auto-crop - using full image");
+  
+  let warped = orig.clone();
 
   // 🎨 סריקה צבעונית פשוטה - שומרים על הכל!
   // לא עושים עיבוד מסובך - רק שיפור עדין
@@ -6201,10 +6124,10 @@ async function processScanWithOpenCv(sourceCanvas) {
   cv.imshow(destCanvas, finalMat);
 
   // ניקוי זיכרון
-  src.delete(); gray.delete(); edged.delete();
-  contours.delete(); hierarchy.delete();
+  src.delete();
   warped.delete();
-  finalMat.delete(); orig.delete();
+  finalMat.delete(); 
+  orig.delete();
 
   // מחזירים DATA URL לשימוש בהמשך
   const dataUrl = destCanvas.toDataURL("image/jpeg", 0.95);
