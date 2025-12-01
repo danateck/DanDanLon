@@ -6105,15 +6105,17 @@ async function processScanWithOpenCv(sourceCanvas) {
 
   let warped = new cv.Mat();
 
-  function sortCorners(pts) {
-    const sums = pts.map(p => p.x + p.y);
-    const difs = pts.map(p => p.x - p.y);
-    const tl = pts[sums.indexOf(Math.min(...sums))];
-    const br = pts[sums.indexOf(Math.max(...sums))];
-    const tr = pts[difs.indexOf(Math.max(...difs))];
-    const bl = pts[difs.indexOf(Math.min(...difs))];
-    return [tl, tr, br, bl];
-  }
+ function sortCorners(pts) {
+  const sums = pts.map(p => p.x + p.y);
+  const difs = pts.map(p => p.x - p.y);
+
+  const tl = pts[sums.indexOf(Math.min(...sums))];
+  const br = pts[sums.indexOf(Math.max(...sums))];
+  const tr = pts[difs.indexOf(Math.max(...difs))];
+  const bl = pts[difs.indexOf(Math.min(...difs))];
+
+  return [tl, tr, br, bl];
+}
 
   if (pageCnt) {
     function getPoint(mat, idx) {
