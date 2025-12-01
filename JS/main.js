@@ -6187,34 +6187,41 @@ async function processScanWithOpenCv(sourceCanvas) {
     warped = orig.clone();
   }
 
-  // 📄 סריקה מקצועית כמו Apple Notes - רקע לבן נקי, טקסט שחור חד
-  let wgray = new cv.Mat();
-  cv.cvtColor(warped, wgray, cv.COLOR_RGBA2GRAY);
+  // 🎨 סריקה צבעונית כמו CamScanner - שומרים על כל הצבעים!
+  // לא עושים grayscale - שומרים על RGB!
   
-  // Adaptive Threshold חכם - שומר על תוכן!
-  let thresh = new cv.Mat();
-  try {
-    // פרמטרים מותאמים לסריקת מסמכים - קולט גם טקסט בהיר!
-    cv.adaptiveThreshold(
-      wgray,
-      thresh,
-      255,
-      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
-      cv.THRESH_BINARY,
-      21,  // גודל חלון - 21
-      15   // C גבוה יותר - 15 במקום 10 = יותר רגיש לטקסט בהיר!
-    );
-  } catch (e) {
-    // fallback
-    cv.threshold(wgray, thresh, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
-  }
-
-  // המרה חזרה לצבע (אבל שחור-לבן)
+  let enhanced = new cv.Mat();
+  
+  // שיפור בהירות וקונטרסט - שומרים על צבעים
+  warped.convertTo(enhanced, -1, 1.3, 20); // קונטרסט 1.3, בהירות +20
+  
+  // המרה ל-Lab color space לשיפור הרקע
+  let lab = new cv.Mat();
+  cv.cvtColor(enhanced, lab, cv.COLOR_RGBA2RGB);
+  cv.cvtColor(lab, lab, cv.COLOR_RGB2Lab);
+  
+  // פיצול לערוצים
+  let labChannels = new cv.MatVector();
+  cv.split(lab, labChannels);
+  
+  // L channel (בהירות) - מלבנים את הרקע
+  let L = labChannels.get(0);
+  
+  // CLAHE - שיפור קונטרסט אדפטיבי
+  let clahe = new cv.CLAHE(3.0, new cv.Size(8, 8));
+  clahe.apply(L, L);
+  
+  // מחברים חזרה
+  labChannels.set(0, L);
+  cv.merge(labChannels, lab);
+  
+  // חזרה ל-RGB
   let finalMat = new cv.Mat();
-  cv.cvtColor(thresh, finalMat, cv.COLOR_GRAY2RGBA);
+  cv.cvtColor(lab, finalMat, cv.COLOR_Lab2RGB);
+  cv.cvtColor(finalMat, finalMat, cv.COLOR_RGB2RGBA);
   
-  // שיפור עדין - רקע יותר לבן, טקסט יותר חד
-  finalMat.convertTo(finalMat, -1, 1.08, 10); // 1.08 קונטרסט, +10 בהירות (הגדלתי)
+  // שיפור נוסף עדין
+  finalMat.convertTo(finalMat, -1, 1.1, 5);
 
   // ציור לקנבס המעובד
   destCanvas.width  = finalMat.cols;
@@ -6224,7 +6231,8 @@ async function processScanWithOpenCv(sourceCanvas) {
   // ניקוי זיכרון
   src.delete(); gray.delete(); edged.delete();
   contours.delete(); hierarchy.delete();
-  warped.delete(); wgray.delete(); thresh.delete();
+  warped.delete(); enhanced.delete();
+  lab.delete(); labChannels.delete(); L.delete();
   finalMat.delete(); orig.delete();
 
   // מחזירים DATA URL לשימוש בהמשך
@@ -6232,9 +6240,9 @@ async function processScanWithOpenCv(sourceCanvas) {
   return dataUrl;
 }
 
-// 🔄 Fallback: עיבוד סריקה פשוט בלי OpenCV (לאנדרואיד/מחשב)
+// 🔄 Fallback: עיבוד סריקה צבעוני בלי OpenCV - כמו CamScanner!
 function processScanFallback(sourceCanvas) {
-  console.log("📱 Using fallback scan processing (no OpenCV)");
+  console.log("📱 Using fallback scan processing (no OpenCV) - COLOR MODE");
   
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -6244,11 +6252,11 @@ function processScanFallback(sourceCanvas) {
   canvas.height = sourceCanvas.height;
   ctx.drawImage(sourceCanvas, 0, 0);
   
-  // עיבוד פיקסלים לשחור-לבן עם threshold אדפטיבי
+  // 🎨 עיבוד פיקסלים - שומרים על צבעים!
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
   
-  // מחשבים בהירות ממוצעת לסף אוטומטי
+  // מחשבים בהירות ממוצעת של הרקע
   let totalBrightness = 0;
   for (let i = 0; i < data.length; i += 4) {
     const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
@@ -6256,41 +6264,36 @@ function processScanFallback(sourceCanvas) {
   }
   const avgBrightness = totalBrightness / (data.length / 4);
   
-  // 🎯 סף גבוה יותר כדי לקלוט גם טקסט בהיר!
-  // כל מה שמתחת ל-92% מהממוצע = טקסט (לבן)
-  const threshold = avgBrightness * 0.92; // הגדלתי מ-0.85 ל-0.92
+  console.log(`📊 Avg brightness: ${avgBrightness.toFixed(1)} - keeping colors!`);
   
-  console.log(`📊 Avg brightness: ${avgBrightness.toFixed(1)}, threshold: ${threshold.toFixed(1)}`);
-  
-  // המרה לשחור-לבן עם רגישות גבוהה
+  // עיבוד כל פיקסל - מלבנים רקע, משאירים צבעים
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i];
     const g = data[i + 1];
     const b = data[i + 2];
     
-    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+    const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    // Threshold גבוה - קולט גם טקסט בהיר!
-    let newValue;
-    if (gray > threshold) {
-      newValue = 255; // רקע לבן
-    } else if (gray > threshold * 0.7) {
-      // טקסט בהיר - עדיין נראה
-      newValue = 100; // אפור כהה
+    // אם זה רקע בהיר - מלבנים אותו
+    if (brightness > avgBrightness * 0.85) {
+      // רקע - מלבנים לממש לבן
+      const whitenFactor = 1.3;
+      data[i] = Math.min(255, r * whitenFactor + 30);
+      data[i + 1] = Math.min(255, g * whitenFactor + 30);
+      data[i + 2] = Math.min(255, b * whitenFactor + 30);
     } else {
-      // טקסט כהה
-      newValue = 0; // שחור
+      // תוכן (טקסט/ציורים) - משאירים את הצבע אבל מחזקים
+      const enhanceFactor = 1.2;
+      data[i] = Math.max(0, Math.min(255, r * enhanceFactor - 10));
+      data[i + 1] = Math.max(0, Math.min(255, g * enhanceFactor - 10));
+      data[i + 2] = Math.max(0, Math.min(255, b * enhanceFactor - 10));
     }
-    
-    data[i] = newValue;
-    data[i + 1] = newValue;
-    data[i + 2] = newValue;
   }
   
   ctx.putImageData(imageData, 0, 0);
   
-  // שיפור עדין
-  ctx.filter = "contrast(1.15) brightness(1.05)";
+  // שיפור קונטרסט וסטורציה עדין
+  ctx.filter = "contrast(1.2) brightness(1.05) saturate(1.1)";
   ctx.drawImage(canvas, 0, 0);
   
   return canvas.toDataURL('image/jpeg', 0.95);
