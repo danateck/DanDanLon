@@ -5759,36 +5759,8 @@ function showScanCropEditor(file, onDone) {
           octx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
         }
 
-        // ✅ עיבוד תמונה לסקן - רקע לבן וניגודיות גבוהה
-        const imageData = octx.getImageData(0, 0, outW, outH);
-        const data = imageData.data;
-        
-        // המרה לגווני אפור והגברת ניגודיות
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          
-          // המרה לגווני אפור
-          let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-          
-          // הגברת ניגודיות - פיקסלים בהירים יותר לבן, כהים יותר לשחור
-          const contrast = 1.3; // מקדם ניגודיות
-          const threshold = 128; // סף
-          gray = ((gray - threshold) * contrast) + threshold;
-          
-          // הבהרה כללית - הופך את הרקע ללבן יותר
-          gray = gray + 30;
-          
-          // חיתוך לטווח 0-255
-          gray = Math.max(0, Math.min(255, gray));
-          
-          data[i] = gray;
-          data[i + 1] = gray;
-          data[i + 2] = gray;
-        }
-        
-        octx.putImageData(imageData, 0, 0);
+        // ✅ לא עושים עיבוד - שומרים על התמונה המקורית בצבע!
+        // פשוט שומרים את התמונה כמו שהיא אחרי החיתוך
 
         const page = {
           dataUrl: outCanvas.toDataURL("image/jpeg", 0.95),
@@ -6196,27 +6168,11 @@ async function processScanWithOpenCv(sourceCanvas) {
     warped = orig.clone();
   }
 
-  // הפיכת הרקע ללבן וטקסט חד – "סריקה"
-  let wgray = new cv.Mat();
-  cv.cvtColor(warped, wgray, cv.COLOR_RGBA2GRAY);
-  let thresh = new cv.Mat();
-  try {
-    cv.adaptiveThreshold(
-      wgray,
-      thresh,
-      255,
-      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
-      cv.THRESH_BINARY,
-      15,
-      12
-    );
-  } catch (e) {
-    cv.threshold(wgray, thresh, 0, 255, cv.THRESH_OTSU);
-  }
-
-  let finalMat = new cv.Mat();
-  cv.cvtColor(thresh, finalMat, cv.COLOR_GRAY2RGBA);
-  finalMat.convertTo(finalMat, -1, 1.4, -10); // קצת יותר קונטרסט ובהירות
+  // 🎨 שומרים על צבעים! רק משפרים קצת את הבהירות והקונטרסט
+  let finalMat = warped.clone();
+  
+  // שיפור עדין - בהירות וקונטרסט
+  finalMat.convertTo(finalMat, -1, 1.1, 10); // 1.1 קונטרסט, +10 בהירות
 
   // ציור לקנבס המעובד
   destCanvas.width  = finalMat.cols;
@@ -6226,7 +6182,7 @@ async function processScanWithOpenCv(sourceCanvas) {
   // ניקוי זיכרון
   src.delete(); gray.delete(); edged.delete();
   contours.delete(); hierarchy.delete();
-  warped.delete(); wgray.delete(); thresh.delete();
+  warped.delete();
   finalMat.delete(); orig.delete();
 
   // מחזירים DATA URL לשימוש בהמשך
@@ -9159,7 +9115,7 @@ if (!window.openSharedFolder) {
 
 
 
-// ✨ משפר "סריקה" של תמונה – מלבין ומחדד (גרסה שמרנית)
+// ✨ משפר "סריקה" של תמונה - שומר על צבעים ומשפר בעדינות
 async function enhanceScanImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -9170,69 +9126,15 @@ async function enhanceScanImage(file) {
       canvas.width = img.width;
       canvas.height = img.height;
 
-      // שלב 1: מציירים את התמונה המקורית
+      // מציירים את התמונה המקורית
       ctx.drawImage(img, 0, 0);
 
-      // שלב 2: עיבוד עדין בלבד - לא נאבד תוכן!
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-
-      // 📊 ספירת פיקסלים בהירים ממש (רקע)
-      let veryBrightPixels = 0;
-      let totalPixels = data.length / 4;
-      
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (gray > 230) veryBrightPixels++;
-      }
-      
-      const brightPercentage = (veryBrightPixels / totalPixels) * 100;
-      console.log(`📸 Bright pixels: ${brightPercentage.toFixed(1)}% - using conservative mode`);
-
-      // 🎯 עיבוד שמרני - לא נהרוס תוכן!
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-
-        // המרה לגווני אפור (grayscale)
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-
-        let newValue;
-        
-        // ⚠️ CRITICAL: סף גבוה מאוד - רק רקע ממש לבן יהפוך ל-255
-        if (gray > 240) {
-          // רק פיקסלים ממש לבנים
-          newValue = 255;
-        } else if (gray > 200) {
-          // אפור בהיר - הבהרה עדינה בלבד
-          newValue = Math.min(255, gray + 15);
-        } else if (gray > 150) {
-          // אפור בינוני - הבהרה קלה
-          newValue = Math.min(255, gray + 10);
-        } else if (gray > 100) {
-          // אפור כהה - לא נוגעים
-          newValue = gray;
-        } else if (gray > 60) {
-          // טקסט - החשכה עדינה
-          newValue = Math.max(0, gray - 10);
-        } else {
-          // טקסט כהה - החשכה קצת יותר
-          newValue = Math.max(0, gray - 15);
-        }
-
-        // מחליפים את כל הצבעים בערך החדש (שחור-לבן)
-        data[i] = newValue;
-        data[i + 1] = newValue;
-        data[i + 2] = newValue;
-      }
-
-      // מחזירים את הפיקסלים המעובדים ל-canvas
-      ctx.putImageData(imageData, 0, 0);
-
-      // שלב 3: קונטרסט עדין מאוד בלבד
-      ctx.filter = "contrast(1.15)";
+      // 🎨 שיפור עדין - שומרים על צבעים!
+      // רק מוסיפים קצת בהירות וקונטרסט עדין
+      ctx.filter = "brightness(1.1) contrast(1.15) saturate(1.05)";
       ctx.drawImage(canvas, 0, 0);
+
+      console.log("📸 Scan enhanced - keeping colors and original content");
 
       // הופכים חזרה לקובץ חדש
       canvas.toBlob((blob) => {
