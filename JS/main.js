@@ -6047,15 +6047,28 @@ if (scanModal) {
 
 // מחכה ש-OpenCV יהיה מוכן (פונקציה שהגדרנו ב-index.html)
 function ensureOpenCv() {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     if (window.cv && window.cv.Mat) return resolve();
+    
+    // Timeout של 5 שניות - אם OpenCV לא נטען, נכשל
+    const timeout = setTimeout(() => {
+      reject(new Error("OpenCV not loaded - using fallback"));
+    }, 5000);
+    
     if (typeof waitForOpencvReady === "function") {
-      waitForOpencvReady(resolve);
+      waitForOpencvReady(() => {
+        clearTimeout(timeout);
+        resolve();
+      });
     } else {
       // גיבוי – מחכה בלולאה
       const check = () => {
-        if (window.cv && window.cv.Mat) resolve();
-        else setTimeout(check, 200);
+        if (window.cv && window.cv.Mat) {
+          clearTimeout(timeout);
+          resolve();
+        } else {
+          setTimeout(check, 200);
+        }
       };
       check();
     }
@@ -6064,7 +6077,13 @@ function ensureOpenCv() {
 
 // הפונקציה שמקבלת קנבס מקור ומחזירה DATA URL מעובד כמו סריקה
 async function processScanWithOpenCv(sourceCanvas) {
-  await ensureOpenCv();
+  try {
+    await ensureOpenCv();
+  } catch (e) {
+    // 🔄 Fallback: OpenCV לא עובד - נשתמש בעיבוד פשוט
+    console.warn("⚠️ OpenCV not available, using simple processing", e);
+    return processScanFallback(sourceCanvas);
+  }
 
   const cv = window.cv;
   const destCanvas = document.getElementById("scanProcessedCanvas");
@@ -6073,8 +6092,8 @@ async function processScanWithOpenCv(sourceCanvas) {
   let src = cv.imread(sourceCanvas);
   let orig = src.clone();
 
-  // הקטנה לעיבוד מהיר
-  const maxDim = 1000;
+  // הקטנה לעיבוד מהיר - רק לזיהוי קונטור
+  const maxDim = 2000; // הגדלתי ל-2000 לשמור על איכות
   let scale = 1;
   if (Math.max(src.rows, src.cols) > maxDim) {
     scale = maxDim / Math.max(src.rows, src.cols);
@@ -6211,6 +6230,58 @@ async function processScanWithOpenCv(sourceCanvas) {
   // מחזירים DATA URL לשימוש בהמשך
   const dataUrl = destCanvas.toDataURL("image/jpeg", 0.95);
   return dataUrl;
+}
+
+// 🔄 Fallback: עיבוד סריקה פשוט בלי OpenCV (לאנדרואיד/מחשב)
+function processScanFallback(sourceCanvas) {
+  console.log("📱 Using fallback scan processing (no OpenCV)");
+  
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // מעתיקים את המקור
+  canvas.width = sourceCanvas.width;
+  canvas.height = sourceCanvas.height;
+  ctx.drawImage(sourceCanvas, 0, 0);
+  
+  // עיבוד פיקסלים לשחור-לבן עם threshold
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  
+  // מחשבים בהירות ממוצעת לסף אוטומטי
+  let totalBrightness = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    totalBrightness += gray;
+  }
+  const avgBrightness = totalBrightness / (data.length / 4);
+  const threshold = avgBrightness * 0.85; // 85% מהבהירות הממוצעת
+  
+  console.log(`📊 Avg brightness: ${avgBrightness.toFixed(1)}, threshold: ${threshold.toFixed(1)}`);
+  
+  // המרה לשחור-לבן
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+    
+    // Simple threshold - מעל הסף = לבן, מתחת = שחור
+    const newValue = gray > threshold ? 255 : 0;
+    
+    data[i] = newValue;
+    data[i + 1] = newValue;
+    data[i + 2] = newValue;
+  }
+  
+  ctx.putImageData(imageData, 0, 0);
+  
+  // שיפור עדין
+  ctx.filter = "contrast(1.1) brightness(1.05)";
+  ctx.drawImage(canvas, 0, 0);
+  
+  return canvas.toDataURL('image/jpeg', 0.95);
 }
 
 
