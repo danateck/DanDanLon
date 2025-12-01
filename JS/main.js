@@ -5757,23 +5757,28 @@ async function uploadScannedPdf() {
 
       pdf.addImage(page.dataUrl, "JPEG", x, y, imgWidth, imgHeight);
       
-      // ✅ הוספת לוגו NestyFile בפינה התחתונה (שחור לבן)
-      const logoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAAAAAA7VNdtAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAACWUlEQVR4nO2VW28aSRSEv+oZmDH4EkLWIrYS7f//V/sQywobQAYsw0x37QO3GZgkUpR9Sz+1+nSdqnNUpxv+rP996cfH/j0pu1kGPWEgrTpouiB3g0F/dx7X1az6OWT4/iqP++QKbBeL+BPIzcdgH09NsJ/WLXnhHDEJbuSRTPahfeUMcj3JLgpOxei7wuTho0AnWUq7wHTWSJS3KAdZQttDucrqQgC+36zkLoiLUUKbp80hNomlBdh3b6e2tWqxgMXm6JZynGFA6a7nbsh7YfUaB1XMbECxUeFRWClnQ0BZsyEJL8YG0ollDymGo1zGnJlXTiEFw+02rKoTRC4f+6nb6KnfSwbGCqv1LB0hD2U/dvlTwSCShB2vrm6X/2JyoH+t1DkXr7ll4UKATFHUC8ihfOjW5Phlt8n+3rsohruXSC7fFqkLUb5LYb3c8x2acXX/7NzlsM0hHBhdu1c4Y6l20DfTOqcomySKW4pJnge7xvWF2HD/lIPcqD28fisf+jiBVL1eVKmcvD2XitPysbfvn6rXriLPp9JpckDgeHEdzuYFXH3KrJ2nVX/thATckvs1At7xqJsloJa2d8Gov3PzrPt5DVoumi/ETQZ1BBxm37ogNYG4TO0eSNEQ4qoDoNWUYF6mjWxGUQKl564Oe1oRgHl9ohHOBVRfXpoFH6KzrRCg/vVfh8YpbbIiab7cnNw1+gBgKcyffTTp+LbYpQrrf/g8SDGdnoCYC5DSW/XECUIYhx3j25yPg/bEGfCb07zea79cvXDZXZ++GZ1vvvc76tc+zj8L+A+VEwMFeYCz6QAAAABJRU5ErkJggg==";
+      // ✅ הוספת לוגו NestyFile בפינה התחתונה
+      // טוען את הלוגו מהתיקייה
+      const logoPath = "assests/icons/logo.png";
       
-      // גודל הלוגו - עכשיו 35x35 (גדול יותר מקודם)
-      const logoSize = 35;
-      const logoX = pdfWidth - logoSize - 15; // 15pt מהקצה
-      const logoY = pdfHeight - logoSize - 15; // 15pt מהתחתית
+      // גודל הלוגו - 60x60 (גדול!)
+      const logoSize = 60;
+      const logoX = pdfWidth - logoSize - 20; // 20pt מהקצה
+      const logoY = pdfHeight - logoSize - 20; // 20pt מהתחתית
       
-      pdf.addImage(logoBase64, "PNG", logoX, logoY, logoSize, logoSize);
+      try {
+        pdf.addImage(logoPath, "PNG", logoX, logoY, logoSize, logoSize, undefined, 'NONE');
+      } catch (e) {
+        console.warn("לא הצלחתי לטעון את הלוגו:", e);
+      }
       
-      // טקסט "NestyFile" ליד הלוגו
-      pdf.setFontSize(10); // גודל טקסט קצת יותר גדול
-      pdf.setTextColor(80, 80, 80); // אפור כהה יותר
+      // טקסט "NestyFile" ליד הלוגו - גדול יותר!
+      pdf.setFontSize(16); // גודל טקסט גדול
+      pdf.setTextColor(60, 60, 60); // אפור כהה
       const logoText = "NestyFile";
       const textWidth = pdf.getTextWidth(logoText);
-      const textX = logoX - textWidth - 5; // 5pt משמאל ללוגו
-      const textY = logoY + (logoSize / 2) + 3; // מרכז אנכי של הלוגו
+      const textX = logoX - textWidth - 8; // 8pt משמאל ללוגו
+      const textY = logoY + (logoSize / 2) + 5; // מרכז אנכי של הלוגו
       pdf.text(logoText, textX, textY);
     });
 
