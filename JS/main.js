@@ -3667,17 +3667,10 @@ console.log("📁 After context override:", {
 
 
 
-// אם לא זוהה - השתמש בחלון הקיים
+// אם לא זוהה - השתמש ב"אחר" אוטומטית (ללא חלון בחירה)
 if (!guessedCategory || guessedCategory === "אחר") {
-  const result = await window.chooseFolderForUpload();
-  if (result) {
-    guessedCategory = result.category;
-    guessedSubCategory = result.subfolder;
-  } else {
-    // המשתמש ביטל
-    fileInput.value = "";
-    return;
-  }
+  guessedCategory = "אחר";
+  guessedSubCategory = null;
 }
 
 console.log("📁 Final:", { category: guessedCategory, subfolder: guessedSubCategory });
