@@ -6187,41 +6187,13 @@ async function processScanWithOpenCv(sourceCanvas) {
     warped = orig.clone();
   }
 
-  // 🎨 סריקה צבעונית כמו CamScanner - שומרים על כל הצבעים!
-  // לא עושים grayscale - שומרים על RGB!
+  // 🎨 סריקה צבעונית פשוטה - שומרים על הכל!
+  // לא עושים עיבוד מסובך - רק שיפור עדין
   
-  let enhanced = new cv.Mat();
+  let finalMat = warped.clone();
   
-  // שיפור בהירות וקונטרסט - שומרים על צבעים
-  warped.convertTo(enhanced, -1, 1.3, 20); // קונטרסט 1.3, בהירות +20
-  
-  // המרה ל-Lab color space לשיפור הרקע
-  let lab = new cv.Mat();
-  cv.cvtColor(enhanced, lab, cv.COLOR_RGBA2RGB);
-  cv.cvtColor(lab, lab, cv.COLOR_RGB2Lab);
-  
-  // פיצול לערוצים
-  let labChannels = new cv.MatVector();
-  cv.split(lab, labChannels);
-  
-  // L channel (בהירות) - מלבנים את הרקע
-  let L = labChannels.get(0);
-  
-  // CLAHE - שיפור קונטרסט אדפטיבי
-  let clahe = new cv.CLAHE(3.0, new cv.Size(8, 8));
-  clahe.apply(L, L);
-  
-  // מחברים חזרה
-  labChannels.set(0, L);
-  cv.merge(labChannels, lab);
-  
-  // חזרה ל-RGB
-  let finalMat = new cv.Mat();
-  cv.cvtColor(lab, finalMat, cv.COLOR_Lab2RGB);
-  cv.cvtColor(finalMat, finalMat, cv.COLOR_RGB2RGBA);
-  
-  // שיפור נוסף עדין
-  finalMat.convertTo(finalMat, -1, 1.1, 5);
+  // שיפור עדין מאוד - בהירות וקונטרסט בלבד
+  finalMat.convertTo(finalMat, -1, 1.15, 15); // קונטרסט 1.15, בהירות +15
 
   // ציור לקנבס המעובד
   destCanvas.width  = finalMat.cols;
@@ -6231,8 +6203,7 @@ async function processScanWithOpenCv(sourceCanvas) {
   // ניקוי זיכרון
   src.delete(); gray.delete(); edged.delete();
   contours.delete(); hierarchy.delete();
-  warped.delete(); enhanced.delete();
-  lab.delete(); labChannels.delete(); L.delete();
+  warped.delete();
   finalMat.delete(); orig.delete();
 
   // מחזירים DATA URL לשימוש בהמשך
