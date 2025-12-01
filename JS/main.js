@@ -5255,7 +5255,7 @@ function refreshScanPagesList() {
 
     const replaceBtn = document.createElement("button");
     replaceBtn.type = "button";
-    replaceBtn.textContent = "צלמי שוב";
+    replaceBtn.textContent = "צלמ/י שוב";
     replaceBtn.style.fontSize = ".75rem";
     replaceBtn.style.padding = ".25rem .5rem";
     replaceBtn.style.borderRadius = "999px";

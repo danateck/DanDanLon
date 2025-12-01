@@ -3765,6 +3765,40 @@ background: var(--bg-card);
 
 
 
+
+/* 🌙 מצב כהה – שורת עמוד */
+.theme-dark #scanPagesContainer > div {
+  background: rgba(18, 24, 22, 0.7) !important;
+  border: 1px solid rgba(82,152,115,0.25) !important;
+}
+
+/* טקסט "עמוד X" */
+.theme-dark #scanPagesContainer div div {
+  color: #c5e3d2 !important;
+}
+
+/* הכפתור הכחול – צלם/י שוב */
+.theme-dark #scanPagesContainer button:nth-child(1) {
+  background: rgba(45, 90, 67, 0.35) !important;
+  color: #d4f0e0 !important;
+  border: 1px solid rgba(82,152,115,0.35) !important;
+}
+
+/* הכפתור האדום – מחק */
+.theme-dark #scanPagesContainer button:nth-child(2) {
+  background: rgba(120, 40, 40, 0.35) !important;
+  color: #ffb3b3 !important;
+  border: 1px solid rgba(200, 80, 80, 0.4) !important;
+}
+
+/* תמונת התצוגה המקדימה */
+.theme-dark #scanPagesContainer img {
+  border: 1px solid rgba(82,152,115,0.3) !important;
+}
+
+
+
+
   </style>
 </head>
 
@@ -4173,7 +4207,7 @@ background: var(--bg-card);
 
       <div style="padding:.75rem .9rem; flex:1; overflow:auto;">
         <div id="scanEmptyState" style="font-size:.85rem; color:#666; text-align:center; margin-top:1.5rem;">
-          צלמי עמוד ראשון כדי להתחיל ✨
+          צלמ/י עמוד ראשון כדי להתחיל 
         </div>
         <div id="scanPagesContainer" style="display:flex; flex-direction:column; gap:.75rem;"></div>
       </div>
