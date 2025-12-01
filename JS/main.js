@@ -6168,11 +6168,34 @@ async function processScanWithOpenCv(sourceCanvas) {
     warped = orig.clone();
   }
 
-  // 🎨 שומרים על צבעים! רק משפרים קצת את הבהירות והקונטרסט
-  let finalMat = warped.clone();
+  // 📄 סריקה מקצועית כמו Apple Notes - רקע לבן נקי, טקסט שחור חד
+  let wgray = new cv.Mat();
+  cv.cvtColor(warped, wgray, cv.COLOR_RGBA2GRAY);
   
-  // שיפור עדין - בהירות וקונטרסט
-  finalMat.convertTo(finalMat, -1, 1.1, 10); // 1.1 קונטרסט, +10 בהירות
+  // Adaptive Threshold חכם - שומר על תוכן!
+  let thresh = new cv.Mat();
+  try {
+    // פרמטרים מותאמים לסריקת מסמכים כמו Apple Notes
+    cv.adaptiveThreshold(
+      wgray,
+      thresh,
+      255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+      cv.THRESH_BINARY,
+      21,  // גודל חלון גדול יותר - 21 במקום 15
+      10   // C נמוך יותר - 10 במקום 12 (פחות אגרסיבי)
+    );
+  } catch (e) {
+    // fallback
+    cv.threshold(wgray, thresh, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+  }
+
+  // המרה חזרה לצבע (אבל שחור-לבן)
+  let finalMat = new cv.Mat();
+  cv.cvtColor(thresh, finalMat, cv.COLOR_GRAY2RGBA);
+  
+  // שיפור עדין - רקע יותר לבן, טקסט יותר חד
+  finalMat.convertTo(finalMat, -1, 1.05, 8); // 1.05 קונטרסט, +8 בהירות
 
   // ציור לקנבס המעובד
   destCanvas.width  = finalMat.cols;
@@ -6182,7 +6205,7 @@ async function processScanWithOpenCv(sourceCanvas) {
   // ניקוי זיכרון
   src.delete(); gray.delete(); edged.delete();
   contours.delete(); hierarchy.delete();
-  warped.delete();
+  warped.delete(); wgray.delete(); thresh.delete();
   finalMat.delete(); orig.delete();
 
   // מחזירים DATA URL לשימוש בהמשך
