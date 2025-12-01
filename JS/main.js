@@ -6194,15 +6194,15 @@ async function processScanWithOpenCv(sourceCanvas) {
   // Adaptive Threshold חכם - שומר על תוכן!
   let thresh = new cv.Mat();
   try {
-    // פרמטרים מותאמים לסריקת מסמכים כמו Apple Notes
+    // פרמטרים מותאמים לסריקת מסמכים - קולט גם טקסט בהיר!
     cv.adaptiveThreshold(
       wgray,
       thresh,
       255,
       cv.ADAPTIVE_THRESH_GAUSSIAN_C,
       cv.THRESH_BINARY,
-      21,  // גודל חלון גדול יותר - 21 במקום 15
-      10   // C נמוך יותר - 10 במקום 12 (פחות אגרסיבי)
+      21,  // גודל חלון - 21
+      15   // C גבוה יותר - 15 במקום 10 = יותר רגיש לטקסט בהיר!
     );
   } catch (e) {
     // fallback
@@ -6214,7 +6214,7 @@ async function processScanWithOpenCv(sourceCanvas) {
   cv.cvtColor(thresh, finalMat, cv.COLOR_GRAY2RGBA);
   
   // שיפור עדין - רקע יותר לבן, טקסט יותר חד
-  finalMat.convertTo(finalMat, -1, 1.05, 8); // 1.05 קונטרסט, +8 בהירות
+  finalMat.convertTo(finalMat, -1, 1.08, 10); // 1.08 קונטרסט, +10 בהירות (הגדלתי)
 
   // ציור לקנבס המעובד
   destCanvas.width  = finalMat.cols;
@@ -6244,7 +6244,7 @@ function processScanFallback(sourceCanvas) {
   canvas.height = sourceCanvas.height;
   ctx.drawImage(sourceCanvas, 0, 0);
   
-  // עיבוד פיקסלים לשחור-לבן עם threshold
+  // עיבוד פיקסלים לשחור-לבן עם threshold אדפטיבי
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
   
@@ -6255,11 +6255,14 @@ function processScanFallback(sourceCanvas) {
     totalBrightness += gray;
   }
   const avgBrightness = totalBrightness / (data.length / 4);
-  const threshold = avgBrightness * 0.85; // 85% מהבהירות הממוצעת
+  
+  // 🎯 סף גבוה יותר כדי לקלוט גם טקסט בהיר!
+  // כל מה שמתחת ל-92% מהממוצע = טקסט (לבן)
+  const threshold = avgBrightness * 0.92; // הגדלתי מ-0.85 ל-0.92
   
   console.log(`📊 Avg brightness: ${avgBrightness.toFixed(1)}, threshold: ${threshold.toFixed(1)}`);
   
-  // המרה לשחור-לבן
+  // המרה לשחור-לבן עם רגישות גבוהה
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i];
     const g = data[i + 1];
@@ -6267,8 +6270,17 @@ function processScanFallback(sourceCanvas) {
     
     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    // Simple threshold - מעל הסף = לבן, מתחת = שחור
-    const newValue = gray > threshold ? 255 : 0;
+    // Threshold גבוה - קולט גם טקסט בהיר!
+    let newValue;
+    if (gray > threshold) {
+      newValue = 255; // רקע לבן
+    } else if (gray > threshold * 0.7) {
+      // טקסט בהיר - עדיין נראה
+      newValue = 100; // אפור כהה
+    } else {
+      // טקסט כהה
+      newValue = 0; // שחור
+    }
     
     data[i] = newValue;
     data[i + 1] = newValue;
@@ -6278,7 +6290,7 @@ function processScanFallback(sourceCanvas) {
   ctx.putImageData(imageData, 0, 0);
   
   // שיפור עדין
-  ctx.filter = "contrast(1.1) brightness(1.05)";
+  ctx.filter = "contrast(1.15) brightness(1.05)";
   ctx.drawImage(canvas, 0, 0);
   
   return canvas.toDataURL('image/jpeg', 0.95);
