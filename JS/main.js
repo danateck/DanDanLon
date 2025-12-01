@@ -3667,55 +3667,51 @@ console.log("📁 After context override:", {
 
 
 
-// אם לא זוהה - פתח חלון בחירה מאורגן
+// אם לא זוהה - פתח חלון בחירה יחיד עם הכל
 if (!guessedCategory || guessedCategory === "אחר") {
   const categories = window.CATEGORIES || ["כלכלה", "רפואה", "עבודה", "בית", "אחר"];
   
-  // בניית רשימת אופציות מפורטת
-  let optionsText = "בחרי תיקייה ראשית:\n\n";
-  categories.forEach((cat, idx) => {
-    optionsText += `${idx + 1}. ${cat}`;
+  // בניית רשימה שלמה עם כל האופציות
+  let optionsText = "בחירת תיקייה\n\nבחרי תיקייה ראשית:\n\n";
+  let optionsList = [];
+  let optionCounter = 1;
+  
+  categories.forEach(cat => {
     const subs = window.SUBFOLDERS_BY_CATEGORY?.[cat];
     if (subs && subs.length > 0) {
-      optionsText += ` (${subs.join(", ")})`;
+      // תיקייה עם תתי-תיקיות
+      optionsText += `${cat}:\n`;
+      subs.forEach(sub => {
+        optionsText += `  ${optionCounter}. ${cat} → ${sub}\n`;
+        optionsList.push({ category: cat, subfolder: sub });
+        optionCounter++;
+      });
+      optionsText += `  ${optionCounter}. ${cat} (ללא תת-תיקייה)\n`;
+      optionsList.push({ category: cat, subfolder: null });
+      optionCounter++;
+    } else {
+      // תיקייה ללא תתי-תיקיות
+      optionsText += `${optionCounter}. ${cat}\n`;
+      optionsList.push({ category: cat, subfolder: null });
+      optionCounter++;
     }
     optionsText += "\n";
   });
-  optionsText += "\nהקלידי מספר או שם תיקייה:";
+  
+  optionsText += "הקלידי מספר:";
   
   const userInput = prompt(optionsText, "1");
   if (!userInput || userInput.trim() === "") {
     guessedCategory = "אחר";
     guessedSubCategory = null;
   } else {
-    // אם הוקלד מספר - המרה לשם תיקייה
     const num = parseInt(userInput.trim());
-    if (!isNaN(num) && num >= 1 && num <= categories.length) {
-      guessedCategory = categories[num - 1];
+    if (!isNaN(num) && num >= 1 && num <= optionsList.length) {
+      guessedCategory = optionsList[num - 1].category;
+      guessedSubCategory = optionsList[num - 1].subfolder;
     } else {
-      guessedCategory = userInput.trim();
-    }
-    
-    // עכשיו שאל על תת-תיקייה אם יש
-    const subfolders = window.SUBFOLDERS_BY_CATEGORY?.[guessedCategory];
-    if (subfolders && subfolders.length > 0) {
-      let subOptionsText = `בחרת "${guessedCategory}"\n\nבחרי תת-תיקייה:\n\n`;
-      subfolders.forEach((sub, idx) => {
-        subOptionsText += `${idx + 1}. ${sub}\n`;
-      });
-      subOptionsText += `${subfolders.length + 1}. ללא תת-תיקייה\n\nהקלידי מספר או שם:`;
-      
-      const subInput = prompt(subOptionsText, "1");
-      if (subInput && subInput.trim() !== "") {
-        const subNum = parseInt(subInput.trim());
-        if (!isNaN(subNum) && subNum >= 1 && subNum <= subfolders.length) {
-          guessedSubCategory = subfolders[subNum - 1];
-        } else if (!isNaN(subNum) && subNum === subfolders.length + 1) {
-          guessedSubCategory = null; // בחר "ללא תת-תיקייה"
-        } else if (subfolders.includes(subInput.trim())) {
-          guessedSubCategory = subInput.trim();
-        }
-      }
+      guessedCategory = "אחר";
+      guessedSubCategory = null;
     }
   }
 }
