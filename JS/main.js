@@ -5968,7 +5968,7 @@ async function uploadScannedPdf() {
       const wmWidth = 150; // גודל בעמוד
       const wmHeight = 40;
       const wmX = pdfWidth - wmWidth - 30; // 30pt מהקצה הימני
-      const wmY = pdfHeight - wmHeight - 30; // 30pt מהתחתית
+      const wmY = pdfHeight - wmHeight - 15; // 30pt מהתחתית
       
       pdf.addImage(watermarkDataUrl, "PNG", wmX, wmY, wmWidth, wmHeight);
     }
