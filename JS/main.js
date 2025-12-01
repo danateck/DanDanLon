@@ -5404,9 +5404,85 @@ function showScanCropEditor(file, onDone) {
 
       const scale = canvasW / img.width; // יחס תרגום תמונה→קנבס
 
+      // ✅ זיהוי קצוות אוטומטי - מנסה למצוא את המסמך בתמונה
+      function detectDocumentEdges() {
+        // יצירת canvas זמני לעיבוד
+        const tempCanvas = document.createElement('canvas');
+        const tempW = Math.min(400, img.width); // מקטינים לביצועים
+        const tempH = (img.height * tempW) / img.width;
+        tempCanvas.width = tempW;
+        tempCanvas.height = tempH;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // ציור התמונה מוקטנת
+        tempCtx.drawImage(img, 0, 0, tempW, tempH);
+        
+        try {
+          const imageData = tempCtx.getImageData(0, 0, tempW, tempH);
+          const data = imageData.data;
+          
+          // מציאת גבולות הצבע - אזור כהה מוקף ברקע בהיר
+          let minX = tempW, maxX = 0, minY = tempH, maxY = 0;
+          let foundEdge = false;
+          
+          const edgeMargin = tempW * 0.05; // 5% מהשוליים
+          const threshold = 120; // סף בהירות
+          
+          // סריקת שורות (Y)
+          for (let y = edgeMargin; y < tempH - edgeMargin; y += 2) {
+            let darkPixels = 0;
+            for (let x = edgeMargin; x < tempW - edgeMargin; x += 2) {
+              const i = (y * tempW + x) * 4;
+              const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+              if (brightness < threshold) darkPixels++;
+            }
+            // אם יש מספיק פיקסלים כהים, זה חלק מהמסמך
+            if (darkPixels > (tempW - 2 * edgeMargin) * 0.3) {
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+              foundEdge = true;
+            }
+          }
+          
+          // סריקת עמודות (X)
+          for (let x = edgeMargin; x < tempW - edgeMargin; x += 2) {
+            let darkPixels = 0;
+            for (let y = edgeMargin; y < tempH - edgeMargin; y += 2) {
+              const i = (y * tempW + x) * 4;
+              const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+              if (brightness < threshold) darkPixels++;
+            }
+            if (darkPixels > (tempH - 2 * edgeMargin) * 0.3) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              foundEdge = true;
+            }
+          }
+          
+          if (foundEdge && maxX > minX && maxY > minY) {
+            // המרה חזרה לגודל המקורי
+            const scaleBack = img.width / tempW;
+            const padding = img.width * 0.02; // ריפוד קטן
+            
+            return {
+              x: Math.max(0, minX * scaleBack - padding),
+              y: Math.max(0, minY * scaleBack - padding),
+              w: Math.min(img.width, (maxX - minX) * scaleBack + padding * 2),
+              h: Math.min(img.height, (maxY - minY) * scaleBack + padding * 2)
+            };
+          }
+        } catch (e) {
+          console.warn('זיהוי קצוות אוטומטי נכשל:', e);
+        }
+        
+        // אם לא הצלחנו לזהות - חיתוך ברירת מחדל
+        return null;
+      }
+
       // cropRect נשמר ביחידות של התמונה (לא הקנבס)
+      const autoDetected = detectDocumentEdges();
       const marginFactor = 0.08; // חיתוך אוטומטי התחלתי
-      let cropRect = {
+      let cropRect = autoDetected || {
         x: img.width * marginFactor,
         y: img.height * marginFactor,
         w: img.width * (1 - 2 * marginFactor),
@@ -5664,6 +5740,37 @@ function showScanCropEditor(file, onDone) {
         } else {
           octx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
         }
+
+        // ✅ עיבוד תמונה לסקן - רקע לבן וניגודיות גבוהה
+        const imageData = octx.getImageData(0, 0, outW, outH);
+        const data = imageData.data;
+        
+        // המרה לגווני אפור והגברת ניגודיות
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          
+          // המרה לגווני אפור
+          let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          
+          // הגברת ניגודיות - פיקסלים בהירים יותר לבן, כהים יותר לשחור
+          const contrast = 1.3; // מקדם ניגודיות
+          const threshold = 128; // סף
+          gray = ((gray - threshold) * contrast) + threshold;
+          
+          // הבהרה כללית - הופך את הרקע ללבן יותר
+          gray = gray + 30;
+          
+          // חיתוך לטווח 0-255
+          gray = Math.max(0, Math.min(255, gray));
+          
+          data[i] = gray;
+          data[i + 1] = gray;
+          data[i + 2] = gray;
+        }
+        
+        octx.putImageData(imageData, 0, 0);
 
         const page = {
           dataUrl: outCanvas.toDataURL("image/jpeg", 0.95),
