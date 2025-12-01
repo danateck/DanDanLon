@@ -3667,52 +3667,16 @@ console.log("📁 After context override:", {
 
 
 
-// אם לא זוהה - פתח חלון בחירה יחיד עם הכל
+// אם לא זוהה - השתמש בחלון הקיים
 if (!guessedCategory || guessedCategory === "אחר") {
-  const categories = window.CATEGORIES || ["כלכלה", "רפואה", "עבודה", "בית", "אחר"];
-  
-  // בניית רשימה שלמה עם כל האופציות
-  let optionsText = "בחירת תיקייה\n\nבחרי תיקייה ראשית:\n\n";
-  let optionsList = [];
-  let optionCounter = 1;
-  
-  categories.forEach(cat => {
-    const subs = window.SUBFOLDERS_BY_CATEGORY?.[cat];
-    if (subs && subs.length > 0) {
-      // תיקייה עם תתי-תיקיות
-      optionsText += `${cat}:\n`;
-      subs.forEach(sub => {
-        optionsText += `  ${optionCounter}. ${cat} → ${sub}\n`;
-        optionsList.push({ category: cat, subfolder: sub });
-        optionCounter++;
-      });
-      optionsText += `  ${optionCounter}. ${cat} (ללא תת-תיקייה)\n`;
-      optionsList.push({ category: cat, subfolder: null });
-      optionCounter++;
-    } else {
-      // תיקייה ללא תתי-תיקיות
-      optionsText += `${optionCounter}. ${cat}\n`;
-      optionsList.push({ category: cat, subfolder: null });
-      optionCounter++;
-    }
-    optionsText += "\n";
-  });
-  
-  optionsText += "הקלידי מספר:";
-  
-  const userInput = prompt(optionsText, "1");
-  if (!userInput || userInput.trim() === "") {
-    guessedCategory = "אחר";
-    guessedSubCategory = null;
+  const result = await window.chooseFolderForUpload();
+  if (result) {
+    guessedCategory = result.category;
+    guessedSubCategory = result.subfolder;
   } else {
-    const num = parseInt(userInput.trim());
-    if (!isNaN(num) && num >= 1 && num <= optionsList.length) {
-      guessedCategory = optionsList[num - 1].category;
-      guessedSubCategory = optionsList[num - 1].subfolder;
-    } else {
-      guessedCategory = "אחר";
-      guessedSubCategory = null;
-    }
+    // המשתמש ביטל
+    fileInput.value = "";
+    return;
   }
 }
 
@@ -8981,6 +8945,55 @@ console.log("  ✅ 9. ניקוי אוטומטי");
 
 
 
+
+// פונקציה לבחירת תיקייה בזמן העלאה (ללא docId)
+window.chooseFolderForUpload = function() {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("chooseFolderOverlay");
+    const mainSel = document.getElementById("mainFolderSelect");
+    const subSel = document.getElementById("subFolderSelect");
+
+    overlay.style.display = "flex";
+
+    // כל התיקיות הראשיות (קטגוריות)
+    const mains = Object.keys(CATEGORY_KEYWORDS);
+    mainSel.innerHTML = mains.map(m => `<option value="${m}">${m}</option>`).join("");
+
+    function loadSubs() {
+      const chosen = mainSel.value;
+      const subs = SUBFOLDERS_BY_CATEGORY[chosen] || [];
+      if (subs.length > 0) {
+        subSel.innerHTML = '<option value="">ללא תת-תיקייה</option>' + 
+                          subs.map(s => `<option value="${s}">${s}</option>`).join("");
+      } else {
+        subSel.innerHTML = '<option value="">אין תתי-תיקיות</option>';
+      }
+    }
+
+    mainSel.onchange = loadSubs;
+    loadSubs();
+
+    // כפתור ביטול
+    const cancelHandler = () => {
+      overlay.style.display = "none";
+      mainSel.onchange = null;
+      resolve(null); // ביטול
+    };
+
+    // כפתור אישור
+    const confirmHandler = () => {
+      const cat = mainSel.value;
+      const sub = subSel.value || null;
+      
+      overlay.style.display = "none";
+      mainSel.onchange = null;
+      resolve({ category: cat, subfolder: sub });
+    };
+
+    document.getElementById("cancelFolderSelect").onclick = cancelHandler;
+    document.getElementById("confirmFolderSelect").onclick = confirmHandler;
+  });
+};
 
 window.openFolderSelectionModal = function (docId) {
   const overlay = document.getElementById("chooseFolderOverlay");
