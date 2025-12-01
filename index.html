@@ -3766,6 +3766,24 @@ background: var(--bg-card);
 
 
 
+<!-- OpenCV.js - לעיבוד תמונה לסריקה לבנה -->
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+<script>
+  function waitForOpencvReady(cb) {
+    function check() {
+      if (window.cv && window.cv.Mat) {
+        console.log("✅ OpenCV loaded");
+        cb();
+      } else {
+        console.log("⏳ Waiting for OpenCV...");
+        setTimeout(check, 200);
+      }
+    }
+    check();
+  }
+</script>
+
+
 <!-- EXIF.js - בשביל לזהות כיוון צילום של המצלמה -->
 <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
 <script>
@@ -4449,6 +4467,9 @@ background: var(--bg-card);
 <!-- authCheck.js will handle everything -->
 
 
+<!-- קנבסים חבויים לעיבוד סריקה -->
+<canvas id="scanSourceCanvas" width="1200" height="1600" style="display:none;"></canvas>
+<canvas id="scanProcessedCanvas" width="1200" height="1600" style="display:none;"></canvas>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script type="module" src="firebase-config.js" onerror="console.error('❌ Failed to load firebase-config.js')"></script>

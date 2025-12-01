@@ -5816,7 +5816,21 @@ function showScanCropEditor(file, onDone) {
 
 
 // צילום עמוד חדש (או החלפת עמוד קיים)
-function captureScanPage(replaceIndex = null) {
+// עוזר קטן – ממיר Blob/DataURL ל-DataURL אם צריך
+async function toDataUrl(page) {
+  if (page instanceof Blob || page instanceof File) {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(page);
+    });
+  }
+  // אם זה כבר dataURL/string
+  return page;
+}
+
+async function captureScanPage(replaceIndex = null) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*";
@@ -5829,18 +5843,57 @@ function captureScanPage(replaceIndex = null) {
     document.body.removeChild(input);
     if (!file) return;
 
-    showScanCropEditor(file, (page) => {
-      if (typeof replaceIndex === "number") {
-        scannedPages[replaceIndex] = page;
-      } else {
-        scannedPages.push(page);
+    // נפתח את עורך החיתוך כמו קודם
+    showScanCropEditor(file, async (page) => {
+      try {
+        // page מגיע או כ-Blob או כ-dataURL – הופכים ל-dataURL בטוח
+        const pageDataUrl = await toDataUrl(page);
+
+        // מציירים לקנבס המקור
+        const srcCanvas = document.getElementById("scanSourceCanvas");
+        const ctx = srcCanvas.getContext("2d");
+        const img = new Image();
+        img.src = pageDataUrl;
+
+        await new Promise((res, rej) => {
+          img.onload = res;
+          img.onerror = rej;
+        });
+
+        srcCanvas.width  = img.width;
+        srcCanvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        // 🤖 מעבדים עם OpenCV כדי שייראה כמו סריקה
+        if (typeof showLoading === "function") {
+          showLoading("מעבדת את הסריקה...");
+        }
+
+        const processedDataUrl = await processScanWithOpenCv(srcCanvas);
+
+        if (typeof replaceIndex === "number") {
+          scannedPages[replaceIndex] = processedDataUrl;
+        } else {
+          scannedPages.push(processedDataUrl);
+        }
+
+        refreshScanPagesList();
+      } catch (err) {
+        console.error("❌ שגיאה בסריקה:", err);
+        if (typeof showNotification === "function") {
+          showNotification("אירעה שגיאה בעיבוד הסריקה", true);
+        }
+      } finally {
+        if (typeof hideLoading === "function") {
+          hideLoading();
+        }
       }
-      refreshScanPagesList();
     });
   });
 
   input.click();
 }
+
 
 // יצירת PDF והעלאה – משתמש בזרימה הרגילה של "העלה מסמך" (fileInput.change)
 async function uploadScannedPdf() {
@@ -5973,6 +6026,170 @@ if (scanModal) {
     }
   });
 }
+
+
+
+// ========= עיבוד תמונה לסריקה לבנה (OpenCV) =========
+
+// מחכה ש-OpenCV יהיה מוכן (פונקציה שהגדרנו ב-index.html)
+function ensureOpenCv() {
+  return new Promise(resolve => {
+    if (window.cv && window.cv.Mat) return resolve();
+    if (typeof waitForOpencvReady === "function") {
+      waitForOpencvReady(resolve);
+    } else {
+      // גיבוי – מחכה בלולאה
+      const check = () => {
+        if (window.cv && window.cv.Mat) resolve();
+        else setTimeout(check, 200);
+      };
+      check();
+    }
+  });
+}
+
+// הפונקציה שמקבלת קנבס מקור ומחזירה DATA URL מעובד כמו סריקה
+async function processScanWithOpenCv(sourceCanvas) {
+  await ensureOpenCv();
+
+  const cv = window.cv;
+  const destCanvas = document.getElementById("scanProcessedCanvas");
+  const procCtx = destCanvas.getContext("2d");
+
+  let src = cv.imread(sourceCanvas);
+  let orig = src.clone();
+
+  // הקטנה לעיבוד מהיר
+  const maxDim = 1000;
+  let scale = 1;
+  if (Math.max(src.rows, src.cols) > maxDim) {
+    scale = maxDim / Math.max(src.rows, src.cols);
+    let dsize = new cv.Size(
+      Math.round(src.cols * scale),
+      Math.round(src.rows * scale)
+    );
+    cv.resize(src, src, dsize, 0, 0, cv.INTER_AREA);
+  }
+
+  // אפור + טשטוש + קנטים
+  let gray = new cv.Mat();
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+  cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
+
+  let edged = new cv.Mat();
+  cv.Canny(gray, edged, 50, 150);
+
+  // חיפוש קונטור הכי גדול עם 4 פינות (דף)
+  let contours = new cv.MatVector();
+  let hierarchy = new cv.Mat();
+  cv.findContours(edged, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+  let maxArea = 0;
+  let pageCnt = null;
+  for (let i = 0; i < contours.size(); ++i) {
+    let cnt = contours.get(i);
+    let area = cv.contourArea(cnt);
+    if (area < 1000) { cnt.delete(); continue; }
+    let peri = cv.arcLength(cnt, true);
+    let approx = new cv.Mat();
+    cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+    if (approx.rows === 4 && area > maxArea) {
+      maxArea = area;
+      if (pageCnt) pageCnt.delete();
+      pageCnt = approx;
+    } else {
+      approx.delete();
+    }
+    cnt.delete();
+  }
+
+  let warped = new cv.Mat();
+
+  function sortCorners(pts) {
+    const sums = pts.map(p => p.x + p.y);
+    const difs = pts.map(p => p.x - p.y);
+    const tl = pts[sums.indexOf(Math.min(...sums))];
+    const br = pts[sums.indexOf(Math.max(...sums))];
+    const tr = pts[difs.indexOf(Math.max(...difs))];
+    const bl = pts[difs.indexOf(Math.min(...difs))];
+    return [tl, tr, br, bl];
+  }
+
+  if (pageCnt) {
+    function getPoint(mat, idx) {
+      return { x: mat.intAt(idx, 0) / scale, y: mat.intAt(idx, 1) / scale };
+    }
+    let pts = [];
+    for (let i = 0; i < 4; i++) pts.push(getPoint(pageCnt, i));
+    pts = sortCorners(pts);
+
+    const widthA = Math.hypot(pts[2].x - pts[3].x, pts[2].y - pts[3].y);
+    const widthB = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    const maxWidth = Math.max(widthA, widthB);
+
+    const heightA = Math.hypot(pts[1].x - pts[2].x, pts[1].y - pts[2].y);
+    const heightB = Math.hypot(pts[0].x - pts[3].x, pts[0].y - pts[3].y);
+    const maxHeight = Math.max(heightA, heightB);
+
+    const dstCoords = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      0, 0,
+      maxWidth - 1, 0,
+      maxWidth - 1, maxHeight - 1,
+      0, maxHeight - 1
+    ]);
+    const srcCoords = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      pts[0].x, pts[0].y,
+      pts[1].x, pts[1].y,
+      pts[2].x, pts[2].y,
+      pts[3].x, pts[3].y
+    ]);
+    let M = cv.getPerspectiveTransform(srcCoords, dstCoords);
+    let dsize = new cv.Size(Math.round(maxWidth), Math.round(maxHeight));
+    let highres = orig.clone();
+    cv.warpPerspective(highres, warped, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+    srcCoords.delete(); dstCoords.delete(); M.delete(); highres.delete(); pageCnt.delete();
+  } else {
+    warped = orig.clone();
+  }
+
+  // הפיכת הרקע ללבן וטקסט חד – "סריקה"
+  let wgray = new cv.Mat();
+  cv.cvtColor(warped, wgray, cv.COLOR_RGBA2GRAY);
+  let thresh = new cv.Mat();
+  try {
+    cv.adaptiveThreshold(
+      wgray,
+      thresh,
+      255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+      cv.THRESH_BINARY,
+      15,
+      12
+    );
+  } catch (e) {
+    cv.threshold(wgray, thresh, 0, 255, cv.THRESH_OTSU);
+  }
+
+  let finalMat = new cv.Mat();
+  cv.cvtColor(thresh, finalMat, cv.COLOR_GRAY2RGBA);
+  finalMat.convertTo(finalMat, -1, 1.4, -10); // קצת יותר קונטרסט ובהירות
+
+  // ציור לקנבס המעובד
+  destCanvas.width  = finalMat.cols;
+  destCanvas.height = finalMat.rows;
+  cv.imshow(destCanvas, finalMat);
+
+  // ניקוי זיכרון
+  src.delete(); gray.delete(); edged.delete();
+  contours.delete(); hierarchy.delete();
+  warped.delete(); wgray.delete(); thresh.delete();
+  finalMat.delete(); orig.delete();
+
+  // מחזירים DATA URL לשימוש בהמשך
+  const dataUrl = destCanvas.toDataURL("image/jpeg", 0.95);
+  return dataUrl;
+}
+
 
 // ================== סוף סריקת מסמך ==================
 
