@@ -9128,12 +9128,48 @@ async function enhanceScanImage(file) {
       canvas.width = img.width;
       canvas.height = img.height;
 
-      // קודם מציירים את התמונה
+      // שלב 1: מציירים את התמונה המקורית
       ctx.drawImage(img, 0, 0);
 
-      // פילטרים: יותר בהיר, יותר קונטרסט, קצת צבע
-      ctx.filter = "brightness(1.25) contrast(1.35) saturate(1.05)";
-      ctx.drawImage(img, 0, 0);
+      // שלב 2: עיבוד פיקסלים להפיכה לסריקה מקצועית
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      // עוברים על כל פיקסל
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        // המרה לגווני אפור (grayscale)
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        // סף (threshold) אגרסיבי: כל מה שמעל 180 הופך ללבן טהור (255)
+        // כל מה שמתחת - נהיה כהה יותר
+        let newValue;
+        if (gray > 180) {
+          newValue = 255; // רקע לבן טהור
+        } else if (gray > 120) {
+          // אזור אמצע - נדחף לבן
+          newValue = Math.min(255, gray * 1.5);
+        } else {
+          // טקסט/קווים כהים - נחדד לשחור
+          newValue = Math.max(0, gray * 0.6);
+        }
+
+        // מחליפים את כל הצבעים בערך החדש (שחור-לבן)
+        data[i] = newValue;
+        data[i + 1] = newValue;
+        data[i + 2] = newValue;
+        // data[i + 3] זה alpha, לא נוגעים
+      }
+
+      // מחזירים את הפיקסלים המעובדים ל-canvas
+      ctx.putImageData(imageData, 0, 0);
+
+      // שלב 3: עוד קצת חידוד ובהירות
+      ctx.filter = "contrast(1.4) brightness(1.1)";
+      ctx.drawImage(canvas, 0, 0);
 
       // הופכים חזרה לקובץ חדש
       canvas.toBlob((blob) => {
@@ -9143,7 +9179,7 @@ async function enhanceScanImage(file) {
           { type: "image/jpeg" }
         );
         resolve(enhancedFile);
-      }, "image/jpeg", 0.92);
+      }, "image/jpeg", 0.95); // איכות גבוהה יותר
     };
 
     img.src = URL.createObjectURL(file);
