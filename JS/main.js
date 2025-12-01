@@ -5234,7 +5234,8 @@ function refreshScanPagesList() {
     left.style.gap = ".5rem";
 
     const thumb = document.createElement("img");
-    thumb.src = page.dataUrl;
+    // תמיכה גם ב-string וגם באובייקט עם dataUrl
+    thumb.src = typeof page === 'string' ? page : page.dataUrl;
     thumb.style.width = "50px";
     thumb.style.height = "70px";
     thumb.style.objectFit = "cover";
@@ -5921,7 +5922,9 @@ async function uploadScannedPdf() {
 
     scannedPages.forEach((page, idx) => {
       if (idx > 0) pdf.addPage();
-      const imgProps = pdf.getImageProperties(page.dataUrl);
+      // תמיכה גם ב-string וגם באובייקט עם dataUrl
+      const pageDataUrl = typeof page === 'string' ? page : page.dataUrl;
+      const imgProps = pdf.getImageProperties(pageDataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
@@ -5936,7 +5939,7 @@ async function uploadScannedPdf() {
       const x = (pdfWidth - imgWidth) / 2;
       const y = (pdfHeight - imgHeight) / 2;
 
-      pdf.addImage(page.dataUrl, "JPEG", x, y, imgWidth, imgHeight);
+      pdf.addImage(pageDataUrl, "JPEG", x, y, imgWidth, imgHeight);
       
       // ✅ הוספת לוגו NestyFile בפינה התחתונה
       // טוען את הלוגו מהתיקייה
