@@ -3799,6 +3799,105 @@ background: var(--bg-card);
 
 
 
+
+
+
+
+
+
+
+
+/* ===== מודאל בסיס ===== */
+.scan-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+}
+
+.scan-modal-content {
+  background: var(--modal-bg);
+  color: var(--modal-text);
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+
+/* טקסטים */
+.scan-modal-title {
+  font-size: 1.3rem;
+  margin: 0 0 1.5rem 0;
+  font-weight: 600;
+}
+
+/* שדות */
+.scan-input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  background: var(--input-bg);
+  color: var(--input-text);
+}
+
+/* כפתורים */
+.modal-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.modal-btn-cancel {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--input-border);
+  background: var(--modal-bg);
+  color: var(--modal-text);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.modal-btn-save {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: #4CAF50;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* ===== מצב בהיר ===== */
+:root {
+  --modal-bg: #ffffff;
+  --modal-text: #2c3e50;
+
+  --input-bg: #ffffff;
+  --input-text: #2c3e50;
+  --input-border: #d5d5d5;
+}
+
+/* ===== מצב כהה ===== */
+.theme-dark {
+  --modal-bg: #1b1f25;
+  --modal-text: #e6e6e6;
+
+  --input-bg: #262b33;
+  --input-text: #f2f2f2;
+  --input-border: #3a3f47;
+}
+
+
+
+
+
   </style>
 </head>
 

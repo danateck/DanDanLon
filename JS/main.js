@@ -5850,111 +5850,46 @@ async function captureScanPage(replaceIndex = null) {
 }
 
 
-// 📝 מציגה מסך עריכת שם ושדות בסיסיים לקובץ סרוק לפני העלאה
 function showScannedFileEditDialog(pdfFile, blob) {
-  // יצירת מודאל פשוט
+
   const modal = document.createElement("div");
-  modal.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-    padding: 1rem;
-  `;
+  modal.className = "scan-modal-backdrop";
 
   const content = document.createElement("div");
-  content.style.cssText = `
-    background: white;
-    border-radius: 12px;
-    padding: 2rem;
-    max-width: 500px;
-    width: 100%;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-  `;
+  content.className = "scan-modal-content";
 
   const title = document.createElement("h3");
+  title.className = "scan-modal-title";
   title.textContent = "📄 פרטי הסריקה";
-  title.style.cssText = `
-    margin: 0 0 1.5rem 0;
-    font-size: 1.3rem;
-    color: #2c3e50;
-  `;
 
   const form = document.createElement("form");
 
-  // שדה שם קובץ
   const nameLabel = document.createElement("label");
   nameLabel.textContent = "שם הקובץ:";
-  nameLabel.style.cssText = `
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #2c3e50;
-  `;
 
   const nameInput = document.createElement("input");
   nameInput.type = "text";
   nameInput.value = pdfFile.name.replace(".pdf", "");
-  nameInput.placeholder = "הכנס/י שם לקובץ...";
-  nameInput.style.cssText = `
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1rem;
-    margin-bottom: 1rem;
-    box-sizing: border-box;
-  `;
+  nameInput.className = "scan-input";
 
-  
-
-  // כפתורים
   const buttonsDiv = document.createElement("div");
-  buttonsDiv.style.cssText = `
-    display: flex;
-    gap: 0.75rem;
-    justify-content: flex-end;
-  `;
+  buttonsDiv.className = "modal-btns";
 
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";
   cancelBtn.textContent = "ביטול";
-  cancelBtn.style.cssText = `
-    padding: 0.75rem 1.5rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background: white;
-    cursor: pointer;
-    font-size: 1rem;
-  `;
+  cancelBtn.className = "modal-btn-cancel";
 
   const saveBtn = document.createElement("button");
   saveBtn.type = "submit";
   saveBtn.textContent = "📤 המשך להעלאה";
-  saveBtn.style.cssText = `
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    background: #4CAF50;
-    color: white;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-  `;
+  saveBtn.className = "modal-btn-save";
 
   buttonsDiv.appendChild(cancelBtn);
   buttonsDiv.appendChild(saveBtn);
 
   form.appendChild(nameLabel);
   form.appendChild(nameInput);
-  // form.appendChild(categoryLabel);
-  // form.appendChild(categorySelect);
   form.appendChild(buttonsDiv);
 
   content.appendChild(title);
@@ -5962,75 +5897,45 @@ function showScannedFileEditDialog(pdfFile, blob) {
   modal.appendChild(content);
   document.body.appendChild(modal);
 
-  // פוקוס על שדה השם
   setTimeout(() => nameInput.focus(), 100);
 
-  // סגירה בלחיצה מחוץ למודאל
   modal.addEventListener("click", (e) => {
-    if (e.target === modal) {
-      document.body.removeChild(modal);
-    }
+    if (e.target === modal) modal.remove();
   });
 
-  // כפתור ביטול
-  cancelBtn.addEventListener("click", () => {
-    document.body.removeChild(modal);
-  });
+  cancelBtn.addEventListener("click", () => modal.remove());
 
-  // שמירה והעלאה
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     let newName = nameInput.value.trim();
-    if (!newName) {
-      alert("נא להזין שם לקובץ");
-      return;
-    }
+    if (!newName) return alert("נא להזין שם לקובץ");
 
-    // וידוא שיש סיומת .pdf
     if (!newName.toLowerCase().endsWith(".pdf")) {
       newName += ".pdf";
     }
 
-  
+    modal.remove();
 
-    // סגירת המודאל
-    document.body.removeChild(modal);
-
-    // העלאה
     try {
-      if (typeof showLoading === "function") {
-        showLoading("מעלה את הסריקה...");
-      }
+      showLoading?.("מעלה את הסריקה...");
 
       const fileInput = document.getElementById("fileInput");
-      if (!fileInput) {
-        alert("לא נמצא שדה העלאת קובץ");
-        return;
-      }
+      if (!fileInput) return alert("לא נמצא שדה העלאת קובץ");
 
-      // יוצרים קובץ חדש עם השם והקטגוריה שנבחרו
       const finalFile = new File([blob], newName, { type: "application/pdf" });
-      
 
-      
       const dt = new DataTransfer();
       dt.items.add(finalFile);
       fileInput.files = dt.files;
 
-      // מפעיל את כל ההיגיון הקיים (העלאה לשרת, בחירת תיקייה...)
       fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+
     } catch (err) {
-      console.error("❌ שגיאה בהעלאת הסריקה:", err);
-      if (typeof showNotification === "function") {
-        showNotification("שגיאה בהעלאת הסריקה", true);
-      } else {
-        alert("שגיאה בהעלאת הסריקה");
-      }
+      console.error(err);
+      showNotification?.("שגיאה בהעלאת הסריקה", true);
     } finally {
-      if (typeof hideLoading === "function") {
-        hideLoading();
-      }
+      hideLoading?.();
     }
   });
 }
@@ -9131,7 +9036,7 @@ window.chooseFolderForUpload = function() {
       const chosen = mainSel.value;
       const subs = SUBFOLDERS_BY_CATEGORY[chosen] || [];
       if (subs.length > 0) {
-        subSel.innerHTML = '<option value="">בחר/י תת-תיקייה (אופציונלי)</option>' + 
+        subSel.innerHTML = '<option value="">בחר/י תת-תיקייה</option>' + 
                           subs.map(s => `<option value="${s}">${s}</option>`).join("");
       } else {
         subSel.innerHTML = '<option value="">ללא תת-תיקייה</option>';
@@ -9183,7 +9088,7 @@ window.openFolderSelectionModal = function (docId) {
     const chosen = mainSel.value;
     const subs = SUBFOLDERS_BY_CATEGORY[chosen] || [];
     if (subs.length > 0) {
-      subSel.innerHTML = '<option value="">בחר/י תת-תיקייה (אופציונלי)</option>' + 
+      subSel.innerHTML = '<option value="">בחר/י תת-תיקייה </option>' + 
                         subs.map(s => `<option value="${s}" ${s === currentSubCategory ? 'selected' : ''}>${s}</option>`).join("");
     } else {
       subSel.innerHTML = '<option value="">ללא תת-תיקייה</option>';
