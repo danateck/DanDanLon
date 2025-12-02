@@ -5912,6 +5912,7 @@ function showScannedFileEditDialog(pdfFile, blob) {
     box-sizing: border-box;
   `;
 
+  
 
   // כפתורים
   const buttonsDiv = document.createElement("div");
@@ -5952,8 +5953,8 @@ function showScannedFileEditDialog(pdfFile, blob) {
 
   form.appendChild(nameLabel);
   form.appendChild(nameInput);
-  form.appendChild(categoryLabel);
-  form.appendChild(categorySelect);
+  // form.appendChild(categoryLabel);
+  // form.appendChild(categorySelect);
   form.appendChild(buttonsDiv);
 
   content.appendChild(title);
