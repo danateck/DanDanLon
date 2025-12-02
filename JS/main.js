@@ -5850,6 +5850,234 @@ async function captureScanPage(replaceIndex = null) {
 }
 
 
+// 📝 מציגה מסך עריכת שם ושדות בסיסיים לקובץ סרוק לפני העלאה
+function showScannedFileEditDialog(pdfFile, blob) {
+  // יצירת מודאל פשוט
+  const modal = document.createElement("div");
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 1rem;
+  `;
+
+  const content = document.createElement("div");
+  content.style.cssText = `
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  `;
+
+  const title = document.createElement("h3");
+  title.textContent = "📄 פרטי הסריקה";
+  title.style.cssText = `
+    margin: 0 0 1.5rem 0;
+    font-size: 1.3rem;
+    color: #2c3e50;
+  `;
+
+  const form = document.createElement("form");
+
+  // שדה שם קובץ
+  const nameLabel = document.createElement("label");
+  nameLabel.textContent = "שם הקובץ:";
+  nameLabel.style.cssText = `
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #2c3e50;
+  `;
+
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.value = pdfFile.name.replace(".pdf", "");
+  nameInput.placeholder = "הכנס/י שם לקובץ...";
+  nameInput.style.cssText = `
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+  `;
+
+  // שדה קטגוריה
+  const categoryLabel = document.createElement("label");
+  categoryLabel.textContent = "קטגוריה:";
+  categoryLabel.style.cssText = `
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #2c3e50;
+  `;
+
+  const categorySelect = document.createElement("select");
+  categorySelect.style.cssText = `
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    box-sizing: border-box;
+    background: white;
+  `;
+
+  // אותן קטגוריות כמו בשאר המערכת
+  const categories = [
+    "כלכלה",
+    "רפואה",
+    "עבודה",
+    "משפט",
+    "ביטוח",
+    "חינוך",
+    "דיור",
+    "רכב",
+    "טכנולוגיה",
+    "אחר"
+  ];
+
+  categories.forEach(cat => {
+    const option = document.createElement("option");
+    option.value = cat;
+    option.textContent = cat;
+    categorySelect.appendChild(option);
+  });
+
+  // כפתורים
+  const buttonsDiv = document.createElement("div");
+  buttonsDiv.style.cssText = `
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  `;
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.textContent = "ביטול";
+  cancelBtn.style.cssText = `
+    padding: 0.75rem 1.5rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 1rem;
+  `;
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "submit";
+  saveBtn.textContent = "📤 המשך להעלאה";
+  saveBtn.style.cssText = `
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    background: #4CAF50;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+  `;
+
+  buttonsDiv.appendChild(cancelBtn);
+  buttonsDiv.appendChild(saveBtn);
+
+  form.appendChild(nameLabel);
+  form.appendChild(nameInput);
+  form.appendChild(categoryLabel);
+  form.appendChild(categorySelect);
+  form.appendChild(buttonsDiv);
+
+  content.appendChild(title);
+  content.appendChild(form);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  // פוקוס על שדה השם
+  setTimeout(() => nameInput.focus(), 100);
+
+  // סגירה בלחיצה מחוץ למודאל
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      document.body.removeChild(modal);
+    }
+  });
+
+  // כפתור ביטול
+  cancelBtn.addEventListener("click", () => {
+    document.body.removeChild(modal);
+  });
+
+  // שמירה והעלאה
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    let newName = nameInput.value.trim();
+    if (!newName) {
+      alert("נא להזין שם לקובץ");
+      return;
+    }
+
+    // וידוא שיש סיומת .pdf
+    if (!newName.toLowerCase().endsWith(".pdf")) {
+      newName += ".pdf";
+    }
+
+    const selectedCategory = categorySelect.value;
+
+    // סגירת המודאל
+    document.body.removeChild(modal);
+
+    // העלאה
+    try {
+      if (typeof showLoading === "function") {
+        showLoading("מעלה את הסריקה...");
+      }
+
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput) {
+        alert("לא נמצא שדה העלאת קובץ");
+        return;
+      }
+
+      // יוצרים קובץ חדש עם השם והקטגוריה שנבחרו
+      const finalFile = new File([blob], newName, { type: "application/pdf" });
+      
+      // שומרים את הקטגוריה שנבחרה
+      window.selectedCategoryForUpload = selectedCategory;
+      
+      const dt = new DataTransfer();
+      dt.items.add(finalFile);
+      fileInput.files = dt.files;
+
+      // מפעיל את כל ההיגיון הקיים (העלאה לשרת, בחירת תיקייה...)
+      fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+    } catch (err) {
+      console.error("❌ שגיאה בהעלאת הסריקה:", err);
+      if (typeof showNotification === "function") {
+        showNotification("שגיאה בהעלאת הסריקה", true);
+      } else {
+        alert("שגיאה בהעלאת הסריקה");
+      }
+    } finally {
+      if (typeof hideLoading === "function") {
+        hideLoading();
+      }
+    }
+  });
+}
+
+
 // יצירת PDF והעלאה – משתמש בזרימה הרגילה של "העלה מסמך" (fileInput.change)
 async function uploadScannedPdf() {
   if (!scannedPages.length) return;
@@ -5955,21 +6183,10 @@ async function uploadScannedPdf() {
     const fileName = `scan_${new Date().toISOString().replace(/[:.]/g, "-")}.pdf`;
     const pdfFile = new File([blob], fileName, { type: "application/pdf" });
 
-    // 👉 משתמשים בזרימת "העלה מסמך" הרגילה (fileInput + change)
-    const fileInput = document.getElementById("fileInput");
-    if (!fileInput) {
-      alert("לא נמצא שדה העלאת קובץ");
-      return;
-    }
-
-    const dt = new DataTransfer();
-    dt.items.add(pdfFile);
-    fileInput.files = dt.files;
-
     closeScanModal();
 
-    // מפעיל את כל ההיגיון הקיים (KEYWORDS, קטגוריה, אחריות, העלאה לשרת...)
-    fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+    // 📝 פותחים מסך עריכת שם קובץ לפני העלאה
+    showScannedFileEditDialog(pdfFile, blob);
   } catch (err) {
     console.error("❌ Scan upload failed:", err);
     if (typeof showNotification === "function") {
