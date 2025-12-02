@@ -4024,6 +4024,59 @@ background: var(--bg-card);
 
 
 
+
+
+
+
+
+
+
+
+/* ===== כותרת חלון ===== */
+.mk-header {
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--mk-text);
+}
+
+/* ===== שדה שם התיקייה ===== */
+.mk-input {
+  width: 100%;
+  padding: .6rem;
+  border: 1px solid var(--mk-border);
+  border-radius: 10px;
+  background: var(--mk-bg);
+  color: var(--mk-text);
+  margin-top: .75rem;
+  box-sizing: border-box;
+}
+
+/* ===== שורה של כפתורים ===== */
+.mk-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: .75rem;
+}
+
+/* ===== הגדרות ברירת מחדל (מצב בהיר) ===== */
+:root {
+  --mk-bg: #ffffff;
+  --mk-text: #1b1b1b;
+  --mk-border: #b5b5b5;
+}
+
+/* ===== מצב כהה ===== */
+.theme-dark {
+  --mk-bg: #101a1a;
+  --mk-text: #e0f0ee;
+  --mk-border: #2b3c3c;
+}
+
+
+
   </style>
 </head>
 

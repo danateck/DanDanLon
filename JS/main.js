@@ -4147,16 +4147,18 @@ wrap.className = "shared-container";
       grid-template-rows:auto auto auto;
     `;
     panel.innerHTML = `
-      <div style="font-weight:700;display:flex;justify-content:space-between;align-items:center;">
-        <span>יצירת תיקייה משותפת</span>
-        <button id="mk_close" class="btn-min">סגור</button>
-      </div>
-      <input id="mk_name" placeholder="שם תיקייה חדשה"
-             style="padding:.6rem;border:1px solid #2b3c3c;border-radius:10px;background:#101a1a;color:#e0f0ee;">
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button id="mk_create" class="btn-cozy">צור</button>
-      </div>
-    `;
+  <div class="mk-header">
+    <span>יצירת תיקייה משותפת</span>
+    <button id="mk_close" class="btn-min">סגור</button>
+  </div>
+
+  <input id="mk_name" placeholder="שם תיקייה חדשה" class="mk-input">
+
+  <div class="mk-buttons">
+    <button id="mk_create" class="btn-cozy">צור</button>
+  </div>
+`;
+
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
     panel.querySelector("#mk_close").onclick = () => overlay.remove();
