@@ -5282,44 +5282,19 @@ function showScanCropEditor(file, onDone) {
   reader.onload = () => {
     const img = new Image();
     img.onload = () => {
-      // ───── יצירת שכבת עריכה ─────
-      const overlay = document.createElement("div");
-      overlay.style.position = "fixed";
-      overlay.style.inset = "0";
-      overlay.style.background = "rgba(0,0,0,.55)";
-      overlay.style.display = "flex";
-      overlay.style.alignItems = "center";
-      overlay.style.justifyContent = "center";
-      overlay.style.zIndex = "10001";
+     // ───── יצירת שכבת עריכה ─────
+const overlay = document.createElement("div");
+overlay.className = "scan-overlay";
 
-      const panel = document.createElement("div");
-      panel.style.background = "#fff";
-      panel.style.borderRadius = "12px";
-      panel.style.padding = ".75rem";
-      panel.style.maxWidth = "95vw";
-      panel.style.width = "420px";
-      panel.style.maxHeight = "90vh";
-      panel.style.overflowY = "auto";
-      panel.style.display = "flex";
-      panel.style.flexDirection = "column";
-      panel.style.gap = ".5rem";
-      panel.style.boxShadow = "0 20px 40px rgba(0,0,0,.35)";
+const panel = document.createElement("div");
+panel.className = "scan-panel";
 
-      const title = document.createElement("h3");
-      title.textContent = "התאמת חיתוך";
-      title.style.margin = "0 0 .25rem 0";
-      title.style.fontSize = ".95rem";
-      title.style.fontWeight = "600";
+const title = document.createElement("h3");
+title.textContent = "התאמת חיתוך";
+title.className = "scan-title";
 
-      const canvas = document.createElement("canvas");
-      canvas.style.maxWidth = "100%";
-      canvas.style.height = "auto";
-      canvas.style.maxHeight = "55vh";
-      canvas.style.display = "block";
-      canvas.style.margin = "0 auto";
-      canvas.style.borderRadius = "8px";
-      canvas.style.border = "1px solid #ddd";
-      canvas.style.background = "#000";
+const canvas = document.createElement("canvas");
+canvas.className = "scan-canvas";
 
       const sliderWrapper = document.createElement("div");
       sliderWrapper.style.display = "flex";
