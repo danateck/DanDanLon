@@ -6036,7 +6036,6 @@ function showScannedFileEditDialog(pdfFile, blob) {
 }
 
 
-
 // יצירת PDF והעלאה – משתמש בזרימה הרגילה של "העלה מסמך" (fileInput.change)
 async function uploadScannedPdf() {
   if (!scannedPages.length) return;
@@ -9132,7 +9131,7 @@ window.chooseFolderForUpload = function() {
       const chosen = mainSel.value;
       const subs = SUBFOLDERS_BY_CATEGORY[chosen] || [];
       if (subs.length > 0) {
-        subSel.innerHTML = '<option value="">ללא תת-תיקייה</option>' + 
+        subSel.innerHTML = '<option value="">בחר/י תת-תיקייה (אופציונלי)</option>' + 
                           subs.map(s => `<option value="${s}">${s}</option>`).join("");
       } else {
         subSel.innerHTML = '<option value="">ללא תת-תיקייה</option>';
@@ -9184,7 +9183,7 @@ window.openFolderSelectionModal = function (docId) {
     const chosen = mainSel.value;
     const subs = SUBFOLDERS_BY_CATEGORY[chosen] || [];
     if (subs.length > 0) {
-      subSel.innerHTML = '<option value="">ללא תת-תיקייה</option>' + 
+      subSel.innerHTML = '<option value="">בחר/י תת-תיקייה (אופציונלי)</option>' + 
                         subs.map(s => `<option value="${s}" ${s === currentSubCategory ? 'selected' : ''}>${s}</option>`).join("");
     } else {
       subSel.innerHTML = '<option value="">ללא תת-תיקייה</option>';
