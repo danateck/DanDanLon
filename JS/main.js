@@ -4140,13 +4140,9 @@ wrap.className = "shared-container";
       font-family: Rubik,system-ui,sans-serif;
     `;
     const panel = document.createElement("div");
-    panel.style.cssText = `
-      background:#0b1010; color:#e7f0ee; width:min(520px,92vw);
-      border:1px solid #243030; border-radius:14px; padding:14px;
-      box-shadow:0 18px 44px rgba(0,0,0,.5); display:grid; gap:10px;
-      grid-template-rows:auto auto auto;
-    `;
-    panel.innerHTML = `
+    panel.className = "mk-panel";
+
+panel.innerHTML = `
   <div class="mk-header">
     <span>יצירת תיקייה משותפת</span>
     <button id="mk_close" class="btn-min">סגור</button>
@@ -4158,6 +4154,7 @@ wrap.className = "shared-container";
     <button id="mk_create" class="btn-cozy">צור</button>
   </div>
 `;
+
 
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
