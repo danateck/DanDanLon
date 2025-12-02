@@ -5912,48 +5912,6 @@ function showScannedFileEditDialog(pdfFile, blob) {
     box-sizing: border-box;
   `;
 
-  // שדה קטגוריה
-  const categoryLabel = document.createElement("label");
-  categoryLabel.textContent = "קטגוריה:";
-  categoryLabel.style.cssText = `
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #2c3e50;
-  `;
-
-  const categorySelect = document.createElement("select");
-  categorySelect.style.cssText = `
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
-    box-sizing: border-box;
-    background: white;
-  `;
-
-  // אותן קטגוריות כמו בשאר המערכת
-  const categories = [
-    "כלכלה",
-    "רפואה",
-    "עבודה",
-    "משפט",
-    "ביטוח",
-    "חינוך",
-    "דיור",
-    "רכב",
-    "טכנולוגיה",
-    "אחר"
-  ];
-
-  categories.forEach(cat => {
-    const option = document.createElement("option");
-    option.value = cat;
-    option.textContent = cat;
-    categorySelect.appendChild(option);
-  });
 
   // כפתורים
   const buttonsDiv = document.createElement("div");
