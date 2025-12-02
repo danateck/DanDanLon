@@ -5992,7 +5992,7 @@ function showScannedFileEditDialog(pdfFile, blob) {
       newName += ".pdf";
     }
 
-    const selectedCategory = categorySelect.value;
+  
 
     // סגירת המודאל
     document.body.removeChild(modal);
@@ -6012,8 +6012,7 @@ function showScannedFileEditDialog(pdfFile, blob) {
       // יוצרים קובץ חדש עם השם והקטגוריה שנבחרו
       const finalFile = new File([blob], newName, { type: "application/pdf" });
       
-      // שומרים את הקטגוריה שנבחרה
-      window.selectedCategoryForUpload = selectedCategory;
+
       
       const dt = new DataTransfer();
       dt.items.add(finalFile);
