@@ -4028,51 +4028,64 @@ background: var(--bg-card);
 
 
 
+/* ===== פנל יצירת תיקייה ===== */
+.mk-panel {
+  background: var(--mk-panel-bg);
+  color: var(--mk-panel-text);
+  width: min(520px, 92vw);
+  border: 1px solid var(--mk-panel-border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 18px 44px rgba(0,0,0,.5);
+  display: grid;
+  gap: 10px;
+  grid-template-rows: auto auto auto;
+}
 
-
-
-
-/* ===== כותרת חלון ===== */
+/* כותרת */
 .mk-header {
   font-weight: 700;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--mk-text);
 }
 
-/* ===== שדה שם התיקייה ===== */
+/* שדה טקסט */
 .mk-input {
-  width: 100%;
   padding: .6rem;
-  border: 1px solid var(--mk-border);
   border-radius: 10px;
-  background: var(--mk-bg);
-  color: var(--mk-text);
-  margin-top: .75rem;
-  box-sizing: border-box;
+  border: 1px solid var(--mk-input-border);
+  background: var(--mk-input-bg);
+  color: var(--mk-input-text);
 }
 
-/* ===== שורה של כפתורים ===== */
+/* שורת כפתורים */
 .mk-buttons {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  margin-top: .75rem;
 }
 
-/* ===== הגדרות ברירת מחדל (מצב בהיר) ===== */
+/* ===== מצב בהיר ===== */
 :root {
-  --mk-bg: #ffffff;
-  --mk-text: #1b1b1b;
-  --mk-border: #b5b5b5;
+  --mk-panel-bg: #ffffff;
+  --mk-panel-text: #1b1b1b;
+  --mk-panel-border: #d0d0d0;
+
+  --mk-input-bg: #ffffff;
+  --mk-input-text: #1b1b1b;
+  --mk-input-border: #c3c3c3;
 }
 
 /* ===== מצב כהה ===== */
 .theme-dark {
-  --mk-bg: #101a1a;
-  --mk-text: #e0f0ee;
-  --mk-border: #2b3c3c;
+  --mk-panel-bg: #0b1010;
+  --mk-panel-text: #e7f0ee;
+  --mk-panel-border: #243030;
+
+  --mk-input-bg: #101a1a;
+  --mk-input-text: #e0f0ee;
+  --mk-input-border: #243030;
 }
 
 
