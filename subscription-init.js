@@ -88,7 +88,6 @@ function updateStorageWidget() {
   const oldWidget = document.getElementById('storageWidget');
   if (oldWidget) {
     oldWidget.style.display = 'none';
-
   }
 
   
@@ -119,41 +118,23 @@ function updateStorageWidget() {
 // כפתור "המנוי שלי"
 // ========================================
 function addSubscriptionButton() {
-  // נסה למצוא מקום מתאים להוסיף את הכפתור
-  const sidebar = document.querySelector('.sidebar') || 
-                  document.querySelector('aside') ||
-                  document.querySelector('.user-panel');
+  // 🔧 משתמש בכפתור הפרימיום הקיים במקום ליצור חדש
+  const existingBtn = document.getElementById('premiumBtn');
   
-  if (!sidebar) {
-    console.warn('⚠️ לא נמצא מקום להוסיף כפתור מנוי');
-    return;
-  }
-  
-  // בדוק אם הכפתור כבר קיים
-  if (document.getElementById('subscription-settings-btn')) {
-    console.log('✅ כפתור מנוי כבר קיים');
-    return;
-  }
-  
-  // יצור כפתור
-  const btn = document.createElement('button');
-  btn.id = 'subscription-settings-btn';
-  btn.className = 'subscription-btn';
-  btn.innerHTML = `
-    <span style="font-size: 1.2rem;">💎</span>
-    <span>המנוי שלי</span>
-  `;
-  btn.onclick = () => window.showSubscriptionSettings();
-  
-  // מצא את הוידג'ט והוסף אחריו
-  const widgetContainer = document.getElementById('storage-widget-container');
-  if (widgetContainer && widgetContainer.parentNode) {
-    widgetContainer.parentNode.insertBefore(btn, widgetContainer.nextSibling);
+  if (existingBtn) {
+    // שנה את הטקסט והאייקון
+    existingBtn.innerHTML = `
+      <span style="font-size: 1.2rem;">💎</span>
+      <span>המנוי שלי</span>
+    `;
+    
+    // שנה את הפעולה
+    existingBtn.onclick = () => window.showSubscriptionSettings();
+    
+    console.log('✅ כפתור פרימיום עודכן ל"המנוי שלי"');
   } else {
-    sidebar.appendChild(btn);
+    console.warn('⚠️ לא נמצא כפתור פרימיום');
   }
-  
-  console.log('✅ כפתור מנוי נוסף');
 }
 
 // ========================================
