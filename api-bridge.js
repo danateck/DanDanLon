@@ -707,12 +707,6 @@ function computeStorageUsage() {
 function updateStorageUsageWidget() {
   console.log("🔄 updateStorageUsageWidget called");
   
-  // בדיקה אם יש מערכת מנויים חדשה
-  if (window.subscriptionManager) {
-    console.log("✅ Using new subscription system");
-    return; // מערכת המנויים מטפלת בזה
-  }
-  
   const barFill   = document.getElementById("storageUsageBarFill");
   const textEl    = document.getElementById("storageUsageText");
   const percentEl = document.getElementById("storageUsagePercent");
@@ -722,8 +716,23 @@ function updateStorageUsageWidget() {
     return; // לא שגיאה - פשוט לא קיים
   }
 
-  const GB       = 1024 * 1024 * 1024;
-  const TOTAL_GB = 0.5; // 🔧 שונה ל-500MB כדי שהפס יזוז יותר
+  const GB = 1024 * 1024 * 1024;
+  const MB = 1024 * 1024;
+  
+  // 🔧 קבלת מכסת אחסון מה-subscriptionManager אם קיים
+  let TOTAL_BYTES = 200 * MB; // ברירת מחדל: 200MB (תוכנית Free)
+  
+  if (window.subscriptionManager) {
+    try {
+      const plan = window.subscriptionManager.getCurrentPlan();
+      TOTAL_BYTES = plan.storage; // בבייטים
+      console.log(`💎 Using storage limit from ${plan.nameHe}: ${(TOTAL_BYTES / MB).toFixed(0)}MB`);
+    } catch (error) {
+      console.warn('⚠️ Could not get plan from subscriptionManager:', error);
+    }
+  }
+  
+  const TOTAL_GB = TOTAL_BYTES / GB;
 
   const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
 
@@ -766,6 +775,19 @@ function updateStorageUsageWidget() {
   const usedGB = usedBytes / GB;
   const freeGB = Math.max(0, TOTAL_GB - usedGB);
 
+  // 🔧 טיפול מיוחד ל-Infinity (Premium+)
+  if (TOTAL_BYTES === Infinity) {
+    barFill.style.setProperty('width', '0%', 'important');
+    percentEl.textContent = "0%";
+    const usedMB = usedBytes / MB;
+    const usedDisplay = usedMB < 1024 
+      ? `${usedMB.toFixed(1)}MB`
+      : `${usedGB.toFixed(2)}GB`;
+    textEl.textContent = `אחסון: ${usedDisplay} (ללא הגבלה ∞)`;
+    console.log("💎 Storage widget: Unlimited (Premium+)");
+    return;
+  }
+
   let usedPct = TOTAL_GB > 0 ? (usedGB / TOTAL_GB) * 100 : 0;
   if (!Number.isFinite(usedPct) || usedPct < 0) usedPct = 0;
   if (usedPct > 100) usedPct = 100;
@@ -774,9 +796,8 @@ function updateStorageUsageWidget() {
   let textValue;
   if (TOTAL_GB < 1) {
     // מציגים ב-MB
-    const MB = 1024 * 1024;
     const usedMB = usedBytes / MB;
-    const totalMB = TOTAL_GB * 1024; // המרה מGB ל-MB
+    const totalMB = TOTAL_BYTES / MB; // המרה ישירה מבייטים ל-MB
     const freeMB = Math.max(0, totalMB - usedMB);
     textValue = `אחסון פנוי: ${freeMB.toFixed(0)}MB מתוך ${totalMB.toFixed(0)}MB`;
   } else {
