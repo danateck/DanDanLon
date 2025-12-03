@@ -249,8 +249,23 @@ if (Array.isArray(window.allDocsData)) {
   window.allDocsData.push(doc);
 }
 
+// ✅ עדכון מערכת מנויים (אם קיימת)
+if (window.subscriptionManager) {
+  try {
+    await window.subscriptionManager.updateStorageUsage();
+    console.log('✅ Subscription storage updated');
+  } catch (err) {
+    console.warn('⚠️ Could not update subscription:', err);
+  }
+}
+
+// Fallback - וידג'ט ישן (אם קיים)
 if (typeof window.updateStorageUsageWidget === "function") {
-  window.updateStorageUsageWidget();
+  try {
+    window.updateStorageUsageWidget();
+  } catch (err) {
+    console.warn('⚠️ Old widget update failed:', err);
+  }
 }
 
 // פותח חלון בחירה אחרי העלאה
@@ -692,16 +707,19 @@ function computeStorageUsage() {
 function updateStorageUsageWidget() {
   console.log("🔄 updateStorageUsageWidget called");
   
+  // בדיקה אם יש מערכת מנויים חדשה
+  if (window.subscriptionManager) {
+    console.log("✅ Using new subscription system");
+    return; // מערכת המנויים מטפלת בזה
+  }
+  
   const barFill   = document.getElementById("storageUsageBarFill");
   const textEl    = document.getElementById("storageUsageText");
   const percentEl = document.getElementById("storageUsagePercent");
 
   if (!barFill || !textEl || !percentEl) {
-    console.warn("⚠️ Storage widget elements not found");
-    console.log("  barFill:", barFill);
-    console.log("  textEl:", textEl);
-    console.log("  percentEl:", percentEl);
-    return;
+    console.log("⚠️ Old storage widget not found (probably using new subscription system)");
+    return; // לא שגיאה - פשוט לא קיים
   }
 
   const GB       = 1024 * 1024 * 1024;
