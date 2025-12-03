@@ -4116,6 +4116,185 @@ background: var(--bg-card);
   color: white !important;
 }
 
+
+
+
+
+
+
+
+
+
+
+/* Grid ל-6 תוכניות */
+.plans-grid-6 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.modal-wide {
+  max-width: 1400px !important;
+  width: 95% !important;
+}
+
+/* כרטיס תוכנית */
+.plan {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+/* תגיות */
+.badge-popular, .badge-best, .badge-unlimited {
+  position: absolute;
+  top: -12px;
+  right: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.badge-best {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.badge-unlimited {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* אייקון התוכנית */
+.plan-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+/* כותרת */
+.plan header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.plan h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+  color: #2c3e50;
+}
+
+.price {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #52997350;
+  margin: 0.5rem 0;
+}
+
+.price .per {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #7f8c8d;
+}
+
+.price-note {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-top: 0.25rem;
+}
+
+/* רשימת תכונות */
+.features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+  flex-grow: 1;
+}
+
+.features li {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.95rem;
+  color: #34495e;
+}
+
+.features li:last-child {
+  border-bottom: none;
+}
+
+/* כפתורים */
+.btn-primary {
+  background: linear-gradient(135deg, #52997350 0%, #3a7d5c 100%);
+  color: white;
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-pro {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.btn-premium {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: white;
+  font-weight: 700;
+}
+
+.btn-premium-plus {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+  font-weight: 700;
+}
+
+/* גרסה כהה */
+.theme-dark .plan {
+  background: #1a1f1d;
+  border-color: rgba(82, 152, 115, 0.3);
+}
+
+.theme-dark .plan h3 {
+  color: #e8f0ec;
+}
+
+.theme-dark .price {
+  color: #52997350;
+}
+
+.theme-dark .features li {
+  color: #b8c9c0;
+  border-bottom-color: rgba(82, 152, 115, 0.2);
+}
+
+/* רספונסיבי */
+@media (max-width: 768px) {
+  .plans-grid-6 {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-wide {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
   </style>
 </head>
 
@@ -4654,75 +4833,166 @@ background: var(--bg-card);
 
 
 
-<!-- Premium Panel (Modal) -->
+<!-- ========================================
+     פאנל מנויים מעודכן - 6 תוכניות
+     ======================================== -->
+
 <div id="premiumPanel" class="modal-backdrop hidden" dir="rtl" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="premiumTitle" tabindex="-1">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="premiumTitle" tabindex="-1">
     <div class="modal-head">
-      <h2 id="premiumTitle">בחרו תוכנית</h2>
+      <h2 id="premiumTitle">💎 בחרו תוכנית מנוי</h2>
       <button class="modal-close" id="premiumCloseBtn" aria-label="סגור">✖</button>
     </div>
 
+    <div class="scroll-area">
+      <p class="muted">שדרגו את NestyFile כדי לקבל עוד שטח אחסון, שיתופים ללא הגבלה ותכונות חכמות.</p>
 
-     <div class="scroll-area">
-    <p class="muted">שדרגו את Eco-Files כדי לקבל עוד שטח אחסון, שיתופים ללא הגבלה ותכונות חכמות.</p>
+      <div class="plans-grid-6">
+        
+        <!-- 1️⃣ FREE -->
+        <article class="plan plan-free" data-plan="free" aria-label="תוכנית חינם">
+          <header>
+            <div class="plan-icon">🆓</div>
+            <h3>חינם</h3>
+            <div class="price">₪0<span class="per">/חודש</span></div>
+          </header>
+          <ul class="features">
+            <li>📦 200MB אחסון</li>
+            <li>📄 עד 200 מסמכים</li>
+            <li>📎 קובץ עד 5MB</li>
+            <li>👤 שיתוף אדם אחד</li>
+            <li>📁 שיתוף מסמכים בודדים</li>
+          </ul>
+          <button class="btn btn-ghost" disabled>התוכנית הנוכחית</button>
+        </article>
 
-    <div class="plans-grid">
-      <!-- Free -->
-      <article class="plan" data-plan="free" aria-label="תוכנית חינם">
-        <header>
-          <h3>חינם</h3>
-          <div class="price">₪0<span class="per">/חודש</span></div>
-        </header>
-        <ul class="features">
-          <li>אחסון עד 1GB</li>
-          <li>תיקייה משותפת אחת</li>
-          <li>העלאות בסיסיות</li>
-        </ul>
-        <button class="btn btn-ghost" disabled>נוכחי</button>
-      </article>
+        <!-- 2️⃣ STANDARD -->
+        <article class="plan plan-standard" data-plan="standard" aria-label="תוכנית סטנדרט">
+          <header>
+            <div class="plan-icon">⭐</div>
+            <h3>רגיל</h3>
+            <div class="price">₪9<span class="per">/חודש</span></div>
+          </header>
+          <ul class="features">
+            <li>📦 2GB אחסון</li>
+            <li>📄 עד 1,000 מסמכים</li>
+            <li>📎 קובץ עד 50MB</li>
+            <li>👥 שיתוף עד 5 אנשים</li>
+            <li>📁 5 תיקיות משותפות</li>
+            <li>👨‍👩‍👧‍👦 3 פרופילים משותפים</li>
+          </ul>
+          <button class="btn btn-primary" data-select-plan="standard">
+            בחר רגיל
+          </button>
+        </article>
 
-      <!-- Pro -->
-      <article class="plan" data-plan="pro" aria-label="תוכנית פרו">
-        <header>
-          <h3>פרו</h3>
-          <div class="price">₪11<span class="per">/חודש</span></div>
-        </header>
-        <ul class="features">
-          <li>אחסון עד 10GB</li>
-          <li>שיתוף עד 5 משתמשים</li>
-          <li>תיוגים וחיפוש חכם</li>
-          <li>OCR מהיר</li>
-        </ul>
-        <button class="btn" data-select-plan="pro">בחר פרו</button>
-      </article>
+        <!-- 3️⃣ ADVANCED -->
+        <article class="plan plan-advanced" data-plan="advanced" aria-label="תוכנית מתקדם">
+          <div class="badge-popular">✨ פופולרי</div>
+          <header>
+            <div class="plan-icon">🚀</div>
+            <h3>מתקדם</h3>
+            <div class="price">₪39<span class="per">/חודש</span></div>
+          </header>
+          <ul class="features">
+            <li>📦 10GB אחסון</li>
+            <li>📄 עד 5,000 מסמכים</li>
+            <li>📎 קובץ עד 100MB</li>
+            <li>👥 שיתוף עד 20 אנשים</li>
+            <li>📁 20 תיקיות משותפות</li>
+            <li>👨‍👩‍👧‍👦 10 פרופילים משותפים</li>
+            <li>🔍 OCR - זיהוי תאריכים וארגונים</li>
+          </ul>
+          <button class="btn btn-accent" data-select-plan="advanced">
+            בחר מתקדם
+          </button>
+        </article>
 
-      <!-- Premium -->
-      <article class="plan plan-accent" data-plan="premium" aria-label="תוכנית פרימיום">
-        <header>
-          <h3>פרימיום 💎</h3>
-          <div class="price">₪29<span class="per">/חודש</span></div>
-        </header>
-        <ul class="features">
-          <li>אחסון בלתי מוגבל</li>
-          <li>שיתוף ללא הגבלה</li>
-          <li>AI סיווג וסריקה אוטומטית</li>
-          <li>סנכרון בזמן אמת ותמיכה בעדיפות</li>
-        </ul>
-        <button class="btn btn-accent" data-select-plan="premium">בחר פרימיום</button>
-      </article>
-    </div>
+        <!-- 4️⃣ PRO -->
+        <article class="plan plan-pro" data-plan="pro" aria-label="תוכנית פרו">
+          <header>
+            <div class="plan-icon">💼</div>
+            <h3>מקצועי</h3>
+            <div class="price">₪59<span class="per">/חודש</span></div>
+          </header>
+          <ul class="features">
+            <li>📦 20GB אחסון</li>
+            <li>📄 עד 10,000 מסמכים</li>
+            <li>📎 קובץ עד 200MB</li>
+            <li>👥 שיתוף עד 20 אנשים</li>
+            <li>📁 40 תיקיות משותפות</li>
+            <li>👨‍👩‍👧‍👦 20 פרופילים משותפים</li>
+            <li>🔍 OCR מלא</li>
+            <li>🤖 חיפוש מתקדם עם AI</li>
+          </ul>
+          <button class="btn btn-pro" data-select-plan="pro">
+            בחר מקצועי
+          </button>
+        </article>
+
+        <!-- 5️⃣ PREMIUM -->
+        <article class="plan plan-premium" data-plan="premium" aria-label="תוכנית פרימיום">
+          <div class="badge-best">💎 הטוב ביותר</div>
+          <header>
+            <div class="plan-icon">👑</div>
+            <h3>פרימיום</h3>
+            <div class="price">₪99<span class="per">/חודש</span></div>
+          </header>
+          <ul class="features">
+            <li>📦 50GB אחסון</li>
+            <li>📄 מסמכים ללא הגבלה</li>
+            <li>📎 קובץ עד 500MB</li>
+            <li>👥 שיתוף ללא הגבלה</li>
+            <li>📁 תיקיות משותפות ללא הגבלה</li>
+            <li>👨‍👩‍👧‍👦 פרופילים ללא הגבלה</li>
+            <li>🔍 OCR מלא</li>
+            <li>🤖 חיפוש AI מתקדם</li>
+            <li>⚡ תמיכה בעדיפות</li>
+          </ul>
+          <button class="btn btn-premium" data-select-plan="premium">
+            בחר פרימיום
+          </button>
+        </article>
+
+        <!-- 6️⃣ PREMIUM PLUS -->
+        <article class="plan plan-premium-plus" data-plan="premium_plus" aria-label="תוכנית פרימיום פלוס">
+          <div class="badge-unlimited">∞ ללא הגבלה</div>
+          <header>
+            <div class="plan-icon">💫</div>
+            <h3>פרימיום+</h3>
+            <div class="price">₪99<span class="per">+</span></div>
+            <div class="price-note">+ ₪1.5 לכל GB נוסף</div>
+          </header>
+          <ul class="features">
+            <li>📦 אחסון ללא הגבלה</li>
+            <li>📄 מסמכים ללא הגבלה</li>
+            <li>📎 קובץ עד 1GB</li>
+            <li>👥 שיתוף ללא הגבלה</li>
+            <li>📁 תיקיות ללא הגבלה</li>
+            <li>👨‍👩‍👧‍👦 פרופילים ללא הגבלה</li>
+            <li>🔍 OCR מלא</li>
+            <li>🤖 חיפוש AI מתקדם</li>
+            <li>⚡ תמיכה בעדיפות</li>
+            <li>🌟 כל התכונות הבאות</li>
+          </ul>
+          <button class="btn btn-premium-plus" data-select-plan="premium_plus">
+            בחר פרימיום+
+          </button>
+        </article>
+
+      </div>
     </div>
 
     <div class="modal-foot" style="display:flex; flex-direction:column; gap:8px;">
-  <!-- פה PayPal ירנדר את הכפתור -->
-  <div id="paypalButtonsContainer" style="width:100%; display:flex; justify-content:center;"></div>
-
-
-  <button class="btn" id="premiumLaterBtn">אולי אחר-כך</button>
-</div>
+      <!-- פה PayPal ירנדר את הכפתור -->
+      <div id="paypalButtonsContainer" style="width:100%; display:flex; justify-content:center;"></div>
+      <button class="btn btn-ghost" id="premiumLaterBtn">אולי אחר-כך</button>
+    </div>
 
   </div>
 </div>
+
+
 
 
 <!-- Settings Panel -->
@@ -4870,10 +5140,10 @@ background: var(--bg-card);
 
 
 <!-- 💎 מערכת מנויים -->
-<script type="module" src="subscription-manager.js"></script>
+<!-- <script type="module" src="subscription-manager.js"></script>
 <script type="module" src="subscription-ui.js"></script>
 <script type="module" src="subscription-calculator.js"></script>
-<script type="module" src="subscription-init.js"></script>
+<script type="module" src="subscription-init.js"></script> -->
 
 
 <script type="module" src="JS/authCheck.js" onerror="console.error('❌ Failed to load authCheck.js')"></script>
@@ -5254,6 +5524,10 @@ async function updateTwoFactorSetting(email, enabled) {
     </div>
   </div>
 </div>
+
+
+
+<script type="module" src="premium-payments.js"></script>
 
 
 </body>
