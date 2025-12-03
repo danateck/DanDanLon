@@ -23,12 +23,7 @@ function waitForFirebase() {
 }
 
 
-import { initializeSubscriptionSystem, addSubscriptionToSettingsMenu } from "../subscription-integration.js";
 
-
-await initializeSubscriptionSystem();
-
-addSubscriptionToSettingsMenu();
 
 // ---- Global safety net ----
 window.allDocsData = Array.isArray(window.allDocsData) ? window.allDocsData : [];
