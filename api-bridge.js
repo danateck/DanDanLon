@@ -849,14 +849,3 @@ function updateStorageUsageWidget() {
 
 // שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
 window.updateStorageUsageWidget = updateStorageUsageWidget;
-
-
-
-
-
-
-
-
-
-
-

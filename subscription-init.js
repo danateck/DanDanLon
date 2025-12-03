@@ -84,6 +84,13 @@ function updateStorageWidget() {
   }
   
   const info = subscriptionManager.getSubscriptionInfo();
+  // 🔧 הסתר את הוידג'ט הישן
+  const oldWidget = document.getElementById('storageWidget');
+  if (oldWidget) {
+    oldWidget.style.display = 'none';
+
+  }
+
   
   container.innerHTML = `
     <div class="storage-widget-new" onclick="window.showSubscriptionSettings()">
