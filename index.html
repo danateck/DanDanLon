@@ -4297,13 +4297,22 @@ background: var(--bg-card);
       </div>
 
       <div class="sidebar-bottom">
+        <!-- 💎 וידג'ט מנויים -->
+<div id="storage-widget-container"></div>
+  <div class="storage-widget" id="storageWidget" aria-label="מצב אחסון">
+    <div class="storage-label-row">
+      <span class="storage-label">אחסון</span>
+      <span class="storage-percent" id="storageUsagePercent">0%</span>
+    </div>
 
-      <div class="sidebar-bottom">
-  <!-- 💎 וידג'ט מנויים חדש -->
-  <div id="storage-widget-container"></div>
-</div>
+    <div class="storage-bar">
+      <div class="storage-bar-fill" id="storageUsageBarFill"></div>
+    </div>
 
-    </aside>
+    <div class="storage-text" id="storageUsageText">
+      אחסון פנוי: 0.5GB מתוך 0.5GB
+    </div>
+  </div>
 </div>
 
     </aside>
@@ -4856,22 +4865,17 @@ background: var(--bg-card);
 <canvas id="scanSourceCanvas" width="1200" height="1600" style="display:none;"></canvas>
 <canvas id="scanProcessedCanvas" width="1200" height="1600" style="display:none;"></canvas>
 
-
-
-
-<!-- מערכת מנויים -->
-<script type="module" src="subscription-manager.js"></script>
-<script type="module" src="subscription-ui.js"></script>
-<script type="module" src="subscription-init.js"></script>
-<script type="module" src="subscription-calculator.js"></script>
-
-<!-- 💎 אתחול מערכת מנויים -->
-
-
-
-
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script type="module" src="firebase-config.js" onerror="console.error('❌ Failed to load firebase-config.js')"></script>
+
+
+<!-- 💎 מערכת מנויים -->
+<script type="module" src="subscription-manager.js"></script>
+<script type="module" src="subscription-ui.js"></script>
+<script type="module" src="subscription-calculator.js"></script>
+<script type="module" src="subscription-init.js"></script>
+
+
 <script type="module" src="JS/authCheck.js" onerror="console.error('❌ Failed to load authCheck.js')"></script>
 <script type="module" src="api-bridge.js" onerror="console.error('❌ Failed to load api-bridge.js')"></script> 
 <script type="module" src="JS/main.js" onerror="console.error('❌ Failed to load main.js')"></script>
