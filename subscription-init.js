@@ -88,6 +88,7 @@ function updateStorageWidget() {
   const oldWidget = document.getElementById('storageWidget');
   if (oldWidget) {
     oldWidget.style.display = 'none';
+
   }
 
   
@@ -122,14 +123,22 @@ function addSubscriptionButton() {
   const existingBtn = document.getElementById('premiumBtn');
   
   if (existingBtn) {
+    // 🔥 הסר את כל ה-event listeners הישנים
+    const newBtn = existingBtn.cloneNode(true);
+    existingBtn.parentNode.replaceChild(newBtn, existingBtn);
+    
     // שנה את הטקסט והאייקון
-    existingBtn.innerHTML = `
+    newBtn.innerHTML = `
       <span style="font-size: 1.2rem;">💎</span>
       <span>המנוי שלי</span>
     `;
     
-    // שנה את הפעולה
-    existingBtn.onclick = () => window.showSubscriptionSettings();
+    // הוסף את הפעולה החדשה
+    newBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.showSubscriptionSettings();
+    });
     
     console.log('✅ כפתור פרימיום עודכן ל"המנוי שלי"');
   } else {
