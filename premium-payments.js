@@ -114,7 +114,7 @@ async function renderPayPalButton(planId) {
           purchase_units: [{
             description: `NestyFile - ${planName}`,
             amount: {
-              currency_code: 'USD',
+              currency_code: 'ILS',
               value: price.toFixed(2)
             }
           }]
