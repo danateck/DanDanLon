@@ -4124,6 +4124,16 @@ background: var(--bg-card);
 
 
 
+
+
+
+
+
+
+
+
+
+
 /* ═══════════════════════════════════════════════════════════════ */
 /* הוסף את ה-CSS הזה לקובץ index.html (בתוך <style> או בקובץ CSS) */
 /* ═══════════════════════════════════════════════════════════════ */
@@ -4371,6 +4381,9 @@ background: var(--bg-card);
     font-size: 1.75rem;
   }
 }
+
+
+
   </style>
 </head>
 
@@ -4913,17 +4926,7 @@ background: var(--bg-card);
      פאנל מנויים מעודכן - 6 תוכניות
      ======================================== -->
 
-<div id="premiumPanel" class="modal-backdrop hidden" dir="rtl" aria-hidden="true">
-  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="premiumTitle" tabindex="-1">
-    <div class="modal-head">
-      <h2 id="premiumTitle">💎 בחרו תוכנית מנוי</h2>
-      <button class="modal-close" id="premiumCloseBtn" aria-label="סגור">✖</button>
-    </div>
-
-    <div class="scroll-area">
-      <p class="muted">שדרגו את NestyFile כדי לקבל עוד שטח אחסון, שיתופים ללא הגבלה ותכונות חכמות.</p>
-
-      <!-- ══════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════ -->
 <!-- החלף את התוכן בין שורה 4669 ל-4713 עם זה:          -->
 <!-- ══════════════════════════════════════════════════════ -->
 
@@ -5052,19 +5055,8 @@ background: var(--bg-card);
 
     </div>
 
-<!-- <div id="paypalButtonsContainer" style="margin-top: 2rem; max-width: 500px; margin-left: auto; margin-right: auto;"></div> -->
-
-    </div>
-
-    <div class="modal-foot" style="display:flex; flex-direction:column; gap:8px;">
-      <!-- פה PayPal ירנדר את הכפתור -->
-      <div id="paypalButtonsContainer" style="width:100%; display:flex; justify-content:center;"></div>
-      <button class="btn btn-ghost" id="premiumLaterBtn">אולי אחר-כך</button>
-    </div>
-
-  </div>
-</div>
-
+    <!-- 💳 כפתורי PayPal יופיעו כאן -->
+    <div id="paypalButtonsContainer" style="margin-top: 2rem; max-width: 500px; margin-left: auto; margin-right: auto;"></div>
 
 
 
@@ -5222,6 +5214,11 @@ background: var(--bg-card);
  <script type="module" src="subscription-manager.js"></script>
 <!-- <script type="module" src="subscription-ui.js"></script>
 <script type="module" src="subscription-calculator.js"></script> -->
+
+<script src="plan-limits-enforcement.js"></script>
+<script src="plan-change-management.js"></script>
+
+
 <script type="module" src="subscription-init.js"></script> 
 <script type="module" src="JS/shared-folders-navigation-fix.js" onerror="console.error('❌ Failed to load shared-folders-navigation-fix.js')"></script>
 <script src="JS/subfolders-navigation-fix.js" onerror="console.error('❌ Failed to load subfolders-navigation-fix.js')"></script>
