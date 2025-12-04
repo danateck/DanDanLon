@@ -71,41 +71,59 @@ function initPlanSelection() {
 // רינדור כפתור PayPal
 // ========================================
 async function renderPayPalButton(planId) {
-  const container = document.getElementById('paypalButtonsContainer');
+  // 🔧 צור container מחוץ לפאנל (או מצא אותו אם קיים)
+  let container = document.getElementById('paypalButtonsContainer');
+  
   if (!container) {
-    console.error('❌ לא נמצא paypalButtonsContainer');
-    return;
+    // אם אין, צור אותו בסוף הדף
+    container = document.createElement('div');
+    container.id = 'paypalButtonsContainer';
+    container.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10001;
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      max-width: 500px;
+      width: 90%;
+    `;
+    document.body.appendChild(container);
+    console.log('✅ יצרתי container חדש מחוץ לפאנל');
   }
   
   const price = PLAN_PRICES_USD[planId];
   const planName = PLAN_NAMES_HE[planId];
   
-  console.log(`💰 מכין כפתור PayPal עבור ${planName} - $${price}`);
+  console.log(`💰 מכין כפתור PayPal עבור ${planName} - ₪${price}`);
   
   // בדוק אם PayPal זמין
   if (typeof paypal === 'undefined') {
     console.error('❌ PayPal SDK לא נטען');
     container.innerHTML = `
-      <div style="text-align: center; padding: 1rem;">
-        <p style="color: red;">⚠️ שגיאה בטעינת מערכת תשלומים</p>
-        <p style="font-size: 0.9rem; color: #666;">אנא נסה לרענן את הדף</p>
+      <div style="text-align: center;">
+        <p style="color: red; font-size: 1.2rem; margin-bottom: 1rem;">⚠️ שגיאה בטעינת מערכת תשלומים</p>
+        <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">אנא נסה לרענן את הדף</p>
+        <button onclick="this.parentElement.parentElement.remove()" style="padding: 0.5rem 1rem; cursor: pointer;">סגור</button>
       </div>
     `;
     return;
   }
   
-  // 🔧 המתן רגע קטן לפני הניקוי (תן לדפדפן לעדכן DOM)
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  // בדוק שוב שה-container עדיין קיים
-  const containerCheck = document.getElementById('paypalButtonsContainer');
-  if (!containerCheck) {
-    console.error('❌ container נעלם!');
-    return;
-  }
-  
   // נקה כפתורים קודמים
-  containerCheck.innerHTML = '';
+  container.innerHTML = `
+    <div style="text-align: center; margin-bottom: 1rem;">
+      <h3 style="margin: 0 0 0.5rem 0; color: #1a1a1a;">תשלום עבור ${planName}</h3>
+      <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #2d6a4f;">₪${price}</p>
+      <button onclick="document.getElementById('paypalButtonsContainer').remove()" 
+              style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; 
+                     font-size: 1.5rem; cursor: pointer; color: #666;">✖</button>
+    </div>
+    <div id="paypal-button-wrapper"></div>
+  `;
   
   try {
     // צור כפתור PayPal
@@ -146,6 +164,9 @@ async function renderPayPalButton(planId) {
           // הצג הודעה
           alert(`🎉 התשלום הצליח!\n\nהמנוי "${planName}" הופעל בהצלחה.\n\nמזל טוב! 🎊`);
           
+          // סגור את ה-container
+          document.getElementById('paypalButtonsContainer')?.remove();
+          
           // סגור את הפאנל
           document.getElementById('premiumPanel')?.classList.add('hidden');
           
@@ -174,15 +195,8 @@ async function renderPayPalButton(planId) {
       
     });
     
-    // בדוק שה-container עדיין קיים לפני רינדור
-    const containerFinal = document.getElementById('paypalButtonsContainer');
-    if (!containerFinal) {
-      console.error('❌ container נעלם לפני רינדור!');
-      return;
-    }
-    
-    // רנדר את הכפתור
-    await buttons.render('#paypalButtonsContainer');
+    // רנדר את הכפתור ל-wrapper
+    await buttons.render('#paypal-button-wrapper');
     
     console.log('✅ כפתור PayPal רונדר בהצלחה');
     
