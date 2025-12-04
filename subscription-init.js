@@ -129,8 +129,8 @@ function addSubscriptionButton() {
     
     // שנה את הטקסט והאייקון
     newBtn.innerHTML = `
-      <span style="font-size: 1.2rem;">💎</span>
-      <span>המנוי שלי</span>
+      <span style="font-size: 1.2rem;"></span>
+      <span>פרימיום</span>
     `;
     
     // הוסף את הפעולה החדשה
