@@ -149,63 +149,14 @@ function addSubscriptionButton() {
 // ========================================
 // הצגת עמוד המנויים
 // ========================================
-window.showSubscriptionSettings = async function() {
-  if (!subscriptionManager) {
-    alert('מערכת מנויים לא אותחלה');
-    return;
-  }
-  
-  try {
-    // ייבוא ה-UI
-    const module = await import('./subscription-ui.js');
-    const createSubscriptionSettingsPage = module.createSubscriptionSettingsPage;
-    const subscriptionStyles = module.subscriptionStyles;
-    
-    // הוסף סטיילים אם עדיין לא קיימים
-    if (!document.getElementById('subscription-styles')) {
-      const styleDiv = document.createElement('div');
-      styleDiv.id = 'subscription-styles';
-      styleDiv.innerHTML = subscriptionStyles;
-      document.head.appendChild(styleDiv);
-    }
-    
-    // צור את העמוד
-    const html = createSubscriptionSettingsPage(subscriptionManager);
-    
-    // נסה למצוא את התוכן הראשי
-    const mainContent = document.getElementById('main-content') || 
-                       document.querySelector('.main-content') ||
-                       document.querySelector('.main-area') ||
-                       document.querySelector('main') ||
-                       document.querySelector('section');
-    
-    if (mainContent) {
-      mainContent.innerHTML = html;
-      console.log('✅ עמוד מנויים הוצג');
-    } else {
-      console.error('❌ לא נמצא אלמנט לתוכן ראשי');
-      // הצג בחלון קופץ במקום
-      const popup = window.open('', 'מנוי', 'width=800,height=600');
-      if (popup) {
-        popup.document.write(`
-          <!DOCTYPE html>
-          <html dir="rtl">
-          <head>
-            <meta charset="UTF-8">
-            <title>המנוי שלי</title>
-            ${subscriptionStyles}
-          </head>
-          <body>
-            ${html}
-          </body>
-          </html>
-        `);
-      }
-    }
-    
-  } catch (error) {
-    console.error('❌ שגיאה בהצגת הגדרות:', error);
-    alert('שגיאה בטעינת עמוד המנויים: ' + error.message);
+window.showSubscriptionSettings = function() {
+  // 🔧 פשוט פותח את הפאנל הישן
+  const premiumPanel = document.getElementById('premiumPanel');
+  if (premiumPanel) {
+    premiumPanel.classList.remove('hidden');
+    console.log('✅ פאנל פרימיום נפתח');
+  } else {
+    console.warn('⚠️ לא נמצא premiumPanel');
   }
 };
 
