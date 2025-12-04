@@ -94,8 +94,18 @@ async function renderPayPalButton(planId) {
     return;
   }
   
-  // 🔧 נקה כפתורים קודמים לפני יצירת חדשים
-  container.innerHTML = '';
+  // 🔧 המתן רגע קטן לפני הניקוי (תן לדפדפן לעדכן DOM)
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  // בדוק שוב שה-container עדיין קיים
+  const containerCheck = document.getElementById('paypalButtonsContainer');
+  if (!containerCheck) {
+    console.error('❌ container נעלם!');
+    return;
+  }
+  
+  // נקה כפתורים קודמים
+  containerCheck.innerHTML = '';
   
   try {
     // צור כפתור PayPal
@@ -163,6 +173,13 @@ async function renderPayPalButton(planId) {
       }
       
     });
+    
+    // בדוק שה-container עדיין קיים לפני רינדור
+    const containerFinal = document.getElementById('paypalButtonsContainer');
+    if (!containerFinal) {
+      console.error('❌ container נעלם לפני רינדור!');
+      return;
+    }
     
     // רנדר את הכפתור
     await buttons.render('#paypalButtonsContainer');
