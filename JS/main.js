@@ -3433,7 +3433,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const container = document.getElementById("paypalButtonsContainer");
     if (!container) {
-      alert("שגיאת תצוגה: אין איפה לשים את כפתור התשלום");
+      //alert("שגיאת תצוגה: אין איפה לשים את כפתור התשלום");
       return;
     }
 
