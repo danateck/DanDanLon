@@ -20,7 +20,7 @@ const PLAN_PRICES = {
 // מחירים ב-USD (עבור PayPal)
 const PLAN_PRICES_USD = {
   free: 0,
- standard: 9,
+  standard: 9,
   advanced: 39,
   pro: 59,
   premium: 99,
@@ -59,13 +59,8 @@ function initPlanSelection() {
       const planCard = btn.closest('.plan');
       if (planCard) planCard.classList.add('selected');
       
-      // השתמש במערכת ניהול תוכניות החדשה
-      if (window.PlanChanges) {
-        await window.PlanChanges.handlePlanSelection(planId);
-      } else {
-        // Fallback למקרה שהמערכת לא נטענה
-        await renderPayPalButton(planId);
-      }
+      // הצג את כפתור PayPal
+      await renderPayPalButton(planId);
     });
   });
   
