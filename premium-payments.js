@@ -77,9 +77,6 @@ async function renderPayPalButton(planId) {
     return;
   }
   
-  // נקה כפתורים קודמים
-  container.innerHTML = '';
-  
   const price = PLAN_PRICES_USD[planId];
   const planName = PLAN_NAMES_HE[planId];
   
@@ -97,9 +94,12 @@ async function renderPayPalButton(planId) {
     return;
   }
   
+  // 🔧 נקה כפתורים קודמים לפני יצירת חדשים
+  container.innerHTML = '';
+  
   try {
     // צור כפתור PayPal
-    paypal.Buttons({
+    const buttons = paypal.Buttons({
       style: {
         layout: 'vertical',
         color: 'blue',
@@ -162,7 +162,10 @@ async function renderPayPalButton(planId) {
         alert('⚠️ אירעה שגיאה במערכת התשלומים. אנא נסה שוב או פנה לתמיכה.');
       }
       
-    }).render('#paypalButtonsContainer');
+    });
+    
+    // רנדר את הכפתור
+    await buttons.render('#paypalButtonsContainer');
     
     console.log('✅ כפתור PayPal רונדר בהצלחה');
     
