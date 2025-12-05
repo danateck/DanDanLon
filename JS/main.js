@@ -568,21 +568,29 @@ async function shareDocument(docId, recipientEmails) {
   const data = snap.data();
   if (data.owner !== me) throw new Error("Only the owner can share this document");
 
-  // 🔹 כאן נכנסת בדיקת המנוי
-  if (window.subscriptionManager && typeof window.subscriptionManager.canPerformAction === "function") {
+  // 🔒 בדיקת מגבלות שיתוף
+  if (window.subscriptionManager) {
+    const plan = window.subscriptionManager.getCurrentPlan();
     const currentShared = Array.isArray(data.sharedWith) ? data.sharedWith.length : 0;
-    const newSharedUsers = Array.isArray(recipientEmails) ? recipientEmails.length : 0;
+    const newSharedCount = Array.isArray(recipientEmails) ? recipientEmails.length : 0;
+    const totalAfterShare = currentShared + newSharedCount;
 
-    const check = window.subscriptionManager.canPerformAction("share_document", {
-      currentSharedUsers: currentShared,
-      newSharedUsers: newSharedUsers,
-    });
-
-    if (!check.allowed) {
-      showNotification(
-        check.reason || "פעולת השיתוף חורגת ממגבלות התוכנית שלך",
-        true
-      );
+    // בדוק אם חורג מהמגבלה
+    if (plan.maxSharedUsers !== Infinity && totalAfterShare > plan.maxSharedUsers) {
+      const msg = plan.maxSharedUsers === 1 
+        ? `⚠️ בתוכנית ${plan.nameHe} ניתן לשתף רק עם אדם אחד\n\n💎 שדרג לתוכנית Standard (₪9) כדי לשתף עם עד 5 אנשים`
+        : `⚠️ חריגה ממגבלת השיתוף\n\nהמסמך משותף כבר עם ${currentShared} אנשים\nניסית להוסיף עוד ${newSharedCount} אנשים\nמקסימום בתוכנית ${plan.nameHe}: ${plan.maxSharedUsers} אנשים\n\n💎 שדרג את התוכנית שלך כדי לשתף עם יותר אנשים`;
+      
+      showAlert(msg, 'error');
+      
+      // פתח את פאנל הפרימיום
+      setTimeout(() => {
+        const premiumPanel = document.getElementById('premiumPanel');
+        if (premiumPanel) {
+          premiumPanel.classList.remove('hidden');
+        }
+      }, 2000);
+      
       return { success: false };
     }
   }
@@ -599,9 +607,9 @@ async function shareDocument(docId, recipientEmails) {
     lastModifiedBy: me
   });
 
+  showAlert('✅ המסמך שותף בהצלחה', 'success');
   return { success: true };
 }
-
 // Add document to shared folder
 async function addDocumentToSharedFolder(docId, folderId) {
   const me = getCurrentUserEmail();
@@ -1002,59 +1010,7 @@ async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
 // ========================================
 // 🔧 עדכון פונקציית השיתוף (כבר קיים בקוד אבל נשפר)
 // ========================================
-async function shareDocument(docId, recipientEmails) {
-  const me = getCurrentUserEmail();
-  if (!me || !isFirebaseAvailable()) throw new Error("User not logged in");
 
-  const ref  = window.fs.doc(window.db, "documents", docId);
-  const snap = await window.fs.getDoc(ref);
-  if (!snap.exists()) throw new Error("Document not found");
-
-  const data = snap.data();
-  if (data.owner !== me) throw new Error("Only the owner can share this document");
-
-  // 🔒 בדיקת מגבלות שיתוף
-  if (window.subscriptionManager) {
-    const plan = window.subscriptionManager.getCurrentPlan();
-    const currentShared = Array.isArray(data.sharedWith) ? data.sharedWith.length : 0;
-    const newSharedCount = Array.isArray(recipientEmails) ? recipientEmails.length : 0;
-    const totalAfterShare = currentShared + newSharedCount;
-
-    // בדוק אם חורג מהמגבלה
-    if (plan.maxSharedUsers !== Infinity && totalAfterShare > plan.maxSharedUsers) {
-      const msg = plan.maxSharedUsers === 1 
-        ? `⚠️ בתוכנית ${plan.nameHe} ניתן לשתף רק עם אדם אחד\n\n💎 שדרג לתוכנית Standard (₪9) כדי לשתף עם עד 5 אנשים`
-        : `⚠️ חריגה ממגבלת השיתוף\n\nהמסמך משותף כבר עם ${currentShared} אנשים\nניסית להוסיף עוד ${newSharedCount} אנשים\nמקסימום בתוכנית ${plan.nameHe}: ${plan.maxSharedUsers} אנשים\n\n💎 שדרג את התוכנית שלך כדי לשתף עם יותר אנשים`;
-      
-      showAlert(msg, 'error');
-      
-      // פתח את פאנל הפרימיום
-      setTimeout(() => {
-        const premiumPanel = document.getElementById('premiumPanel');
-        if (premiumPanel) {
-          premiumPanel.classList.remove('hidden');
-        }
-      }, 2000);
-      
-      return { success: false };
-    }
-  }
-
-  // אם עברנו את הבדיקה – באמת משתפים
-  const newShared = [...new Set([
-    ...(data.sharedWith || []),
-    ...recipientEmails.map(normalizeEmail)
-  ])];
-
-  await window.fs.updateDoc(ref, {
-    sharedWith: newShared,
-    lastModified: Date.now(),
-    lastModifiedBy: me
-  });
-
-  showAlert('✅ המסמך שותף בהצלחה', 'success');
-  return { success: true };
-}
 
 // ========================================
 // 🗑️ עדכון מחיקת מסמך (הפחתת מונים)
