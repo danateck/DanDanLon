@@ -1053,34 +1053,34 @@ console.log('✅ אכיפת מגבלות מנויים הופעלה');
 
 
 
-async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
-  const currentUser = normalizeEmail(getCurrentUserEmail());
-  if (!currentUser) throw new Error("User not logged in");
-  const id = forcedId || crypto.randomUUID();
-  let downloadURL = null;
-  // (optional) upload bytes to Storage
-  if (window.storage && isFirebaseAvailable()) {
-    const storageRef = window.fs.ref(window.storage, `documents/${currentUser}/${id}_${file.name}`);
-    const snap = await window.fs.uploadBytes(storageRef, file);
-    downloadURL = await window.fs.getDownloadURL(snap.ref);
-  }
-  // write metadata to Firestore
-  const docRef = window.fs.doc(window.db, "documents", id);
-  const docData = {
-    ...metadata,
-    owner: currentUser,
-    sharedWith: Array.isArray(metadata.sharedWith) ? metadata.sharedWith : [],
-    fileName: file.name,
-    fileType: file.type,
-    fileSize: file.size,
-uploadedAt: new Date().toISOString(),
-    downloadURL: downloadURL || null,
-    deletedAt: null,
-    deletedBy: null,
-  };
-  await window.fs.setDoc(docRef, docData, { merge: true });
-  return { id, ...docData };
-}
+// async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
+//   const currentUser = normalizeEmail(getCurrentUserEmail());
+//   if (!currentUser) throw new Error("User not logged in");
+//   const id = forcedId || crypto.randomUUID();
+//   let downloadURL = null;
+//   // (optional) upload bytes to Storage
+//   if (window.storage && isFirebaseAvailable()) {
+//     const storageRef = window.fs.ref(window.storage, `documents/${currentUser}/${id}_${file.name}`);
+//     const snap = await window.fs.uploadBytes(storageRef, file);
+//     downloadURL = await window.fs.getDownloadURL(snap.ref);
+//   }
+//   // write metadata to Firestore
+//   const docRef = window.fs.doc(window.db, "documents", id);
+//   const docData = {
+//     ...metadata,
+//     owner: currentUser,
+//     sharedWith: Array.isArray(metadata.sharedWith) ? metadata.sharedWith : [],
+//     fileName: file.name,
+//     fileType: file.type,
+//     fileSize: file.size,
+// uploadedAt: new Date().toISOString(),
+//     downloadURL: downloadURL || null,
+//     deletedAt: null,
+//     deletedBy: null,
+//   };
+//   await window.fs.setDoc(docRef, docData, { merge: true });
+//   return { id, ...docData };
+// }
 function handleLogout() {
     console.log("🚪 Logging out...");
     const auth = getAuth();
