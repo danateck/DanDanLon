@@ -26,12 +26,13 @@ const PLAN_PRICES_USD = {
   premium_plus: 1.5 // מחיר ל-GB (לא מנוי חודשי!)
 };
 
-// PayPal Plan IDs למנויים חודשיים
+// ⚠️⚠️⚠️ CRITICAL: החליפי את הקודים האלה בקודים האמיתיים מ-PayPal Dashboard! ⚠️⚠️⚠️
+// איך למצוא: PayPal Dashboard → Products → Billing Plans → בחרי Plan → העתיקי את ה-Plan ID
 const PAYPAL_PLAN_IDS = {
-  standard: 'P-12703733LC5205622NEZPLPA',
-  advanced: 'P-4T671886AR091433TNEZPWMI',
-  pro: 'P-0UH3658873191311TNEZPX2Y',
-  premium: 'P-2U729221CK555173MNEZPY4I'
+  standard: 'P-12703733LC5205622NEZPLPA',  // ⬅️ הדביקי כאן את ה-Plan ID של Standard (₪9/חודש)
+  advanced: 'P-4T671886AR091433TNEZPWMI',  // ⬅️ הדביקי כאן את ה-Plan ID של Advanced (₪35/חודש)
+  pro: 'P-0UH3658873191311TNEZPX2Y',            // ⬅️ הדביקי כאן את ה-Plan ID של Pro (₪59/חודש)
+  premium: 'P-2U729221CK555173MNEZPY4I'     // ⬅️ הדביקי כאן את ה-Plan ID של Premium (₪99/חודש)
 };
 
 const PLAN_NAMES_HE = {
@@ -242,33 +243,21 @@ function renderPremiumPlusPayment() {
     
     totalPriceEl.textContent = `₪${price.toFixed(2)}`;
     newTotalEl.textContent = `סה"כ אחסון: ${newTotal}GB`;
-    
-    return { gb, price, newTotal };
   }
   
-  // עדכון ראשוני
+  input.addEventListener('input', updatePrice);
   updatePrice();
-  
-  // עדכון בזמן אמת
-  input.addEventListener('input', () => {
-    updatePrice();
-    wrapper.innerHTML = ''; // נקה כפתור PayPal קודם
-  });
   
   // כפתור המשך
   continueBtn.addEventListener('click', async () => {
-    const { gb, price } = updatePrice();
+    const gb = parseInt(input.value, 10);
+    const price = gb * PLAN_PRICES.premium_plus;
+    const priceUSD = gb * PLAN_PRICES_USD.premium_plus;
     
-    if (gb < 1) {
-      alert('נא לבחור לפחות 1GB');
-      return;
-    }
-    
-    continueBtn.style.display = 'none';
-    input.disabled = true;
+    continueBtn.disabled = true;
+    continueBtn.textContent = 'טוען...';
     
     try {
-      // צור כפתור PayPal לתשלום חד-פעמי
       const buttons = paypal.Buttons({
         style: {
           layout: 'vertical',
@@ -278,92 +267,72 @@ function renderPremiumPlusPayment() {
         },
         
         createOrder: function(data, actions) {
-          console.log(`🛒 יוצר הזמנה: ${gb}GB ב-₪${price}`);
-          
           return actions.order.create({
             purchase_units: [{
-              description: `NestyFile - ${gb}GB אחסון נוסף`,
               amount: {
                 currency_code: 'ILS',
                 value: price.toFixed(2)
-              }
+              },
+              description: `${gb}GB אחסון נוסף ל-NestyFile`,
+              custom_id: window.getCurrentUser()
             }]
           });
         },
         
         onApprove: async function(data, actions) {
-          console.log('✅ תשלום אושר!');
-          
           try {
             const order = await actions.order.capture();
-            console.log('📦 פרטי הזמנה:', order);
+            console.log('✅ תשלום הושלם:', order);
             
-            // הוסף את ה-GB למערכת
-            await window.subscriptionManager.purchaseExtraStorage(gb, {
-              orderId: order.id,
-              paypalOrderId: data.orderID,
-              amount: price
-            });
+            // הוסף GB למנוי
+            await window.subscriptionManager.addExtraStorage(gb);
             
-            alert(
-              `🎉 התשלום הצליח!\n\n` +
-              `נוספו ${gb}GB לאחסון שלך\n` +
-              `סה"כ אחסון: ${currentTotalGB + gb}GB\n\n` +
-              `💡 זה תשלום חד-פעמי - המנוי החודשי שלך נשאר ₪99`
-            );
+            alert(`🎉 התשלום הושלם!\n\n נוספו ${gb}GB לחשבון שלך`);
             
             container?.remove();
-            
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
+            window.location.reload();
             
           } catch (error) {
             console.error('❌ שגיאה:', error);
-            alert('⚠️ התשלום עבר אך היתה בעיה בהוספת האחסון. אנא פני לתמיכה.');
+            alert('⚠️ התשלום אושר אך היתה בעיה. אנא פני לתמיכה.');
           }
         },
         
         onCancel: function() {
           console.log('🚫 התשלום בוטל');
-          continueBtn.style.display = 'block';
-          input.disabled = false;
+          continueBtn.disabled = false;
+          continueBtn.textContent = 'המשך לתשלום';
           wrapper.innerHTML = '';
         },
         
         onError: function(err) {
           console.error('❌ שגיאה:', err);
           alert('⚠️ אירעה שגיאה במערכת התשלומים');
-          continueBtn.style.display = 'block';
-          input.disabled = false;
+          continueBtn.disabled = false;
+          continueBtn.textContent = 'המשך לתשלום';
           wrapper.innerHTML = '';
         }
       });
       
       await buttons.render('#paypal_buttons_wrapper');
-      console.log('✅ כפתור PayPal רונדר');
+      console.log('✅ כפתור תשלום רונדר');
+      
+      continueBtn.style.display = 'none';
       
     } catch (error) {
-      console.error('❌ שגיאה ביצירת כפתור:', error);
+      console.error('❌ שגיאה:', error);
       alert('⚠️ שגיאה בהכנת כפתור התשלום');
-      continueBtn.style.display = 'block';
-      input.disabled = false;
+      continueBtn.disabled = false;
+      continueBtn.textContent = 'המשך לתשלום';
     }
-  });
-  
-  // Hover effect
-  continueBtn.addEventListener('mouseenter', () => {
-    continueBtn.style.background = '#1e5039';
-  });
-  continueBtn.addEventListener('mouseleave', () => {
-    continueBtn.style.background = '#2d6a4f';
   });
 }
 
 // ========================================
-// רינדור כפתור PayPal Subscription (מנויים חודשיים)
+// רינדור כפתור מנוי PayPal
 // ========================================
 async function renderPayPalSubscriptionButton(planId) {
+  // יצירת או שימוש ב-container קיים
   let container = document.getElementById('paypalButtonsContainer');
   
   if (!container) {
@@ -379,14 +348,17 @@ async function renderPayPalSubscriptionButton(planId) {
       padding: 2rem;
       border-radius: 12px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      max-width: 500px;
+      max-width: 450px;
       width: 90%;
+      direction: rtl;
     `;
     document.body.appendChild(container);
+  } else {
+    container.innerHTML = '';
   }
 
+  // בדוק אם PayPal זמין
   if (typeof paypal === 'undefined') {
-    console.error('❌ PayPal SDK לא נטען');
     container.innerHTML = `
       <div style="text-align: center;">
         <p style="color: red; font-size: 1.2rem; margin-bottom: 1rem;">⚠️ שגיאה בטעינת מערכת תשלומים</p>
@@ -408,16 +380,27 @@ async function renderPayPalSubscriptionButton(planId) {
   }
 
   console.log(`💰 מכין מנוי PayPal עבור ${planName} - $${priceUSD}/חודש`);
+  console.log(`📋 Plan ID: ${paypalPlanId}`);
 
-  if (!paypalPlanId || paypalPlanId.startsWith('P-XX')) {
+  // 🔴 בדיקה חשובה: האם ה-Plan ID תקין?
+  if (!paypalPlanId || paypalPlanId.startsWith('YOUR_') || paypalPlanId === 'P-XX') {
     container.innerHTML = `
       <div style="text-align: center;">
         <h3 style="color: #d32f2f; margin-bottom: 1rem;">⚠️ תוכנית לא מוגדרת</h3>
-        <p style="font-size: 0.9rem; margin-bottom: 1rem;">
-          יש להגדיר Plan ID ב-PayPal Dashboard תחילה
+        <p style="font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.6;">
+          נא להגדיר את ה-Plan ID ב-PayPal Dashboard תחילה.<br>
+          <br>
+          <strong>שלבים:</strong><br>
+          1. היכנסי ל-PayPal Dashboard<br>
+          2. Products → Billing Plans<br>
+          3. בחרי תוכנית (${planName})<br>
+          4. העתיקי את ה-Plan ID<br>
+          5. הדביקי בקוד premium-payments.js
         </p>
         <button onclick="this.parentElement.parentElement.remove()" 
-                style="padding: 0.5rem 1rem; cursor: pointer;">סגור</button>
+                style="padding: 0.75rem 1.5rem; cursor: pointer; background: #2d6a4f; color: white; border: none; border-radius: 8px;">
+          הבנתי
+        </button>
       </div>
     `;
     return;
@@ -459,7 +442,7 @@ async function renderPayPalSubscriptionButton(planId) {
       },
       
       createSubscription: function(data, actions) {
-        console.log('🔄 יוצר מנוי ב-PayPal...');
+        console.log('🔄 יוצר מנוי ב-PayPal עם Plan ID:', paypalPlanId);
         return actions.subscription.create({
           'plan_id': paypalPlanId
         });
@@ -497,8 +480,8 @@ async function renderPayPalSubscriptionButton(planId) {
       },
       
       onError: function(err) {
-        console.error('❌ שגיאה:', err);
-        alert('⚠️ אירעה שגיאה במערכת התשלומים');
+        console.error('❌ שגיאה ב-PayPal:', err);
+        alert('⚠️ אירעה שגיאה במערכת התשלומים. אנא בדקי שה-Plan ID נכון.');
       }
     });
 
@@ -506,11 +489,15 @@ async function renderPayPalSubscriptionButton(planId) {
     console.log('✅ כפתור מנוי PayPal רונדר');
 
   } catch (error) {
-    console.error('❌ שגיאה:', error);
+    console.error('❌ שגיאה ביצירת כפתור:', error);
     container.innerHTML = `
       <div style="text-align: center; padding: 1rem;">
-        <p style="color: red;">⚠️ שגיאה בהכנת כפתור המנוי</p>
-        <button onclick="document.getElementById('paypalButtonsContainer')?.remove()">סגור</button>
+        <p style="color: red; margin-bottom: 1rem;">⚠️ שגיאה בהכנת כפתור המנוי</p>
+        <p style="font-size: 0.85rem; margin-bottom: 1rem;">
+          ${error.message || 'שגיאה לא ידועה'}
+        </p>
+        <button onclick="document.getElementById('paypalButtonsContainer')?.remove()"
+                style="padding: 0.5rem 1rem; cursor: pointer;">סגור</button>
       </div>
     `;
   }
