@@ -1466,6 +1466,29 @@ async function updateInviteStatus(inviteId, newStatus) {
 // הוספת חבר לתיקייה משותפת (Firestore)
 // הוספת חבר לתיקייה משותפת (Firestore) - גרסה עמידה
 async function addMemberToSharedFolder(folderId, memberEmail, folderName, ownerEmail) {
+
+  // 🔒 בדיקת מגבלות הוספת חבר
+  if (window.checkAddInvitationLimits) {
+    try {
+      // קודם, נשלוף את פרטי התיקייה
+      const folderRef = window.fs.doc(window.db, "sharedFolders", folderId);
+      const folderSnap = await window.fs.getDoc(folderRef);
+      
+      if (folderSnap.exists()) {
+        const folderData = folderSnap.data();
+        const limitCheck = window.checkAddInvitationLimits(folderData, memberEmail);
+        
+        if (!limitCheck.allowed) {
+          window.showLimitError(limitCheck);
+          return false;
+        }
+      }
+    } catch (e) {
+      console.log('⚠️ לא ניתן לבדוק מגבלות:', e);
+    }
+  }
+
+
   try {
     const key = memberEmail.trim().toLowerCase();
     const ownerKey = ownerEmail.trim().toLowerCase();
@@ -3862,6 +3885,15 @@ window.allDocsData = getUserDocs(userNow, allUsersData);
 if (fileInput) {
  fileInput.addEventListener("change", async () => {
   let file = fileInput.files[0];
+  // 🔒 בדיקת מגבלות מנוי
+  if (window.checkUploadLimits) {
+    const limitCheck = await window.checkUploadLimits(file);
+    if (!limitCheck.allowed) {
+      window.showLimitError(limitCheck);
+      fileInput.value = "";
+      return;
+    }
+  }
   if (!file) {
     showNotification("❌ לא נבחר קובץ", true);
     return;
@@ -4078,6 +4110,23 @@ console.log("📁 Final:", { category: guessedCategory, subfolder: guessedSubCat
       ? guessedCategory.trim()
       : "התיקייה";
     showNotification(`הקובץ נוסף לתיקייה "${niceCat}" ✅`);
+
+
+    // 📊 עדכון שימוש באחסון
+    if (window.subscriptionManager) {
+      try {
+        await window.subscriptionManager.updateStorageUsage(file.size);
+        await window.subscriptionManager.updateDocumentCount(1);
+        
+        // עדכן את הוידג'ט
+        if (window.updateStorageWidget) {
+          window.updateStorageWidget();
+        }
+      } catch (e) {
+        console.error('❌ שגיאה בעדכון שימוש:', e);
+      }
+    }
+
 
     // רענון UI
     const currentCat = categoryTitle.textContent;
@@ -6852,6 +6901,23 @@ async function deleteDocForever(id) {
       setUserDocs(userNow, allDocsData, allUsersData);
     }
     showNotification("הקובץ נמחק לצמיתות");
+    
+
+    // 📊 עדכון מונה מסמכים
+    if (window.subscriptionManager) {
+      try {
+        await window.subscriptionManager.updateDocumentCount(-1);
+        
+        // עדכן את הוידג'ט
+        if (window.updateStorageWidget) {
+          window.updateStorageWidget();
+        }
+      } catch (e) {
+        console.error('❌ שגיאה בעדכון מונה:', e);
+      }
+    }
+
+
     
     // 💾 עדכון תצוגת האחסון אחרי מחיקה
     if (typeof window.updateStorageUsageWidget === "function") {

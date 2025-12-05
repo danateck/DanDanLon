@@ -4703,6 +4703,15 @@ background: var(--bg-card);
     flex-direction: column;
   }
 }
+
+.limits-section {
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border-radius: 12px;
+  }
+
+
   </style>
 </head>
 
@@ -5258,11 +5267,16 @@ background: var(--bg-card);
       ✖
     </button>
     
+
     <!-- כותרת -->
     <div class="panel-header">
       <h2>💎 שדרג את החשבון שלך</h2>
       <p>קבל יותר אחסון, מסמכים ותכונות מתקדמות</p>
     </div>
+
+    <div id="current-limits-display" class="limits-section"></div>
+
+
     
     <!-- מידע על המנוי הנוכחי -->
     <div id="current-plan-info">
@@ -5681,6 +5695,9 @@ background: var(--bg-card);
 <!-- <script type="module" src="subscription-ui.js"></script>
 <script type="module" src="subscription-calculator.js"></script> -->
 <script type="module" src="subscription-init.js"></script> 
+
+<script type="module" src="subscription-limits-enforcer.js"></script>
+
 <script type="module" src="JS/shared-folders-navigation-fix.js" onerror="console.error('❌ Failed to load shared-folders-navigation-fix.js')"></script>
 <script src="JS/subfolders-navigation-fix.js" onerror="console.error('❌ Failed to load subfolders-navigation-fix.js')"></script>
 <script>

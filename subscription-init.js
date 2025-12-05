@@ -208,6 +208,13 @@ window.showSubscriptionSettings = function() {
   } else {
     console.warn('⚠️ לא נמצא premiumPanel');
   }
+
+
+  // הצג מגבלות נוכחיות
+  if (window.showCurrentLimitsInUI) {
+    window.showCurrentLimitsInUI();
+  }
+  
 };
 
 // ========================================
