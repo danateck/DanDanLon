@@ -560,15 +560,48 @@ async function createSharedFolder(folderName, invitedEmails = []) {
 async function shareDocument(docId, recipientEmails) {
   const me = getCurrentUserEmail();
   if (!me || !isFirebaseAvailable()) throw new Error("User not logged in");
+
   const ref  = window.fs.doc(window.db, "documents", docId);
   const snap = await window.fs.getDoc(ref);
   if (!snap.exists()) throw new Error("Document not found");
+
   const data = snap.data();
   if (data.owner !== me) throw new Error("Only the owner can share this document");
-  const newShared = [...new Set([...(data.sharedWith || []), ...recipientEmails.map(normalizeEmail)])];
-  await window.fs.updateDoc(ref, { sharedWith: newShared, lastModified: Date.now(), lastModifiedBy: me });
+
+  // 🔹 כאן נכנסת בדיקת המנוי
+  if (window.subscriptionManager && typeof window.subscriptionManager.canPerformAction === "function") {
+    const currentShared = Array.isArray(data.sharedWith) ? data.sharedWith.length : 0;
+    const newSharedUsers = Array.isArray(recipientEmails) ? recipientEmails.length : 0;
+
+    const check = window.subscriptionManager.canPerformAction("share_document", {
+      currentSharedUsers: currentShared,
+      newSharedUsers: newSharedUsers,
+    });
+
+    if (!check.allowed) {
+      showNotification(
+        check.reason || "פעולת השיתוף חורגת ממגבלות התוכנית שלך",
+        true
+      );
+      return { success: false };
+    }
+  }
+
+  // אם עברנו את הבדיקה – באמת משתפים
+  const newShared = [...new Set([
+    ...(data.sharedWith || []),
+    ...recipientEmails.map(normalizeEmail)
+  ])];
+
+  await window.fs.updateDoc(ref, {
+    sharedWith: newShared,
+    lastModified: Date.now(),
+    lastModifiedBy: me
+  });
+
   return { success: true };
 }
+
 // Add document to shared folder
 async function addDocumentToSharedFolder(docId, folderId) {
   const me = getCurrentUserEmail();
