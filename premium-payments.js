@@ -29,10 +29,10 @@ const PLAN_PRICES_USD = {
 // ⚠️⚠️⚠️ CRITICAL: החליפי את הקודים האלה בקודים האמיתיים מ-PayPal Dashboard! ⚠️⚠️⚠️
 // איך למצוא: PayPal Dashboard → Products → Billing Plans → בחרי Plan → העתיקי את ה-Plan ID
 const PAYPAL_PLAN_IDS = {
-  standard: 'P-12703733LC5205622NEZPLPA',  // ⬅️ הדביקי כאן את ה-Plan ID של Standard (₪9/חודש)
-  advanced: 'P-4T671886AR091433TNEZPWMI',  // ⬅️ הדביקי כאן את ה-Plan ID של Advanced (₪35/חודש)
-  pro: 'P-0UH3658873191311TNEZPX2Y',            // ⬅️ הדביקי כאן את ה-Plan ID של Pro (₪59/חודש)
-  premium: 'P-2U729221CK555173MNEZPY4I'     // ⬅️ הדביקי כאן את ה-Plan ID של Premium (₪99/חודש)
+  standard: 'P-4T178647F0930102JNEZR2HQ',  // ⬅️ הדביקי כאן את ה-Plan ID של Standard (₪9/חודש)
+  advanced: 'P-1BK11290GG3840112NEZR2PI',  // ⬅️ הדביקי כאן את ה-Plan ID של Advanced (₪35/חודש)
+  pro: 'P-29E897810F9349120NEZR2XA',            // ⬅️ הדביקי כאן את ה-Plan ID של Pro (₪59/חודש)
+  premium: 'P-98Y71094N76724540NEZR24I'     // ⬅️ הדביקי כאן את ה-Plan ID של Premium (₪99/חודש)
 };
 
 const PLAN_NAMES_HE = {
