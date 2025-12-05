@@ -1,5 +1,6 @@
 // ========================================
 // 📋 מערכת ניהול מנויים - NestyFile
+// עם תמיכה ב-Premium+ חד-פעמי
 // ========================================
 
 // תוכניות המנוי
@@ -13,9 +14,9 @@ export const SUBSCRIPTION_PLANS = {
     maxDocuments: 200,
     maxFileSize: 5 * 1024 * 1024, // 5MB בבייטים
     maxSharedUsers: 1,
-    maxSharedFolders: 0, // רק מסמכים בודדים
+    maxSharedFolders: 0,
     maxSharedProfiles: 0,
-    autoSuggestCategory: true, // רק לפורמטים רגילים
+    autoSuggestCategory: true,
     ocrFeatures: false,
     aiSearch: false,
     fullFolderSharing: false,
@@ -33,7 +34,7 @@ export const SUBSCRIPTION_PLANS = {
     name: 'Standard',
     nameHe: 'רגיל',
     price: 9,
-    storage: 2 * 1024 * 1024 * 1024, // 2GB בבייטים
+    storage: 2 * 1024 * 1024 * 1024, // 2GB
     maxDocuments: 1000,
     maxFileSize: 50 * 1024 * 1024, // 50MB
     maxSharedUsers: 5,
@@ -64,7 +65,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedFolders: 20,
     maxSharedProfiles: 10,
     autoSuggestCategory: true,
-    ocrFeatures: true, // OCR לתאריכים, ארגונים, נמענים
+    ocrFeatures: true,
     aiSearch: false,
     fullFolderSharing: true,
     features: [
@@ -90,7 +91,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedProfiles: 20,
     autoSuggestCategory: true,
     ocrFeatures: true,
-    aiSearch: true, // חיפוש AI
+    aiSearch: true,
     fullFolderSharing: true,
     features: [
       '20GB נפח אחסון',
@@ -133,9 +134,9 @@ export const SUBSCRIPTION_PLANS = {
     id: 'premium_plus',
     name: 'Premium+',
     nameHe: 'פרימיום+',
-    price: 99, // בסיס + תוספות
-    pricePerGB: 1.5, // ₪1.5 לכל GB נוסף מעל 50GB
-    storage: Infinity, // ללא הגבלה (בתשלום)
+    price: 99, // בסיס
+    pricePerGB: 1.5, // ₪1.5 לכל GB נוסף (חד-פעמי!)
+    storage: 50 * 1024 * 1024 * 1024, // 50GB בסיס + נוספים
     maxDocuments: Infinity,
     maxFileSize: 1024 * 1024 * 1024, // 1GB
     maxSharedUsers: Infinity,
@@ -146,12 +147,12 @@ export const SUBSCRIPTION_PLANS = {
     aiSearch: true,
     fullFolderSharing: true,
     features: [
-      'אחסון ללא הגבלה',
+      '50GB + אחסון נוסף',
       'מסמכים ללא הגבלה',
       'שיתוף ללא הגבלה',
       'OCR מלא',
       'חיפוש AI מתקדם',
-      '₪1.5 לכל GB נוסף מעל 50GB'
+      '₪1.5 לכל GB נוסף (תשלום חד-פעמי)'
     ]
   }
 };
@@ -181,14 +182,12 @@ export class SubscriptionManager {
       const userSnap = await this.fs.getDoc(userRef);
       
       if (!userSnap.exists()) {
-        // משתמש חדש - צור מנוי חינמי
         await this.createFreeSubscription();
       } else {
         const userData = userSnap.data();
         this.userSubscription = userData.subscription || await this.createFreeSubscription();
       }
 
-      // בדוק אם המנוי פג תוקף
       await this.checkSubscriptionExpiry();
       
       return this.userSubscription;
@@ -202,14 +201,15 @@ export class SubscriptionManager {
   async createFreeSubscription() {
     const subscription = {
       plan: 'free',
-      status: 'active', // active / cancelled / expired
+      status: 'active',
       startDate: new Date().toISOString(),
-      endDate: null, // מנוי חינמי אין תפוגה
+      endDate: null,
       cancelledDate: null,
-      graceEndDate: null, // תאריך סיום תקופת חסד (20 ימים)
+      graceEndDate: null,
       usedStorage: 0,
       documentCount: 0,
-      extraStorageGB: 0 // רק ל-Premium+
+      extraStorageGB: 0, // GB נוספים שנקנו (רק ל-Premium+)
+      extraStoragePurchases: [] // היסטוריית רכישות
     };
 
     try {
@@ -232,23 +232,19 @@ export class SubscriptionManager {
 
     const now = new Date();
     
-    // אם המנוי בוטל וחלפה תקופת החסד
     if (this.userSubscription.status === 'cancelled' && 
         this.userSubscription.graceEndDate) {
       const graceEnd = new Date(this.userSubscription.graceEndDate);
       
       if (now > graceEnd) {
-        // תקופת החסד נגמרה - עבור לחינמי ומחק עודפים
         await this.downgradeToFreeAndCleanup();
       }
     }
 
-    // אם המנוי פג תוקף (תשלום לא עבר)
     if (this.userSubscription.endDate) {
       const endDate = new Date(this.userSubscription.endDate);
       
       if (now > endDate && this.userSubscription.status === 'active') {
-        // המנוי פג - הפעל תקופת חסד של 20 ימים
         await this.startGracePeriod();
       }
     }
@@ -271,30 +267,26 @@ export class SubscriptionManager {
   async downgradeToFreeAndCleanup() {
     console.log('🔄 מעביר משתמש למנוי חינמי ומנקה קבצים...');
     
-    // שמור את התוכנית הקודמת לצורך התראה
     const oldPlan = this.userSubscription.plan;
     
-    // עדכן למנוי חינמי
     this.userSubscription.plan = 'free';
     this.userSubscription.status = 'active';
     this.userSubscription.endDate = null;
     this.userSubscription.cancelledDate = null;
     this.userSubscription.graceEndDate = null;
+    this.userSubscription.extraStorageGB = 0; // מאפס GB נוספים
     
     await this.saveSubscription();
-
-    // מחק קבצים ישנים עד שנגיע ל-200MB
     await this.cleanupOldFiles();
     
     return { oldPlan, newPlan: 'free' };
   }
 
-  // מחיקת קבצים ישנים (מהישן לחדש) עד שנגיע למגבלה
+  // מחיקת קבצים ישנים
   async cleanupOldFiles() {
     try {
       const freePlan = SUBSCRIPTION_PLANS.FREE;
       
-      // טען את כל המסמכים של המשתמש
       const docsRef = this.fs.collection(this.db, 'documents');
       const q = this.fs.query(docsRef, this.fs.where('owner', '==', this.currentUser));
       const snapshot = await this.fs.getDocs(q);
@@ -304,7 +296,6 @@ export class SubscriptionManager {
         docs.push({ id: doc.id, ...doc.data() });
       });
 
-      // מיין לפי תאריך העלאה (מהישן לחדש)
       docs.sort((a, b) => {
         const dateA = a.uploadDate ? new Date(a.uploadDate) : new Date(0);
         const dateB = b.uploadDate ? new Date(b.uploadDate) : new Date(0);
@@ -315,32 +306,26 @@ export class SubscriptionManager {
       let keptDocs = [];
       let deletedDocs = [];
 
-      // עבור על המסמכים מהחדש לישן
       for (let i = docs.length - 1; i >= 0; i--) {
         const doc = docs[i];
         const fileSize = doc.fileSize || 0;
 
-        // אם עדיין יש מקום - שמור
         if (currentStorage + fileSize <= freePlan.storage && 
             keptDocs.length < freePlan.maxDocuments) {
           keptDocs.push(doc);
           currentStorage += fileSize;
         } else {
-          // אין מקום - מחק
           deletedDocs.push(doc);
         }
       }
 
-      // מחק את הקבצים העודפים
       for (const doc of deletedDocs) {
         try {
-          // מחק מ-Storage
           if (doc.fileURL) {
             const fileRef = this.fs.ref(window.storage, doc.fileURL);
             await this.fs.deleteObject(fileRef);
           }
           
-          // מחק מ-Firestore
           const docRef = this.fs.doc(this.db, `documents/${doc.id}`);
           await this.fs.deleteDoc(docRef);
           
@@ -352,7 +337,6 @@ export class SubscriptionManager {
 
       console.log(`✅ ניקוי הושלם: נשמרו ${keptDocs.length} קבצים, נמחקו ${deletedDocs.length} קבצים`);
       
-      // עדכן את נתוני השימוש
       this.userSubscription.usedStorage = currentStorage;
       this.userSubscription.documentCount = keptDocs.length;
       await this.saveSubscription();
@@ -385,7 +369,7 @@ export class SubscriptionManager {
 
     const now = new Date();
     const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 1); // חודש מהיום
+    endDate.setMonth(endDate.getMonth() + 1);
 
     this.userSubscription.plan = plan.id;
     this.userSubscription.status = 'active';
@@ -400,7 +384,68 @@ export class SubscriptionManager {
     return this.userSubscription;
   }
 
-  // ביטול מנוי (ימשיך לעבוד עד סוף התקופה ששולמה)
+  // ========================================
+  // 🆕 רכישת אחסון נוסף (Premium+ בלבד)
+  // ========================================
+  async purchaseExtraStorage(extraGB, paymentDetails = {}) {
+    const currentPlan = this.getCurrentPlan();
+    
+    // ודא שיש מנוי פרימיום
+    if (currentPlan.id !== 'premium' && currentPlan.id !== 'premium_plus') {
+      throw new Error('רכישת אחסון נוסף זמינה רק למנוי פרימיום');
+    }
+    
+    if (!extraGB || extraGB < 1) {
+      throw new Error('יש לבחור לפחות 1GB');
+    }
+    
+    // שנה את התוכנית ל-Premium+ אם זו הקנייה הראשונה
+    if (currentPlan.id === 'premium') {
+      this.userSubscription.plan = 'premium_plus';
+    }
+    
+    // הוסף את ה-GB הנוספים
+    const currentExtra = this.userSubscription.extraStorageGB || 0;
+    this.userSubscription.extraStorageGB = currentExtra + extraGB;
+    
+    // שמור את הרכישה בהיסטוריה
+    if (!this.userSubscription.extraStoragePurchases) {
+      this.userSubscription.extraStoragePurchases = [];
+    }
+    
+    this.userSubscription.extraStoragePurchases.push({
+      date: new Date().toISOString(),
+      amountGB: extraGB,
+      price: extraGB * SUBSCRIPTION_PLANS.PREMIUM_PLUS.pricePerGB,
+      paymentId: paymentDetails.orderId || null,
+      paypalOrderId: paymentDetails.paypalOrderId || null
+    });
+    
+    await this.saveSubscription();
+    
+    console.log(`✅ נוספו ${extraGB}GB. סה"כ נוסף: ${this.userSubscription.extraStorageGB}GB`);
+    
+    return {
+      success: true,
+      totalExtraGB: this.userSubscription.extraStorageGB,
+      totalStorage: this.getTotalStorage()
+    };
+  }
+  
+  // קבלת סה"כ אחסון (כולל תוספות)
+  getTotalStorage() {
+    const plan = SUBSCRIPTION_PLANS[this.userSubscription?.plan?.toUpperCase()] || SUBSCRIPTION_PLANS.FREE;
+    
+    if (this.userSubscription?.plan === 'premium_plus') {
+      const extraGB = this.userSubscription.extraStorageGB || 0;
+      const baseStorage = SUBSCRIPTION_PLANS.PREMIUM.storage; // 50GB
+      return baseStorage + (extraGB * 1024 * 1024 * 1024);
+    }
+    
+    return plan.storage;
+  }
+
+  // ביטול מנוי
   async cancelSubscription() {
     if (this.userSubscription.plan === 'free') {
       throw new Error('לא ניתן לבטל מנוי חינמי');
@@ -408,7 +453,6 @@ export class SubscriptionManager {
 
     const now = new Date();
     this.userSubscription.cancelledDate = now.toISOString();
-    // המנוי ימשיך לעבוד עד endDate
 
     await this.saveSubscription();
     
@@ -416,10 +460,27 @@ export class SubscriptionManager {
     return this.userSubscription;
   }
 
-  // קבלת תוכנית המנוי הנוכחית
+  // קבלת תוכנית המנוי הנוכחית (כולל אחסון נוסף)
   getCurrentPlan() {
     if (!this.userSubscription) return SUBSCRIPTION_PLANS.FREE;
-    return SUBSCRIPTION_PLANS[this.userSubscription.plan.toUpperCase()] || SUBSCRIPTION_PLANS.FREE;
+    
+    const basePlan = SUBSCRIPTION_PLANS[this.userSubscription.plan.toUpperCase()] || SUBSCRIPTION_PLANS.FREE;
+    
+    // אם זה Premium+ עם GB נוספים
+    if (this.userSubscription.plan === 'premium_plus') {
+      const extraGB = this.userSubscription.extraStorageGB || 0;
+      const baseStorage = SUBSCRIPTION_PLANS.PREMIUM.storage; // 50GB
+      const totalStorage = baseStorage + (extraGB * 1024 * 1024 * 1024);
+      
+      return {
+        ...basePlan,
+        storage: totalStorage,
+        extraStorageGB: extraGB,
+        nameHe: extraGB > 0 ? `פרימיום+ (${50 + extraGB}GB)` : 'פרימיום+'
+      };
+    }
+    
+    return basePlan;
   }
 
   // בדיקה אם פעולה מותרת
@@ -428,7 +489,6 @@ export class SubscriptionManager {
     
     switch (action) {
       case 'upload_file':
-        // בדוק גודל קובץ
         if (data.fileSize > plan.maxFileSize) {
           return {
             allowed: false,
@@ -436,16 +496,16 @@ export class SubscriptionManager {
           };
         }
         
-        // בדוק מכסת אחסון
         const newStorage = this.userSubscription.usedStorage + data.fileSize;
-        if (plan.storage !== Infinity && newStorage > plan.storage) {
+        const totalStorage = this.getTotalStorage();
+        
+        if (totalStorage !== Infinity && newStorage > totalStorage) {
           return {
             allowed: false,
-            reason: `חריגה ממכסת האחסון (${this.formatBytes(plan.storage)})`
+            reason: `חריגה ממכסת האחסון (${this.formatBytes(totalStorage)})`
           };
         }
         
-        // בדוק מספר מסמכים
         if (plan.maxDocuments !== Infinity && 
             this.userSubscription.documentCount >= plan.maxDocuments) {
           return {
@@ -457,7 +517,6 @@ export class SubscriptionManager {
         return { allowed: true };
 
       case 'create_folder':
-        // במנוי חינמי - רק אם יש מסמכים פנויים
         if (plan.id === 'free' && 
             this.userSubscription.documentCount >= plan.maxDocuments) {
           return {
@@ -468,7 +527,6 @@ export class SubscriptionManager {
         return { allowed: true };
 
       case 'share_document':
-        // בדוק מגבלת משתמשים משותפים
         const sharedUsers = data.sharedUsers || 0;
         if (plan.maxSharedUsers !== Infinity && 
             sharedUsers >= plan.maxSharedUsers) {
@@ -480,7 +538,6 @@ export class SubscriptionManager {
         return { allowed: true };
 
       case 'share_folder':
-        // במנוי חינמי אסור שיתוף תיקיות
         if (!plan.fullFolderSharing) {
           return {
             allowed: false,
@@ -545,10 +602,10 @@ export class SubscriptionManager {
 
   // קבלת אחוז השימוש באחסון
   getStoragePercentage() {
-    const plan = this.getCurrentPlan();
-    if (plan.storage === Infinity) return 0;
+    const totalStorage = this.getTotalStorage();
+    if (totalStorage === Infinity) return 0;
     
-    return Math.min(100, (this.userSubscription.usedStorage / plan.storage) * 100);
+    return Math.min(100, (this.userSubscription.usedStorage / totalStorage) * 100);
   }
 
   // קבלת מידע מלא על המנוי
@@ -556,17 +613,22 @@ export class SubscriptionManager {
     const plan = this.getCurrentPlan();
     const storage = this.userSubscription.usedStorage;
     const docs = this.userSubscription.documentCount;
+    const totalStorage = this.getTotalStorage();
     
     return {
       plan: plan,
       status: this.userSubscription.status,
       storage: {
         used: storage,
-        limit: plan.storage,
+        limit: totalStorage,
         percentage: this.getStoragePercentage(),
         formatted: {
           used: this.formatBytes(storage),
-          limit: this.formatBytes(plan.storage)
+          limit: this.formatBytes(totalStorage)
+        },
+        extra: {
+          gb: this.userSubscription.extraStorageGB || 0,
+          purchases: this.userSubscription.extraStoragePurchases || []
         }
       },
       documents: {

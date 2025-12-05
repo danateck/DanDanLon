@@ -844,6 +844,259 @@ window.isFirebaseAvailable = function() {
     return false;
   }
 };
+
+
+
+
+
+
+// ========================================
+// 🔒 קטע קוד להוספה ל-main.js
+// מיקום: לפני פונקציית uploadDocumentWithStorage
+// ========================================
+
+// ========================================
+// 🔒 בדיקת מגבלות לפני העלאת קובץ
+// ========================================
+async function checkUploadPermissions(file) {
+  // בדוק אם מערכת המנויים פעילה
+  if (!window.subscriptionManager) {
+    console.warn('⚠️ מערכת מנויים לא פעילה, מאפשר העלאה');
+    return { allowed: true };
+  }
+
+  try {
+    // קבל את המנוי הנוכחי
+    const info = window.subscriptionManager.getSubscriptionInfo();
+    const plan = info.plan;
+    
+    // 1️⃣ בדיקת גודל הקובץ
+    if (file.size > plan.maxFileSize) {
+      return {
+        allowed: false,
+        reason: `גודל הקובץ (${formatFileSize(file.size)}) חורג מהמותר בתוכנית שלך (${formatFileSize(plan.maxFileSize)})`,
+        needsUpgrade: true,
+        currentPlan: plan.nameHe
+      };
+    }
+    
+    // 2️⃣ בדיקת מספר מסמכים
+    if (plan.maxDocuments !== Infinity && info.documents.count >= plan.maxDocuments) {
+      return {
+        allowed: false,
+        reason: `הגעת למכסת המסמכים המקסימלית (${plan.maxDocuments} מסמכים)`,
+        needsUpgrade: true,
+        currentPlan: plan.nameHe
+      };
+    }
+    
+    // 3️⃣ בדיקת נפח אחסון
+    const newStorage = info.storage.used + file.size;
+    if (plan.storage !== Infinity && newStorage > plan.storage) {
+      const availableSpace = plan.storage - info.storage.used;
+      return {
+        allowed: false,
+        reason: `חריגה ממכסת האחסון שלך (${formatFileSize(plan.storage)})\n\nמקום פנוי: ${formatFileSize(availableSpace)}\nגודל הקובץ: ${formatFileSize(file.size)}`,
+        needsUpgrade: true,
+        currentPlan: plan.nameHe
+      };
+    }
+    
+    return { allowed: true };
+    
+  } catch (error) {
+    console.error('❌ שגיאה בבדיקת הרשאות:', error);
+    return { allowed: true }; // במקרה של שגיאה, אפשר העלאה
+  }
+}
+
+// פונקציית עזר לפורמט גודל קובץ
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  if (bytes === Infinity) return '∞';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// ========================================
+// 🔧 עדכון פונקציית uploadDocumentWithStorage
+// החלף את הפונקציה הקיימת בזו:
+// ========================================
+async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
+  const currentUser = normalizeEmail(getCurrentUserEmail());
+  if (!currentUser) throw new Error("User not logged in");
+  
+  // 🔒 בדיקת הרשאות לפני העלאה
+  const permCheck = await checkUploadPermissions(file);
+  
+  if (!permCheck.allowed) {
+    // הצג הודעת שגיאה עם אפשרות לשדרג
+    const upgradeMsg = permCheck.needsUpgrade 
+      ? '\n\n💎 לחץ על "פרימיום" כדי לשדרג את התוכנית שלך'
+      : '';
+    
+    showAlert(permCheck.reason + upgradeMsg, 'error');
+    
+    // אם צריך שדרוג, פתח את פאנל הפרימיום
+    if (permCheck.needsUpgrade) {
+      setTimeout(() => {
+        const premiumPanel = document.getElementById('premiumPanel');
+        if (premiumPanel) {
+          premiumPanel.classList.remove('hidden');
+        }
+      }, 2000);
+    }
+    
+    throw new Error(permCheck.reason);
+  }
+  
+  const id = forcedId || crypto.randomUUID();
+  let downloadURL = null;
+  
+  // העלאה ל-Storage
+  if (window.storage && isFirebaseAvailable()) {
+    const storageRef = window.fs.ref(window.storage, `documents/${currentUser}/${id}_${file.name}`);
+    const snap = await window.fs.uploadBytes(storageRef, file);
+    downloadURL = await window.fs.getDownloadURL(snap.ref);
+  }
+  
+  // שמירה ב-Firestore
+  const docRef = window.fs.doc(window.db, "documents", id);
+  const docData = {
+    ...metadata,
+    owner: currentUser,
+    sharedWith: Array.isArray(metadata.sharedWith) ? metadata.sharedWith : [],
+    fileName: file.name,
+    fileType: file.type,
+    fileSize: file.size,
+    uploadedAt: new Date().toISOString(),
+    downloadURL: downloadURL || null,
+    deletedAt: null,
+    deletedBy: null,
+  };
+  await window.fs.setDoc(docRef, docData, { merge: true });
+  
+  // ✅ עדכן את מונה המסמכים והאחסון במערכת המנויים
+  if (window.subscriptionManager) {
+    try {
+      await window.subscriptionManager.updateDocumentCount(1);
+      await window.subscriptionManager.updateStorageUsage(file.size);
+      console.log('✅ עודכן מונה מסמכים ואחסון');
+      
+      // עדכן את הוידג'ט
+      if (window.updateStorageWidget) {
+        window.updateStorageWidget();
+      }
+    } catch (error) {
+      console.error('⚠️ לא הצלחתי לעדכן מערכת מנויים:', error);
+    }
+  }
+  
+  return { id, ...docData };
+}
+
+// ========================================
+// 🔧 עדכון פונקציית השיתוף (כבר קיים בקוד אבל נשפר)
+// ========================================
+async function shareDocument(docId, recipientEmails) {
+  const me = getCurrentUserEmail();
+  if (!me || !isFirebaseAvailable()) throw new Error("User not logged in");
+
+  const ref  = window.fs.doc(window.db, "documents", docId);
+  const snap = await window.fs.getDoc(ref);
+  if (!snap.exists()) throw new Error("Document not found");
+
+  const data = snap.data();
+  if (data.owner !== me) throw new Error("Only the owner can share this document");
+
+  // 🔒 בדיקת מגבלות שיתוף
+  if (window.subscriptionManager) {
+    const plan = window.subscriptionManager.getCurrentPlan();
+    const currentShared = Array.isArray(data.sharedWith) ? data.sharedWith.length : 0;
+    const newSharedCount = Array.isArray(recipientEmails) ? recipientEmails.length : 0;
+    const totalAfterShare = currentShared + newSharedCount;
+
+    // בדוק אם חורג מהמגבלה
+    if (plan.maxSharedUsers !== Infinity && totalAfterShare > plan.maxSharedUsers) {
+      const msg = plan.maxSharedUsers === 1 
+        ? `⚠️ בתוכנית ${plan.nameHe} ניתן לשתף רק עם אדם אחד\n\n💎 שדרג לתוכנית Standard (₪9) כדי לשתף עם עד 5 אנשים`
+        : `⚠️ חריגה ממגבלת השיתוף\n\nהמסמך משותף כבר עם ${currentShared} אנשים\nניסית להוסיף עוד ${newSharedCount} אנשים\nמקסימום בתוכנית ${plan.nameHe}: ${plan.maxSharedUsers} אנשים\n\n💎 שדרג את התוכנית שלך כדי לשתף עם יותר אנשים`;
+      
+      showAlert(msg, 'error');
+      
+      // פתח את פאנל הפרימיום
+      setTimeout(() => {
+        const premiumPanel = document.getElementById('premiumPanel');
+        if (premiumPanel) {
+          premiumPanel.classList.remove('hidden');
+        }
+      }, 2000);
+      
+      return { success: false };
+    }
+  }
+
+  // אם עברנו את הבדיקה – באמת משתפים
+  const newShared = [...new Set([
+    ...(data.sharedWith || []),
+    ...recipientEmails.map(normalizeEmail)
+  ])];
+
+  await window.fs.updateDoc(ref, {
+    sharedWith: newShared,
+    lastModified: Date.now(),
+    lastModifiedBy: me
+  });
+
+  showAlert('✅ המסמך שותף בהצלחה', 'success');
+  return { success: true };
+}
+
+// ========================================
+// 🗑️ עדכון מחיקת מסמך (הפחתת מונים)
+// ========================================
+// הוסף את זה לפונקציית המחיקה הקיימת שלך
+async function deleteDocumentPermanently(docId) {
+  // הקוד הקיים שלך למחיקה...
+  // ...
+  
+  // בסוף הפונקציה, הוסף:
+  if (window.subscriptionManager) {
+    try {
+      // מצא את המסמך כדי לדעת את הגודל שלו
+      const docRef = window.fs.doc(window.db, "documents", docId);
+      const docSnap = await window.fs.getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const docData = docSnap.data();
+        const fileSize = docData.fileSize || 0;
+        
+        // הפחת מהמונים
+        await window.subscriptionManager.updateDocumentCount(-1);
+        await window.subscriptionManager.updateStorageUsage(-fileSize);
+        
+        console.log('✅ עודכנו מונים אחרי מחיקה');
+        
+        // עדכן וידג'ט
+        if (window.updateStorageWidget) {
+          window.updateStorageWidget();
+        }
+      }
+    } catch (error) {
+      console.error('⚠️ שגיאה בעדכון מונים אחרי מחיקה:', error);
+    }
+  }
+}
+
+console.log('✅ אכיפת מגבלות מנויים הופעלה');
+
+
+
+
 async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
   const currentUser = normalizeEmail(getCurrentUserEmail());
   if (!currentUser) throw new Error("User not logged in");

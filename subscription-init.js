@@ -1,5 +1,5 @@
 // ========================================
-// 🚀 אתחול מערכת מנויים - גרסה מתוקנת
+// 🚀 אתחול מערכת מנויים - גרסה מלאה
 // ========================================
 
 console.log('💎 טוען מערכת מנויים...');
@@ -50,6 +50,11 @@ async function initSubscriptions() {
           // הוסף כפתור מנוי להגדרות
           addSubscriptionButton();
           
+          // עדכן את UI התוכניות
+          if (window.updateCurrentPlanUI) {
+            window.updateCurrentPlanUI();
+          }
+          
           // בדוק תפוגה כל 5 דקות
           setInterval(() => {
             if (subscriptionManager) {
@@ -72,7 +77,7 @@ async function initSubscriptions() {
 }
 
 // ========================================
-// וידג'ט אחסון
+// וידג'ט אחסון משופר
 // ========================================
 function updateStorageWidget() {
   if (!subscriptionManager) return;
@@ -84,63 +89,105 @@ function updateStorageWidget() {
   }
   
   const info = subscriptionManager.getSubscriptionInfo();
-  // 🔧 הסתר את הוידג'ט הישן
+  const plan = info.plan;
+  
+  // הסתר את הוידג'ט הישן
   const oldWidget = document.getElementById('storageWidget');
   if (oldWidget) {
     oldWidget.style.display = 'none';
-
   }
 
+  // צבע מתקדם לפי אחוז השימוש
+  let barColor = '#10b981'; // ירוק
+  if (info.storage.percentage > 80) {
+    barColor = '#ef4444'; // אדום
+  } else if (info.storage.percentage > 60) {
+    barColor = '#f59e0b'; // כתום
+  }
   
+  // בדיקות מגבלות
+  const warnings = [];
+  
+  // מגבלת מסמכים
+  if (plan.maxDocuments !== Infinity) {
+    const docsPercent = (info.documents.count / plan.maxDocuments) * 100;
+    if (docsPercent >= 100) {
+      warnings.push(`⚠️ הגעת למכסת המסמכים (${plan.maxDocuments})`);
+    } else if (docsPercent >= 90) {
+      warnings.push(`⚠️ ${plan.maxDocuments - info.documents.count} מסמכים נותרו`);
+    }
+  }
+  
+  // מגבלת אחסון
+  if (plan.storage !== Infinity && info.storage.percentage >= 90) {
+    warnings.push('⚠️ נגמר מקום באחסון');
+  }
+  
+  // HTML של הוידג'ט
   container.innerHTML = `
     <div class="storage-widget-new" onclick="window.showSubscriptionSettings()">
       <div class="storage-widget-header">
         <span class="storage-icon">💾</span>
         <span class="storage-title">אחסון</span>
+        ${warnings.length > 0 ? '<span class="storage-warning-badge">⚠️</span>' : ''}
       </div>
+      
       <div class="storage-widget-bar">
-        <div class="storage-widget-fill" style="width: ${info.storage.percentage}%"></div>
+        <div class="storage-widget-fill" style="width: ${Math.min(100, info.storage.percentage)}%; background: ${barColor};"></div>
       </div>
+      
       <div class="storage-widget-text">
         ${info.storage.formatted.used} / ${info.storage.formatted.limit}
       </div>
+      
       <div class="storage-widget-docs">
-        ${info.documents.count} מסמכים
+        ${info.documents.count}${plan.maxDocuments !== Infinity ? `/${plan.maxDocuments}` : ''} מסמכים
       </div>
-      <div class="storage-widget-plan" style="margin-top: 0.5rem;">
-        תוכנית: <strong>${info.plan.nameHe}</strong>
+      
+      <div class="storage-widget-plan">
+        תוכנית: <strong>${plan.nameHe}</strong>
+        ${info.status === 'cancelled' ? ' <span style="color: #ef4444;">(בוטל)</span>' : ''}
       </div>
+      
+      ${warnings.length > 0 ? `
+        <div class="storage-widget-warning">
+          ${warnings.join('<br>')}
+          <br>
+          <small style="color: #2d6a4f; font-weight: 600;">לחץ לשדרוג</small>
+        </div>
+      ` : ''}
     </div>
   `;
   
+  // חשוף את הפונקציה גלובלית
+  window.updateStorageWidget = updateStorageWidget;
 }
 
 // ========================================
 // כפתור "המנוי שלי"
 // ========================================
 function addSubscriptionButton() {
-  // 🔧 משתמש בכפתור הפרימיום הקיים במקום ליצור חדש
   const existingBtn = document.getElementById('premiumBtn');
   
   if (existingBtn) {
-    // 🔥 הסר את כל ה-event listeners הישנים
+    // הסר event listeners ישנים
     const newBtn = existingBtn.cloneNode(true);
     existingBtn.parentNode.replaceChild(newBtn, existingBtn);
     
-    // שנה את הטקסט והאייקון
+    // שנה את הטקסט
     newBtn.innerHTML = `
-      <span style="font-size: 1.2rem;"></span>
+      <span style="font-size: 1.2rem;">💎</span>
       <span>פרימיום</span>
     `;
     
-    // הוסף את הפעולה החדשה
+    // הוסף פעולה חדשה
     newBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       window.showSubscriptionSettings();
     });
     
-    console.log('✅ כפתור פרימיום עודכן ל"המנוי שלי"');
+    console.log('✅ כפתור פרימיום עודכן');
   } else {
     console.warn('⚠️ לא נמצא כפתור פרימיום');
   }
@@ -150,10 +197,13 @@ function addSubscriptionButton() {
 // הצגת עמוד המנויים
 // ========================================
 window.showSubscriptionSettings = function() {
-  // 🔧 פשוט פותח את הפאנל הישן
   const premiumPanel = document.getElementById('premiumPanel');
   if (premiumPanel) {
     premiumPanel.classList.remove('hidden');
+    
+    // עדכן את המידע בעמוד
+    updateSubscriptionPageContent();
+    
     console.log('✅ פאנל פרימיום נפתח');
   } else {
     console.warn('⚠️ לא נמצא premiumPanel');
@@ -161,7 +211,64 @@ window.showSubscriptionSettings = function() {
 };
 
 // ========================================
-// פונקציות גלובליות לכפתורים בעמוד המנויים
+// עדכון תוכן עמוד המנויים
+// ========================================
+function updateSubscriptionPageContent() {
+  if (!subscriptionManager) return;
+  
+  const info = subscriptionManager.getSubscriptionInfo();
+  const plan = info.plan;
+  
+  // חפש אלמנט להצגת מידע על המנוי הנוכחי
+  const currentPlanInfo = document.getElementById('current-plan-info');
+  if (currentPlanInfo) {
+    const statusText = info.status === 'active' ? '✅ פעיל' : 
+                      info.status === 'cancelled' ? '⚠️ בוטל' : 
+                      '❌ פג תוקף';
+    
+    currentPlanInfo.innerHTML = `
+      <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0 0 1rem 0; color: var(--text-dark);">המנוי שלי</h3>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+          <span>תוכנית:</span>
+          <strong>${plan.nameHe}</strong>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+          <span>סטטוס:</span>
+          <strong>${statusText}</strong>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+          <span>אחסון:</span>
+          <strong>${info.storage.formatted.used} / ${info.storage.formatted.limit}</strong>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+          <span>מסמכים:</span>
+          <strong>${info.documents.count}${plan.maxDocuments !== Infinity ? `/${plan.maxDocuments}` : ''}</strong>
+        </div>
+        
+        ${info.dates.end ? `
+          <div style="display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-soft);">
+            <span>תוקף עד:</span>
+            <strong>${new Date(info.dates.end).toLocaleDateString('he-IL')}</strong>
+          </div>
+        ` : ''}
+        
+        ${info.status === 'cancelled' && info.dates.graceEnd ? `
+          <div style="background: #fef3c7; padding: 0.75rem; border-radius: 8px; margin-top: 1rem; font-size: 0.9rem;">
+            ⚠️ המנוי בוטל ויפוג ב-${new Date(info.dates.graceEnd).toLocaleDateString('he-IL')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+}
+
+// ========================================
+// פונקציות גלובליות לכפתורים
 // ========================================
 
 window.showUpgradePlans = function() {
@@ -175,7 +282,8 @@ window.showUpgradePlans = function() {
 };
 
 window.selectPlan = async function(planId) {
-  alert('בקרוב: אינטגרציה עם מערכת תשלומים\n\nתוכנית נבחרה: ' + planId);
+  // הפונקציה הזו מוחלפת על ידי premium-payments.js
+  console.log('selectPlan called for:', planId);
 };
 
 window.cancelSubscriptionDialog = async function() {
@@ -188,9 +296,15 @@ window.cancelSubscriptionDialog = async function() {
   
   if (confirmed && subscriptionManager) {
     try {
-      await subscriptionManager.cancelSubscription();
-      alert('✅ המנוי בוטל. ימשיך לעבוד עד סוף התקופה');
-      window.showSubscriptionSettings();
+      // אם זה מנוי אוטומטי PayPal
+      if (window.cancelPayPalSubscription) {
+        await window.cancelPayPalSubscription();
+      } else {
+        // מנוי רגיל
+        await subscriptionManager.cancelSubscription();
+        alert('✅ המנוי בוטל. ימשיך לעבוד עד סוף התקופה');
+        window.showSubscriptionSettings();
+      }
     } catch (error) {
       alert('❌ שגיאה בביטול המנוי: ' + error.message);
     }
@@ -206,9 +320,8 @@ window.reactivateSubscription = async function() {
   
   try {
     const info = subscriptionManager.getSubscriptionInfo();
-    await subscriptionManager.upgradePlan(info.plan.id);
-    alert('✅ המנוי הופעל מחדש בהצלחה!');
-    window.showSubscriptionSettings();
+    alert('כדי להפעיל מחדש, בחר את התוכנית הרצויה למטה');
+    window.showUpgradePlans();
   } catch (error) {
     alert('❌ שגיאה בהפעלת המנוי: ' + error.message);
   }
@@ -220,40 +333,11 @@ window.closeDialog = function() {
 };
 
 // ========================================
-// CSS
+// CSS משופר
 // ========================================
 const styles = document.createElement('style');
 styles.textContent = `
-  /* כפתור המנוי שלי */
-  .subscription-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    margin: 1rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    width: calc(100% - 2rem);
-  }
-  
-  .subscription-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-  }
-  
-  .subscription-btn:active {
-    transform: translateY(0);
-  }
-  
-  /* וידג'ט אחסון חדש */
+  /* וידג'ט אחסון */
   .storage-widget-new {
     background: var(--bg-card, white);
     border-radius: 12px;
@@ -261,13 +345,15 @@ styles.textContent = `
     margin: 1rem;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: all 0.2s;
     border: 2px solid var(--border-soft, #e0e0e0);
+    position: relative;
   }
   
   .storage-widget-new:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    border-color: rgba(82, 152, 115, 0.5);
   }
   
   .storage-widget-header {
@@ -275,6 +361,7 @@ styles.textContent = `
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
+    position: relative;
   }
   
   .storage-icon {
@@ -285,6 +372,17 @@ styles.textContent = `
     font-weight: 600;
     color: var(--text-mid, #333);
     font-size: 0.95rem;
+    flex: 1;
+  }
+  
+  .storage-warning-badge {
+    font-size: 1rem;
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
   
   .storage-widget-bar {
@@ -298,8 +396,7 @@ styles.textContent = `
   
   .storage-widget-fill {
     height: 100%;
-    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
-    transition: width 0.3s ease;
+    transition: width 0.3s ease, background 0.3s ease;
     border-radius: 4px;
   }
   
@@ -315,6 +412,16 @@ styles.textContent = `
     color: var(--accent-strong, #333);
   }
   
+  .storage-widget-warning {
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #dc2626;
+    line-height: 1.4;
+  }
+  
   /* Dark mode */
   .theme-dark .storage-widget-new {
     background: #121816;
@@ -325,10 +432,6 @@ styles.textContent = `
     background: rgba(82, 152, 115, 0.2);
   }
   
-  .theme-dark .subscription-btn {
-    background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 100%);
-  }
-  
   .theme-dark .storage-title {
     color: #e8f0ec;
   }
@@ -337,6 +440,11 @@ styles.textContent = `
   .theme-dark .storage-widget-docs,
   .theme-dark .storage-widget-plan {
     color: #b8c9c0;
+  }
+  
+  .theme-dark .storage-widget-warning {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
   }
 `;
 document.head.appendChild(styles);
