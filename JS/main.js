@@ -2348,61 +2348,77 @@ shareBtn.innerHTML = `
 
 
              
+shareBtn.addEventListener("click", async () => {
+  try {
+    // 🔒 בדיקת מנוי לפני שיתוף לתיקייה משותפת
+    if (window.subscriptionManager) {
+      const check = await window.subscriptionManager.canPerformAction("share_folder");
+      if (!check.allowed) {
+        alert(
+          check.reason +
+          "\n\nכדי לשתף תיקייה צריך לשדרג את המנוי (Standard ומעלה)."
+        );
+        return; // ⬅️ לעצור כאן, לא לפתוח מודל ולא לטעון תיקיות
+      }
+    }
 
-    shareBtn.addEventListener("click", async () => {
-      try {
-        const folders = await loadSharedFolders();
-        if (folders.length === 0) {
-          showNotification("אין לך תיקיות משותפות");
-          return;
-        }
-        const modalHTML = `
-          <div class="modal-backdrop" id="shareFolderModal" style="display: flex; align-items: center; justify-content: center;">
-            <div class="modal" style="max-width: 500px; width: 90%;">
-              <div class="modal-head">
-                <h2>בחר תיקייה משותפת</h2>
-                <button class="modal-close" onclick="document.getElementById('shareFolderModal').remove()">✖</button>
-              </div>
-              <div class="scroll-area" style="max-height: 400px;">
-                <p style="margin-bottom: 1rem;">בחר לאיזו תיקייה להוסיף את המסמך "${doc.title || doc.fileName}"</p>
-<div style="display: flex;flex-direction: column;gap: 0.5rem;padding-left: 1.2rem;">
-                  ${folders.map(folder => `
-                    <button 
-                      class="folder-select-btn" 
-                      data-folder-id="${folder.id}"
-                    >
-                      <div style="font-weight: 600;">📁 ${folder.name}</div>
-                      <div style="font-size: 0.85rem; opacity: 0.7;">${folder.members?.length || 0} חברים</div>
-                    </button>
-                  `).join('')}
-                </div>
-              </div>
-              <div class="modal-foot">
-                <button class="btn" onclick="document.getElementById('shareFolderModal').remove()">ביטול</button>
-              </div>
+    // 🟢 אם עברנו את הבדיקה – ממשיכים כרגיל
+    const folders = await loadSharedFolders();
+    if (folders.length === 0) {
+      showNotification("אין לך תיקיות משותפות");
+      return;
+    }
+
+    const modalHTML = `
+      <div class="modal-backdrop" id="shareFolderModal" style="display: flex; align-items: center; justify-content: center;">
+        <div class="modal" style="max-width: 500px; width: 90%;">
+          <div class="modal-head">
+            <h2>בחר תיקייה משותפת</h2>
+            <button class="modal-close" onclick="document.getElementById('shareFolderModal').remove()">✖</button>
+          </div>
+          <div class="scroll-area" style="max-height: 400px;">
+            <p style="margin-bottom: 1rem;">בחר לאיזו תיקייה להוסיף את המסמך "${doc.title || doc.fileName}"</p>
+            <div style="display: flex;flex-direction: column;gap: 0.5rem;padding-left: 1.2rem;">
+              ${folders.map(folder => `
+                <button 
+                  class="folder-select-btn" 
+                  data-folder-id="${folder.id}"
+                >
+                  <div style="font-weight: 600;">📁 ${folder.name}</div>
+                  <div style="font-size: 0.85rem; opacity: 0.7;">${folder.members?.length || 0} חברים</div>
+                </button>
+              `).join('')}
             </div>
           </div>
-        `;
-        document.body.insertAdjacentHTML("beforeend", modalHTML);
-        document.querySelectorAll(".folder-select-btn").forEach(btn => {
-          btn.addEventListener("click", async () => {
-            const folderId = btn.dataset.folderId;
-            const folder = folders.find(f => f.id === folderId);
-            try {
-              await addDocumentToSharedFolder(doc.id, folderId);
-              showNotification(`המסמך נוסף לתיקייה "${folder.name}"!`);
-              document.getElementById("shareFolderModal").remove();
-            } catch (error) {
-              console.error("Error:", error);
-              showNotification("שגיאה בהוספת המסמך", true);
-            }
-          });
-        });
-      } catch (error) {
-        console.error("Error:", error);
-        showNotification("שגיאה בטעינת התיקיות", true);
-      }
+          <div class="modal-foot">
+            <button class="btn" onclick="document.getElementById('shareFolderModal').remove()">ביטול</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
+
+    document.querySelectorAll(".folder-select-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const folderId = btn.dataset.folderId;
+        const folder = folders.find(f => f.id === folderId);
+        try {
+          await addDocumentToSharedFolder(doc.id, folderId);
+          showNotification(`המסמך נוסף לתיקייה "${folder.name}"!`);
+          document.getElementById("shareFolderModal").remove();
+        } catch (error) {
+          console.error("Error:", error);
+          showNotification("שגיאה בהוספת המסמך", true);
+        }
+      });
     });
+  } catch (error) {
+    console.error("Error:", error);
+    showNotification("שגיאה בטעינת התיקיות", true);
+  }
+});
+
     actions.appendChild(shareBtn);
   }
 } else {
@@ -7255,6 +7271,20 @@ window.addDocumentToSharedFolder = async function(docId, folderId) {
       
       if (members.length > 0 && typeof window.updateDocument === "function") {
         console.log("📤 Updating shared_with in backend:", members);
+          if (window.subscriptionManager) {
+    const check = await window.subscriptionManager.canPerformAction(
+      "share_document",
+      { sharedUsers: emailsArray.length }
+    );
+    if (!check.allowed) {
+      alert(
+        check.reason +
+        "\n\nכדי לשתף עם יותר אנשים צריך לשדרג את התוכנית שלך."
+      );
+      return;
+    }
+  }
+
         await window.updateDocument(docId, { shared_with: members });
         console.log("✅ Backend shared_with updated!");
       }
@@ -7298,6 +7328,20 @@ console.log("✅ addDocumentToSharedFolder patched with shared_with update!");
         
         if (members.length > 0 && window.updateDocument) {
           console.log("📤 Updating shared_with in backend:", members);
+            if (window.subscriptionManager) {
+    const check = await window.subscriptionManager.canPerformAction(
+      "share_document",
+      { sharedUsers: emailsArray.length }
+    );
+    if (!check.allowed) {
+      alert(
+        check.reason +
+        "\n\nכדי לשתף עם יותר אנשים צריך לשדרג את התוכנית שלך."
+      );
+      return;
+    }
+  }
+
           await window.updateDocument(docId, { shared_with: members });
           console.log("✅ shared_with updated! Friends can now access the file.");
         }

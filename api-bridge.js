@@ -167,6 +167,27 @@ async function uploadDocument(file, metadata = {}) {
   }
 
   console.log("📤 Uploading file:", file.name);
+  // 🔒 בדיקת מגבלות מנוי לפני העלאה
+  if (window.subscriptionManager) {
+    try {
+      const check = await window.subscriptionManager.canPerformAction(
+        "upload_file",
+        { fileSize: file.size }
+      );
+
+      if (!check.allowed) {
+        alert(
+          check.reason +
+          "\n\nכדי להעלות קובץ כזה צריך לשדרג את התוכנית שלך."
+        );
+        return null;
+      }
+    } catch (e) {
+      console.warn("⚠️ לא הצלחתי לבדוק מגבלות מנוי להעלאה:", e);
+    }
+  }
+
+
   console.log("📤 User:", me);
 
   try {
@@ -275,6 +296,22 @@ setTimeout(() => {
     }
 }, 200);
 
+
+  // 🔄 עדכון משתמש – אחסון + מסמכים
+  if (window.subscriptionManager) {
+    try {
+      await window.subscriptionManager.updateStorageUsage(file.size);
+      await window.subscriptionManager.updateDocumentCount(1);
+      if (typeof updateStorageWidget === "function") {
+        updateStorageWidget();
+      }
+    } catch (e) {
+      console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
+    }
+  }
+
+
+  
 return doc;
 
 

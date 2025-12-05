@@ -37,6 +37,44 @@ const PLAN_NAMES_HE = {
   premium_plus: 'פרימיום+'
 };
 
+
+function computePremiumPlusPrice() {
+  // חייבות subscriptionManager גלובלי
+  if (!window.subscriptionManager) {
+    alert("לא נמצאה מערכת מנויים. נסי לרענן את העמוד.");
+    return null;
+  }
+
+  const currentPlan = window.subscriptionManager.getCurrentPlan();
+  if (!currentPlan || currentPlan.id !== "premium") {
+    alert("פרימיום+ זמין רק למשתמשים עם מנוי פרימיום פעיל.");
+    return null;
+  }
+
+  const extraStr = prompt(
+    "כמה GB נוספים את רוצה לקנות?\n(יש לך כבר 50GB בפרימיום)"
+  );
+  if (!extraStr) return null;
+
+  const extraGB = Number(extraStr);
+  if (!Number.isFinite(extraGB) || extraGB <= 0) {
+    alert("הכנסת מספר GB לא תקין.");
+    return null;
+  }
+
+  // 💡 בחרי אחת מהאופציות:
+  // א. רק תוספת (אם את לוקחת את ה־99 בנפרד כחיוב קבוע)
+  // const price = extraGB * window.SUBSCRIPTION_PLANS.PREMIUM_PLUS.pricePerGB;
+
+  // ב. 99 + תוספת (הכל בחיוב אחד)
+  const base = window.SUBSCRIPTION_PLANS.PREMIUM.price; // 99
+  const perGB = window.SUBSCRIPTION_PLANS.PREMIUM_PLUS.pricePerGB; // 1.5
+  const price = base + extraGB * perGB;
+
+  return { price, extraGB };
+}
+
+
 // ========================================
 // אתחול כפתורי בחירת תוכנית
 // ========================================
@@ -47,21 +85,49 @@ function initPlanSelection() {
   const planButtons = document.querySelectorAll('[data-select-plan]');
   
   planButtons.forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const planId = btn.getAttribute('data-select-plan');
-      
-      console.log('📋 נבחרה תוכנית:', planId);
-      selectedPlan = planId;
-      
-      // סמן את התוכנית שנבחרה
-      document.querySelectorAll('.plan').forEach(p => p.classList.remove('selected'));
-      const planCard = btn.closest('.plan');
-      if (planCard) planCard.classList.add('selected');
-      
-      // הצג את כפתור PayPal
-      await renderPayPalButton(planId);
-    });
+    btn.addEventListener("click", () => {
+  const planId = btn.dataset.selectPlan;
+
+  // 🔒 בדיקת שנמוך
+  if (window.subscriptionManager) {
+    try {
+      const info = window.subscriptionManager.getSubscriptionInfo();
+      const currentPlan = info.plan; // כולל nameHe, price וכו'
+      const currentPlanId = currentPlan.id;
+      const currentPrice = currentPlan.price || 0;
+      const targetPlan = window.SUBSCRIPTION_PLANS[planId.toUpperCase()];
+      const targetPrice = targetPlan ? targetPlan.price || 0 : 0;
+
+      const isDowngrade = targetPrice < currentPrice;
+
+      if (
+        isDowngrade &&
+        currentPlanId !== "free" &&
+        info.dates &&
+        info.dates.end
+      ) {
+        const endDate = new Date(info.dates.end);
+        const now = new Date();
+
+        if (endDate > now) {
+          alert(
+            "⏳ אי אפשר לשנמך תוכנית לפני סוף התקופה ששולמה.\n" +
+            "תוכלי לעבור לתוכנית זולה יותר רק בתאריך: " +
+            endDate.toLocaleDateString("he-IL")
+          );
+          return; // לא ממשיכים ל-PayPal
+        }
+      }
+    } catch (e) {
+      console.warn("⚠️ לא הצלחתי לבדוק שנמוך:", e);
+    }
+  }
+
+  // אם עברנו את כל הבדיקות – אפשר לבחור תוכנית ולפתוח תשלום
+  selectedPlan = planId;
+  renderPayPalButton(planId);
+});
+
   });
   
   console.log('✅ כפתורי בחירה מוכנים:', planButtons.length);
@@ -271,7 +337,19 @@ async function renderPayPalButton(planId) {
   }
 
   // 🔹 כל שאר התוכניות – כמו שהיה קודם
-  const price = PLAN_PRICES_USD[planId];
+  let price = PLAN_PRICES_USD[planId];
+
+let premiumPlusExtraGB = null;
+
+if (planId === "premium_plus") {
+  const result = computePremiumPlusPrice();
+  if (!result) {
+    return; // משתמשת ביטלה / שגיאה
+  }
+  price = result.price;
+  premiumPlusExtraGB = result.extraGB;
+}
+
   console.log(`💰 מכין כפתור PayPal עבור ${planName} - ₪${price}`);
 
   // נקה כפתורים קודמים
