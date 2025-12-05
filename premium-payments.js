@@ -31,7 +31,7 @@ const PAYPAL_PLAN_IDS = {
   standard: 'P-12703733LC5205622NEZPLPA',      // 🔴 החלף עם Plan ID אמיתי
   advanced: 'P-4T671886AR091433TNEZPWMI',      // 🔴 החלף עם Plan ID אמיתי
   pro: 'P-0UH3658873191311TNEZPX2Y',          // 🔴 החלף עם Plan ID אמיתי
-  premium: 'P-2U729221CK555173MNEZPY4I',       // 🔴 החלף עם Plan ID אמיתי
+  premium: 'P-2U729221CK555173MNEZPY4I'      // 🔴 החלף עם Plan ID אמיתי
   // שים לב: אין premium_plus כי זה לא מנוי חודשי!
 };
 
