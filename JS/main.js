@@ -516,6 +516,22 @@ async function createSharedFolder(folderName, invitedEmails = []) {
   console.log("📁 createSharedFolder called:", folderName);
   const currentUser = getCurrentUserEmail();
   if (!currentUser || !isFirebaseAvailable()) throw new Error("User not logged in");
+  
+  // 🔒 בדיקת מגבלות מנוי לפני יצירת תיקייה משותפת
+  if (window.checkCreateSharedFolderLimits) {
+    const normalized = invitedEmails.map(normalizeEmail);
+    const limitCheck = window.checkCreateSharedFolderLimits(normalized);
+    if (!limitCheck.allowed) {
+      if (window.showLimitError) {
+        window.showLimitError(limitCheck);
+      } else {
+        alert(limitCheck.reason || "אין אפשרות לשתף תיקייה בתוכנית הנוכחית");
+      }
+      return null;
+    }
+  }
+
+
   const folderData = {
     name: folderName,
     owner: currentUser,
@@ -5254,10 +5270,20 @@ if (editForm) {
     openRecycleView
   };
   if (backButton) {
-    backButton.addEventListener("click", () => {
+  backButton.addEventListener("click", () => {
+    const categoryTitleEl = document.getElementById("categoryTitle");
+    const titleText = categoryTitleEl ? (categoryTitleEl.textContent || "").trim() : "";
+
+    // אם אנחנו בתוך מסך מסמכי פרופיל – נחזור לרשימת הפרופילים
+    if (titleText.startsWith("פרופיל:") && typeof window.openProfilesView === "function") {
+      window.openProfilesView();
+    } else {
+      // ברירת מחדל – חזרה לדף הבית
       renderHome();
-    });
-  }
+    }
+  });
+}
+
   if (uploadBtn && fileInput) {
     uploadBtn.addEventListener("click", () => {
       fileInput.click();
@@ -6918,7 +6944,7 @@ async function deleteDocForever(id) {
     }
 
 
-    
+
     // 💾 עדכון תצוגת האחסון אחרי מחיקה
     if (typeof window.updateStorageUsageWidget === "function") {
       window.updateStorageUsageWidget();
@@ -8097,6 +8123,57 @@ async function shareProfile(profileId) {
     alert("אי אפשר לשתף לעצמך 🙂");
     return;
   }
+
+
+  
+  // 🔒 מגבלת כמות פרופילים משותפים לפי מנוי
+  if (window.subscriptionManager && window.fs && window.db) {
+    try {
+      const plan = window.subscriptionManager.getCurrentPlan();
+
+      if (plan.maxSharedProfiles !== Infinity) {
+        const col = window.fs.collection(window.db, "profileInvites");
+        const q = window.fs.query(
+          col,
+          window.fs.where("from", "==", me)
+        );
+        const snap = await window.fs.getDocs(q);
+
+        const sharedProfileIds = new Set();
+        snap.docs.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          // לא נספור הזמנות שנדחו
+          if (data.status === "rejected") return;
+          if (data.profileId) {
+            sharedProfileIds.add(data.profileId);
+          }
+        });
+
+        const alreadyShared = sharedProfileIds.has(profileId);
+        const usedProfiles = sharedProfileIds.size;
+
+        // אם זה פרופיל חדש לשיתוף ומיצינו את הכמות
+        if (!alreadyShared && usedProfiles >= plan.maxSharedProfiles) {
+          const msg =
+            `⚠️ הגעת למכסת הפרופילים שניתן לשתף בתוכנית ${plan.nameHe}\n\n` +
+            `פרופילים משותפים כרגע: ${usedProfiles}\n` +
+            `מקסימום בתוכנית: ${plan.maxSharedProfiles}\n\n` +
+            `💎 שדרגי את התוכנית כדי לשתף פרופילים נוספים`;
+
+          if (window.showAlert) {
+            window.showAlert(msg, "error");
+          } else {
+            alert(msg);
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("⚠️ שגיאה בבדיקת מגבלת שיתוף פרופילים:", e);
+      // במקרה הכי גרוע לא נחסום – אבל נרשום לקונסול
+    }
+  }
+
 
   try {
     // 1️⃣ יצירת בקשה ב-Firestore

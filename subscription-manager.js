@@ -15,7 +15,7 @@ export const SUBSCRIPTION_PLANS = {
     maxFileSize: 5 * 1024 * 1024, // 5MB בבייטים
     maxSharedUsers: 1,
     maxSharedFolders: 0,
-    maxSharedProfiles: 0,
+    maxSharedProfiles: 1,
     autoSuggestCategory: true,
     ocrFeatures: false,
     aiSearch: false,
@@ -86,7 +86,7 @@ export const SUBSCRIPTION_PLANS = {
     storage: 20 * 1024 * 1024 * 1024, // 20GB
     maxDocuments: 10000,
     maxFileSize: 200 * 1024 * 1024, // 200MB
-    maxSharedUsers: 20,
+    maxSharedUsers: 40,
     maxSharedFolders: 40,
     maxSharedProfiles: 20,
     autoSuggestCategory: true,
