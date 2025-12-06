@@ -137,8 +137,11 @@ function updateStorageWidget() {
       </div>
       
       <div class="storage-widget-text">
-        ${info.storage.formatted.used} / ${info.storage.formatted.limit}
-      </div>
+  <span dir="ltr">${info.storage.formatted.used}</span>
+  <span> מתוך </span>
+  <span dir="ltr">${info.storage.formatted.limit}</span>
+</div>
+
       
       <div class="storage-widget-docs">
         ${info.documents.count}${plan.maxDocuments !== Infinity ? `/${plan.maxDocuments}` : ''} מסמכים
@@ -247,9 +250,12 @@ function updateSubscriptionPageContent() {
         </div>
         
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-          <span>אחסון:</span>
-          <strong>${info.storage.formatted.used} / ${info.storage.formatted.limit}</strong>
+        <span>אחסון:</span>
+        <strong dir="ltr">
+            ${info.storage.formatted.used} מתוך ${info.storage.formatted.limit}
+        </strong>
         </div>
+
         
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
           <span>מסמכים:</span>

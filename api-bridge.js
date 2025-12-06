@@ -270,6 +270,13 @@ if (Array.isArray(window.allDocsData)) {
   window.allDocsData.push(doc);
 }
 
+
+if (typeof window.recalculateUserStorage === "function") {
+  window.recalculateUserStorage();
+}
+
+
+
 // ✅ עדכון מערכת מנויים (אם קיימת)
 
 
@@ -548,9 +555,13 @@ async function deleteDocForever(docId) {
   }
 }
 
-if (typeof window.updateStorageUsageWidget === "function") {
-  window.updateStorageUsageWidget();
-}
+// 🧮 עדכון מד האחסון אחרי מחיקה
+  if (typeof window.recalculateUserStorage === "function") {
+    window.recalculateUserStorage();
+  } else if (typeof window.updateStorageUsageWidget === "function") {
+    // fallback ישן אם מסיבה כלשהי אין recalculate
+    window.updateStorageUsageWidget();
+  }
 
 return { backendOk };
 
@@ -873,3 +884,59 @@ function updateStorageUsageWidget() {
 
 // שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
 window.updateStorageUsageWidget = updateStorageUsageWidget;
+
+
+
+
+
+
+// ⚡ מחשב מחדש את סך האחסון של המשתמש לפי allDocsData
+window.recalculateUserStorage = async function() {
+  try {
+    if (!window.subscriptionManager) return;
+
+    const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
+    const me = (typeof getCurrentUserEmail === "function")
+      ? getCurrentUserEmail()
+      : null;
+
+    if (!me) return;
+
+    const meNorm = me.trim().toLowerCase();
+    let usedBytes = 0;
+    let docsCount = 0;
+
+    for (const d of docs) {
+      if (!d || !d.owner) continue;
+      if (String(d.owner).trim().toLowerCase() !== meNorm) continue;
+      if (d._trashed || d.deletedAt) continue;
+
+      let size = Number(d.fileSize ?? d.file_size ?? d.size);
+      if (!Number.isFinite(size) || size <= 0) {
+        size = 300 * 1024; // ברירת מחדל אם אין גודל
+      }
+
+      usedBytes += size;
+      docsCount++;
+    }
+
+    // עדכון מנוי
+    const sub = window.subscriptionManager.userSubscription || {};
+    sub.usedStorage = usedBytes;
+    sub.documentCount = docsCount;
+    window.subscriptionManager.userSubscription = sub;
+    await window.subscriptionManager.saveSubscription();
+
+    // עדכון כל הווידג'טים
+    if (typeof window.updateStorageWidget === "function") {
+      window.updateStorageWidget();
+    }
+    if (typeof window.updateStorageUsageWidget === "function") {
+      window.updateStorageUsageWidget();
+    }
+
+    console.log("✅ Recalculated storage:", { usedBytes, docsCount });
+  } catch (err) {
+    console.error("⚠️ recalculateUserStorage failed:", err);
+  }
+};
