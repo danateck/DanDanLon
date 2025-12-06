@@ -170,6 +170,7 @@ async function initDB() {
         org VARCHAR(255),
         recipient JSONB,
         shared_with JSONB,
+        deleted_for JSONB DEFAULT '{}',
         warranty_start VARCHAR(50),
         warranty_expires_at VARCHAR(50),
         auto_delete_after VARCHAR(50),
@@ -184,6 +185,7 @@ async function initDB() {
       
       CREATE INDEX IF NOT EXISTS idx_owner ON documents(owner);
       CREATE INDEX IF NOT EXISTS idx_shared ON documents USING GIN(shared_with);
+      CREATE INDEX IF NOT EXISTS idx_deleted_for ON documents USING GIN(deleted_for);
       CREATE INDEX IF NOT EXISTS idx_trashed ON documents(trashed);
 
       CREATE TABLE IF NOT EXISTS login_codes (
@@ -198,7 +200,7 @@ async function initDB() {
   }
 }
 
-initDB();
+initDB().then(() => addMissingColumns());
 
 // ===== API ENDPOINTS =====
 
@@ -623,3 +625,21 @@ app.listen(PORT, () => {
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`✅ Ready to accept requests`);
 });
+// ===== Add missing column if table already exists =====
+async function addMissingColumns() {
+  try {
+    await pool.query(`
+      ALTER TABLE documents 
+      ADD COLUMN IF NOT EXISTS deleted_for JSONB DEFAULT '{}';
+      
+      CREATE INDEX IF NOT EXISTS idx_deleted_for 
+      ON documents USING GIN(deleted_for);
+    `);
+    console.log('✅ Ensured deleted_for column exists');
+  } catch (error) {
+    // Ignore if already exists
+    if (!error.message.includes('already exists')) {
+      console.error('⚠️ Column check:', error.message);
+    }
+  }
+}
