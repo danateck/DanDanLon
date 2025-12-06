@@ -8125,40 +8125,41 @@ async function shareProfile(profileId) {
   }
 
 
-  
-  // 🔒 מגבלת כמות פרופילים משותפים לפי מנוי
+    // 🔒 מגבלת כמות מוזמנים לפרופיל לפי המנוי
   if (window.subscriptionManager && window.fs && window.db) {
     try {
       const plan = window.subscriptionManager.getCurrentPlan();
+      const max = plan.maxProfileParticipants || Infinity;
 
-      if (plan.maxSharedProfiles !== Infinity) {
+      if (max !== Infinity) {
         const col = window.fs.collection(window.db, "profileInvites");
         const q = window.fs.query(
           col,
-          window.fs.where("from", "==", me)
+          window.fs.where("profileId", "==", profileId),
+          window.fs.where("profileOwner", "==", me)
         );
+
         const snap = await window.fs.getDocs(q);
 
-        const sharedProfileIds = new Set();
-        snap.docs.forEach(docSnap => {
-          const data = docSnap.data() || {};
-          // לא נספור הזמנות שנדחו
-          if (data.status === "rejected") return;
-          if (data.profileId) {
-            sharedProfileIds.add(data.profileId);
-          }
+        const emails = new Set();
+        // מוסיפים את הבעלים
+        emails.add(me);
+
+        snap.docs.forEach(d => {
+          const data = d.data() || {};
+          if (data.status === "rejected") return; // לא סופרים מסורבים
+          if (data.to) emails.add(String(data.to).trim().toLowerCase());
         });
 
-        const alreadyShared = sharedProfileIds.has(profileId);
-        const usedProfiles = sharedProfileIds.size;
+        const alreadyIn = emails.has(toEmail);
 
-        // אם זה פרופיל חדש לשיתוף ומיצינו את הכמות
-        if (!alreadyShared && usedProfiles >= plan.maxSharedProfiles) {
+        // אם זה מייל חדש, נבדוק מגבלה
+        if (!alreadyIn && emails.size >= max) {
           const msg =
-            `⚠️ הגעת למכסת הפרופילים שניתן לשתף בתוכנית ${plan.nameHe}\n\n` +
-            `פרופילים משותפים כרגע: ${usedProfiles}\n` +
-            `מקסימום בתוכנית: ${plan.maxSharedProfiles}\n\n` +
-            `💎 שדרגי את התוכנית כדי לשתף פרופילים נוספים`;
+            `⚠️ הגעת למכסת המשתתפים בפרופיל בתוכנית ${plan.nameHe}\n\n` +
+            `משתתפים (כולל אותך): ${emails.size}\n` +
+            `מקסימום מותר: ${max}\n\n` +
+            `💎 לשיתוף עם עוד אנשים – צריך לשדרג תוכנית.`;
 
           if (window.showAlert) {
             window.showAlert(msg, "error");
@@ -8169,11 +8170,10 @@ async function shareProfile(profileId) {
         }
       }
     } catch (e) {
-      console.error("⚠️ שגיאה בבדיקת מגבלת שיתוף פרופילים:", e);
-      // במקרה הכי גרוע לא נחסום – אבל נרשום לקונסול
+      console.error("⚠️ שגיאה בבדיקת מגבלת שיתוף פרופיל:", e);
+      // במקרה של שגיאה לא נחסום – רק נכתוב לקונסול
     }
   }
-
 
   try {
     // 1️⃣ יצירת בקשה ב-Firestore
