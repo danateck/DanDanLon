@@ -271,23 +271,7 @@ if (Array.isArray(window.allDocsData)) {
 }
 
 // ✅ עדכון מערכת מנויים (אם קיימת)
-if (window.subscriptionManager) {
-  try {
-    await window.subscriptionManager.updateStorageUsage();
-    console.log('✅ Subscription storage updated');
-  } catch (err) {
-    console.warn('⚠️ Could not update subscription:', err);
-  }
-}
 
-// Fallback - וידג'ט ישן (אם קיים)
-if (typeof window.updateStorageUsageWidget === "function") {
-  try {
-    window.updateStorageUsageWidget();
-  } catch (err) {
-    console.warn('⚠️ Old widget update failed:', err);
-  }
-}
 
 // פותח חלון בחירה אחרי העלאה
 setTimeout(() => {
@@ -297,23 +281,26 @@ setTimeout(() => {
 }, 200);
 
 
-  // 🔄 עדכון משתמש – אחסון + מסמכים
-  if (window.subscriptionManager) {
-    try {
-      await window.subscriptionManager.updateStorageUsage(file.size);
-      await window.subscriptionManager.updateDocumentCount(1);
-      if (typeof updateStorageWidget === "function") {
-        updateStorageWidget();
+// 🔄 עדכון משתמש – אחסון + מסמכים
+    if (window.subscriptionManager) {
+      try {
+        const bytes = Number(result.file_size) || file.size || 0;
+
+        await window.subscriptionManager.updateStorageUsage(bytes);
+        await window.subscriptionManager.updateDocumentCount(1);
+
+        if (typeof window.updateStorageWidget === "function") {
+          window.updateStorageWidget();
+        }
+        if (typeof window.updateStorageUsageWidget === "function") {
+          window.updateStorageUsageWidget();
+        }
+      } catch (e) {
+        console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
       }
-    } catch (e) {
-      console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
     }
-  }
 
-
-  
-return doc;
-
+    return doc;
 
     
   } catch (error) {

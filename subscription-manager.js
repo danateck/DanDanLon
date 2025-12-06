@@ -583,13 +583,24 @@ export class SubscriptionManager {
   }
 
   // עדכון שימוש באחסון
-  async updateStorageUsage(changeInBytes) {
-    this.userSubscription.usedStorage += changeInBytes;
-    if (this.userSubscription.usedStorage < 0) {
-      this.userSubscription.usedStorage = 0;
-    }
-    await this.saveSubscription();
+async updateStorageUsage(changeInBytes) {
+  const delta = Number(changeInBytes) || 0;
+
+  if (!this.userSubscription) return;
+
+  // אם עדיין אין שדה – נאתחל
+  if (typeof this.userSubscription.usedStorage !== "number") {
+    this.userSubscription.usedStorage = 0;
   }
+
+  this.userSubscription.usedStorage += delta;
+
+  if (!Number.isFinite(this.userSubscription.usedStorage) || this.userSubscription.usedStorage < 0) {
+    this.userSubscription.usedStorage = 0;
+  }
+
+  await this.saveSubscription();
+}
 
   // עדכון מספר מסמכים
   async updateDocumentCount(change) {

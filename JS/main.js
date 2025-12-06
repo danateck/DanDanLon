@@ -9668,3 +9668,37 @@ async function enhanceScanImage(file) {
     img.src = URL.createObjectURL(file);
   });
 }
+
+
+
+// ⚡ מחשב מחדש את סך האחסון של המשתמש
+window.recalculateUserStorage = async function() {
+  if (!window.fs || !window.db || !window.getCurrentUserEmail) return;
+
+  const me = window.getCurrentUserEmail();
+  const docsRef = window.fs.collection(window.db, "documents");
+
+  const q = window.fs.query(
+    docsRef,
+    window.fs.where("owner", "==", me)
+  );
+
+  const snap = await window.fs.getDocs(q);
+
+  let total = 0;
+
+  snap.forEach(doc => {
+    const data = doc.data() || {};
+    if (data.size) total += Number(data.size);
+  });
+
+  // שמירה במנהל המנויים
+  if (window.subscriptionManager?.userSubscription) {
+    window.subscriptionManager.userSubscription.usedStorage = total;
+  }
+
+  // רענון התצוגה למטה
+  if (window.updateStorageUI) window.updateStorageUI();
+
+  console.log("✔️ אחסון עודכן:", total, "bytes");
+};
