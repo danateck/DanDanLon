@@ -157,42 +157,37 @@ window.checkAddInvitationLimits = function(folder, newEmail) {
   if (!window.subscriptionManager) {
     return { allowed: true };
   }
-
+  
   const plan = window.subscriptionManager.getCurrentPlan();
-
-  // 🧑‍💻 מי הבעלים של התיקייה
   const owner = (folder.owner || "").trim().toLowerCase();
 
-  // 👥 חברים פעילים *בלי* הבעלים
   const members = Array.isArray(folder.members) ? folder.members : [];
   const membersWithoutOwner = members.filter(m => {
     if (!m) return false;
     return m.trim().toLowerCase() !== owner;
   }).length;
 
-  // ✉️ הזמנות ממתינות
   const pendingInvites = Array.isArray(folder.pendingInvites)
     ? folder.pendingInvites.filter(inv => inv && inv.status === 'pending').length
     : 0;
 
-  // סך הכל "אנשים אחרים" (לא את)
   const totalOthers = membersWithoutOwner + pendingInvites;
 
   if (plan.maxSharedUsers !== Infinity && totalOthers >= plan.maxSharedUsers) {
     return {
       allowed: false,
-      reason:
-        `⚠️ הגעת למכסת המשתפים בתיקייה הזו!\n\n` +
-        `משתפים פעילים (חוץ ממך): ${membersWithoutOwner}\n` +
-        `הזמנות ממתינות: ${pendingInvites}\n` +
-        `מקסימום בתוכנית ${plan.nameHe}: ${plan.maxSharedUsers} אנשים\n\n` +
-        `💎 שדרגי את התוכנית להוספת משתפים נוספים`,
+      reason: `⚠️ הגעת למכסת המשתפים!\n\n` +
+              `משתמשים פעילים (חוץ ממך): ${membersWithoutOwner}\n` +
+              `הזמנות ממתינות: ${pendingInvites}\n` +
+              `מקסימום בתוכנית ${plan.nameHe}: ${plan.maxSharedUsers} משתפים\n\n` +
+              `💎 שדרג את התוכנית להוספת משתפים נוספים`,
       showUpgrade: true
     };
   }
 
   return { allowed: true };
 };
+
 
 // ========================================
 // פונקציה להצגת הודעת שגיאה + אופציה לשדרוג

@@ -8125,13 +8125,13 @@ async function shareProfile(profileId) {
   }
 
 
-    // 🔒 מגבלת כמות מוזמנים לפרופיל לפי המנוי
+     // 🔒 מגבלת מספר האנשים שאפשר לשתף איתם את הפרופיל הזה
   if (window.subscriptionManager && window.fs && window.db) {
     try {
       const plan = window.subscriptionManager.getCurrentPlan();
-      const max = plan.maxProfileParticipants || Infinity;
+      const limit = plan.maxProfileInvitesPerProfile ?? Infinity;
 
-      if (max !== Infinity) {
+      if (limit !== Infinity) {
         const col = window.fs.collection(window.db, "profileInvites");
         const q = window.fs.query(
           col,
@@ -8141,39 +8141,30 @@ async function shareProfile(profileId) {
 
         const snap = await window.fs.getDocs(q);
 
-        const emails = new Set();
-        // מוסיפים את הבעלים
-        emails.add(me);
-
-        snap.docs.forEach(d => {
-          const data = d.data() || {};
-          if (data.status === "rejected") return; // לא סופרים מסורבים
-          if (data.to) emails.add(String(data.to).trim().toLowerCase());
+        const existingEmails = new Set();
+        snap.docs.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          if (data.status === "rejected") return;      // לא סופרים מסורבים
+          if (!data.to) return;
+          existingEmails.add(String(data.to).trim().toLowerCase());
         });
 
-        const alreadyIn = emails.has(toEmail);
+        const alreadyShared = existingEmails.has(toEmail);
 
-        // אם זה מייל חדש, נבדוק מגבלה
-        if (!alreadyIn && emails.size >= max) {
-          const msg =
-            `⚠️ הגעת למכסת המשתתפים בפרופיל בתוכנית ${plan.nameHe}\n\n` +
-            `משתתפים (כולל אותך): ${emails.size}\n` +
-            `מקסימום מותר: ${max}\n\n` +
-            `💎 לשיתוף עם עוד אנשים – צריך לשדרג תוכנית.`;
-
-          if (window.showAlert) {
-            window.showAlert(msg, "error");
-          } else {
-            alert(msg);
-          }
+        // אם זה מייל חדש, ובמספר הקיים כבר הגענו לתקרה – נחסום
+        if (!alreadyShared && existingEmails.size >= limit) {
+          alert(
+            `⚠️ הגעת למכסת השיתופים לפרופיל הזה בתוכנית ${plan.nameHe}.\n\n` +
+            `מותר לשתף פרופיל זה עם עד ${limit} אנשים.`
+          );
           return;
         }
       }
     } catch (e) {
       console.error("⚠️ שגיאה בבדיקת מגבלת שיתוף פרופיל:", e);
-      // במקרה של שגיאה לא נחסום – רק נכתוב לקונסול
     }
   }
+
 
   try {
     // 1️⃣ יצירת בקשה ב-Firestore

@@ -5,37 +5,33 @@
 
 // תוכניות המנוי
 export const SUBSCRIPTION_PLANS = {
-  FREE: {
-  id: 'free',
-  name: 'Free',
-  nameHe: 'חינם',
-  price: 0,
-  storage: 200 * 1024 * 1024, // 200MB בבייטים
-  maxDocuments: 200,
-  maxFileSize: 5 * 1024 * 1024, // 5MB בבייטים
+    FREE: {
+    id: 'free',
+    name: 'Free',
+    nameHe: 'חינם',
+    price: 0,
+    storage: 200 * 1024 * 1024, // 200MB בבייטים
+    maxDocuments: 200,
+    maxFileSize: 5 * 1024 * 1024, // 5MB בבייטים
+    maxSharedUsers: 1,
+    maxSharedFolders: 1,              // 👈 תיקייה משותפת אחת
+    maxSharedProfiles: 1,             // 👈 אפשר לשתף פרופיל אחד
+    maxProfileInvitesPerProfile: 1,   // 👈 עד אדם אחד לכל פרופיל
+    autoSuggestCategory: true,
+    ocrFeatures: false,
+    aiSearch: false,
+    fullFolderSharing: true,          // 👈 מותר תיקיות משותפות
+    features: [
+      '200MB נפח אחסון',
+      'עד 200 מסמכים',
+      'גודל קובץ עד 5MB',
+      'שיתוף אדם אחד בתיקייה משותפת',
+      'תיקייה משותפת אחת',
+      'שיתוף פרופיל אחד',
+      'הצעה אוטומטית לתיקייה'
+    ]
+  },
 
-  // 🔹 מגבלות שיתוף
-  maxSharedUsers: 1,          // אפשר לשתף אדם אחד
-  maxSharedFolders: 1,        // תיקייה משותפת אחת בחינם
-  maxSharedProfiles: 0,       // לא רלוונטי כרגע
-  maxProfileParticipants: 1,  // (נסביר בסעיף 2)
-
-  autoSuggestCategory: true,
-  ocrFeatures: false,
-  aiSearch: false,
-
-  // 🔹 עכשיו גם חינמית יכולה תיקייה משותפת (מוגבלת)
-  fullFolderSharing: true,
-
-  features: [
-    '200MB נפח אחסון',
-    'עד 200 מסמכים',
-    'גודל קובץ עד 5MB',
-    'שיתוף אדם אחד',
-    'תיקייה משותפת אחת',
-    'הצעה אוטומטית לתיקייה'
-  ]
-},
 
   STANDARD: {
     id: 'standard',
@@ -48,7 +44,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedUsers: 5,
     maxSharedFolders: 5,
     maxSharedProfiles: 3,
-    maxProfileParticipants: 3,
+    maxProfileInvitesPerProfile: 3,
 
     autoSuggestCategory: true,
     ocrFeatures: false,
@@ -74,7 +70,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedUsers: 20,
     maxSharedFolders: 20,
     maxSharedProfiles: 10,
-    maxProfileParticipants: 10,
+    maxProfileInvitesPerProfile: 10,
 
     autoSuggestCategory: true,
     ocrFeatures: true,
@@ -101,7 +97,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedUsers: 40,
     maxSharedFolders: 40,
     maxSharedProfiles: 20,
-    maxProfileParticipants: 20,
+    maxProfileInvitesPerProfile: 20,
 
     autoSuggestCategory: true,
     ocrFeatures: true,
@@ -129,7 +125,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedUsers: Infinity,
     maxSharedFolders: Infinity,
     maxSharedProfiles: Infinity,
-    maxProfileParticipants: Infinity,
+    maxProfileInvitesPerProfile: Infinity,
 
     autoSuggestCategory: true,
     ocrFeatures: true,
@@ -158,6 +154,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedUsers: Infinity,
     maxSharedFolders: Infinity,
     maxSharedProfiles: Infinity,
+    maxProfileInvitesPerProfile: Infinity,
     autoSuggestCategory: true,
     ocrFeatures: true,
     aiSearch: true,
@@ -618,11 +615,19 @@ export class SubscriptionManager {
 
   // קבלת אחוז השימוש באחסון
   getStoragePercentage() {
-    const totalStorage = this.getTotalStorage();
-    if (totalStorage === Infinity) return 0;
-    
-    return Math.min(100, (this.userSubscription.usedStorage / totalStorage) * 100);
+  const totalStorage = this.getTotalStorage();
+  if (!Number.isFinite(totalStorage) || totalStorage <= 0 || totalStorage === Infinity) {
+    return 0;
   }
+
+  const used = Number(this.userSubscription.usedStorage);
+  if (!Number.isFinite(used) || used <= 0) {
+    return 0;
+  }
+
+  return Math.min(100, (used / totalStorage) * 100);
+}
+
 
   // קבלת מידע מלא על המנוי
   // קבלת מידע מלא על המנוי
@@ -630,7 +635,6 @@ getSubscriptionInfo() {
   const plan = this.getCurrentPlan();
   const sub = this.userSubscription || {};
 
-  // ברירות מחדל בטוחות
   let storage = Number(sub.usedStorage);
   if (!Number.isFinite(storage) || storage < 0) storage = 0;
 
@@ -642,7 +646,6 @@ getSubscriptionInfo() {
   return {
     plan: plan,
     status: sub.status || 'active',
-
     storage: {
       used: storage,
       limit: totalStorage,
@@ -652,7 +655,6 @@ getSubscriptionInfo() {
         limit: this.formatBytes(totalStorage)
       }
     },
-
     documents: {
       count: docs,
       limit: plan.maxDocuments,
@@ -661,7 +663,6 @@ getSubscriptionInfo() {
           ? 0
           : Math.min(100, (docs / plan.maxDocuments) * 100)
     },
-
     dates: {
       start: sub.startDate || null,
       end: sub.endDate || null,
@@ -670,6 +671,7 @@ getSubscriptionInfo() {
     }
   };
 }
+
 
 }
 
