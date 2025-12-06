@@ -239,14 +239,14 @@ app.get('/api/docs', async (req, res) => {
       SELECT 
   id, owner, title, file_name, file_size, mime_type,
   category, sub_category, year, org, recipient, shared_with,
+  warranty_start, warranty_expires_at, auto_delete_after,
+  uploaded_at, last_modified, last_modified_by,
+  deleted_at, deleted_by, trashed, deleted_for
+FROM documents
+WHERE (owner = $1 OR shared_with ? $1)
+  AND NOT (deleted_for ? $1)
+ORDER BY uploaded_at DESC
 
-        warranty_start, warranty_expires_at, auto_delete_after,
-        uploaded_at, last_modified, last_modified_by,
-        deleted_at, deleted_by, trashed
-      FROM documents
-      WHERE owner = $1 
-         OR shared_with ? $1
-      ORDER BY uploaded_at DESC
     `, [userEmail]);
 
     console.log(`✅ Found ${result.rows.length} documents`);
@@ -501,9 +501,11 @@ app.delete('/api/docs/:id', async (req, res) => {
 
     const { id } = req.params;
 
-    // קודם נטען את המסמך
+    // נטען את המסמך
     const docResult = await pool.query(
-      `SELECT owner, file_size, shared_with FROM documents WHERE id = $1`,
+      `SELECT owner, shared_with, deleted_for 
+       FROM documents 
+       WHERE id = $1`,
       [id]
     );
 
@@ -512,57 +514,57 @@ app.delete('/api/docs/:id', async (req, res) => {
     }
 
     const doc = docResult.rows[0];
-    const owner = doc.owner;
-    const sharedWith = doc.shared_with || {}; // JSONB של map email -> true
+    let owner = doc.owner;
+    const sharedWith = doc.shared_with || {};
+    const deletedFor = doc.deleted_for || {};
 
-    // לוודא שלמשתמש יש בכלל זכות לדבר על זה
+    // בדיקה שהמשתמש הזה בכלל קשור למסמך
     const isSharedWithUser = !!sharedWith[userEmail];
-    if (userEmail !== owner && !isSharedWithUser) {
+    const isOwner = owner === userEmail;
+
+    if (!isOwner && !isSharedWithUser) {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
-    const otherUsers = Object.keys(sharedWith).filter(e => sharedWith[e]);
+    // ✏️ מסמנים שהמשתמש הזה מחק לצמיתות
+    deletedFor[userEmail] = true;
 
-    // 1️⃣ אם זה משתמש "אורח" (לא בעלים) → יוצא מהשיתוף בלבד
-    if (userEmail !== owner) {
-      delete sharedWith[userEmail];
+    // כל המשתמשים שיכולים להיות קשורים למסמך
+    const participants = new Set([
+      owner,
+      ...Object.keys(sharedWith).filter(e => sharedWith[e])
+    ]);
 
+    // מסננים את מי שכבר מחק לעצמו
+    const activeParticipants = [...participants].filter(email => !deletedFor[email]);
+
+    // 🧨 אם אף אחד כבר לא "מחזיק" את הקובץ → מוחקים טוטאלית מה-DB
+    if (activeParticipants.length === 0) {
       await pool.query(
-        `UPDATE documents
-         SET shared_with = $1::jsonb,
-             last_modified = $2,
-             last_modified_by = $3
-         WHERE id = $4`,
-        [JSON.stringify(sharedWith), Date.now(), userEmail, id]
+        `DELETE FROM documents WHERE id = $1`,
+        [id]
       );
-
-      return res.json({ success: true, removedForUser: true });
-    }
-
-    // 2️⃣ אם זה הבעלים והמסמך לא משותף עם אף אחד → מוחקים פיזית
-    if (otherUsers.length === 0) {
-      await pool.query(
-        `DELETE FROM documents WHERE id = $1 AND owner = $2`,
-        [id, userEmail]
-      );
+      console.log(`🗑️ Document ${id} deleted for all users`);
       return res.json({ success: true, deletedForAll: true });
     }
 
-    // 3️⃣ אם זה הבעלים אבל כן משותף עם אחרים → מעבירים בעלות למישהו אחר
-    const newOwner = otherUsers[0];
-    delete sharedWith[newOwner]; // הוא כבר יהיה owner, לא צריך להיות ב-shared_with
+    // 👑 אם הבעלים מחק אבל עדיין יש אחרים – מעבירים בעלות
+    if (deletedFor[owner]) {
+      owner = activeParticipants[0]; // הבעלים החדש
+    }
 
     await pool.query(
       `UPDATE documents
        SET owner = $1,
-           shared_with = $2::jsonb,
+           deleted_for = $2::jsonb,
            last_modified = $3,
            last_modified_by = $4
        WHERE id = $5`,
-      [newOwner, JSON.stringify(sharedWith), Date.now(), userEmail, id]
+      [owner, JSON.stringify(deletedFor), Date.now(), userEmail, id]
     );
 
-    return res.json({ success: true, transferredTo: newOwner });
+    console.log(`✅ Marked deleted for ${userEmail}, doc ${id}`);
+    res.json({ success: true, deletedForAll: false });
 
   } catch (error) {
     console.error('❌ Delete error:', error);

@@ -1033,8 +1033,36 @@ async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
 // ========================================
 // הוסף את זה לפונקציית המחיקה הקיימת שלך
 async function deleteDocumentPermanently(docId) {
-  // הקוד הקיים שלך למחיקה...
-  // ...
+  
+   // 1️⃣ מוחקים בשרת (למשתמש הנוכחי בלבד)
+  const res = await fetch(`${API_BASE}/api/docs/${docId}`, {
+    method: "DELETE",
+    headers: await getAuthHeaders()
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error || "מחיקה נכשלה");
+    return;
+  }
+
+  // 2️⃣ מסירים מה-UI שלי (allDocsData, רשימה על המסך וכו')
+  if (Array.isArray(window.allDocsData)) {
+    window.allDocsData = window.allDocsData.filter(d => d.id !== docId);
+    renderDocumentsList(); // או מה שזה לא יהיה אצלך
+  }
+
+  // 3️⃣ רק אם deletedForAll === true → מותר למחוק גם מה-Firestore
+  if (data.deletedForAll && window.db && window.fs) {
+    try {
+      const docRef = window.fs.doc(window.db, "documents", docId);
+      await window.fs.deleteDoc(docRef);
+      console.log("🗑️ Firestore doc deleted for all:", docId);
+    } catch (e) {
+      console.warn("⚠️ Failed to delete Firestore doc:", e);
+    }
+  }
+
   
   // בסוף הפונקציה, הוסף:
   if (window.subscriptionManager) {
