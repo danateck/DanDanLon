@@ -496,6 +496,19 @@ export class SubscriptionManager {
     return basePlan;
   }
 
+async setAbsoluteUsage(bytes, docsCount) {
+  if (!this.userSubscription) return;
+
+  const safeBytes = Number(bytes);
+  const safeDocs = Number(docsCount);
+
+  this.userSubscription.usedStorage = Number.isFinite(safeBytes) && safeBytes > 0 ? safeBytes : 0;
+  this.userSubscription.documentCount = Number.isFinite(safeDocs) && safeDocs > 0 ? safeDocs : 0;
+
+  await this.saveSubscription();
+}
+
+
   // בדיקה אם פעולה מותרת
   async canPerformAction(action, data = {}) {
     const plan = this.getCurrentPlan();

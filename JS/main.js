@@ -6803,6 +6803,11 @@ if (typeof window.updateInviteStatus === "function") {
           }
         }
       }, 1000);
+
+      if (window.syncStorageFromBackend) {
+  window.syncStorageFromBackend();
+}
+
     }
     return result;
   };
@@ -9701,4 +9706,47 @@ window.recalculateUserStorage = async function() {
   if (window.updateStorageUI) window.updateStorageUI();
 
   console.log("✔️ אחסון עודכן:", total, "bytes");
+};
+
+
+
+window.syncStorageFromBackend = async function() {
+  try {
+    if (!window.subscriptionManager) return;
+    
+    // נטען את כל המסמכים שהשרת חושב שיש לי (כולל משותפים)
+    const docs = await loadDocuments();
+    
+    // נספור רק מה שבאמת קיים ולא בסל מחזור (אם את רוצה לספור גם סל מחזור – אפשר להוריד את הסינון)
+    const visibleDocs = docs.filter(d => !d._trashed && !d.deletedAt);
+
+    const totalBytes = visibleDocs.reduce((sum, d) => {
+      const size = Number(d.fileSize) || 0;
+      return sum + size;
+    }, 0);
+
+    const totalDocs = visibleDocs.length;
+
+    // נעדכן את מנגנון המנויים
+    if (typeof window.subscriptionManager.setAbsoluteUsage === "function") {
+      await window.subscriptionManager.setAbsoluteUsage(totalBytes, totalDocs);
+    } else {
+      // fallback אם עוד לא הוספת setAbsoluteUsage
+      window.subscriptionManager.userSubscription.usedStorage = totalBytes;
+      window.subscriptionManager.userSubscription.documentCount = totalDocs;
+      await window.subscriptionManager.saveSubscription();
+    }
+
+    // נעדכן את הווידג'ט
+    if (typeof window.updateStorageWidget === "function") {
+      window.updateStorageWidget();
+    }
+    if (typeof window.updateStorageUsageWidget === "function") {
+      window.updateStorageUsageWidget();
+    }
+
+    console.log("✅ Storage synced from backend:", { totalBytes, totalDocs });
+  } catch (err) {
+    console.error("❌ Failed to sync storage from backend:", err);
+  }
 };

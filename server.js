@@ -501,23 +501,75 @@ app.delete('/api/docs/:id', async (req, res) => {
 
     const { id } = req.params;
 
-    const result = await pool.query(`
-      DELETE FROM documents
-      WHERE id = $1 AND owner = $2
-      RETURNING id
-    `, [id, userEmail]);
+    // קודם נטען את המסמך
+    const docResult = await pool.query(
+      `SELECT owner, file_size, shared_with FROM documents WHERE id = $1`,
+      [id]
+    );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Not found or access denied' });
+    if (!docResult.rows.length) {
+      return res.status(404).json({ error: 'Document not found' });
     }
 
-    console.log(`✅ Deleted: ${id}`);
-    res.json({ success: true, id });
+    const doc = docResult.rows[0];
+    const owner = doc.owner;
+    const sharedWith = doc.shared_with || {}; // JSONB של map email -> true
+
+    // לוודא שלמשתמש יש בכלל זכות לדבר על זה
+    const isSharedWithUser = !!sharedWith[userEmail];
+    if (userEmail !== owner && !isSharedWithUser) {
+      return res.status(403).json({ error: 'Not allowed' });
+    }
+
+    const otherUsers = Object.keys(sharedWith).filter(e => sharedWith[e]);
+
+    // 1️⃣ אם זה משתמש "אורח" (לא בעלים) → יוצא מהשיתוף בלבד
+    if (userEmail !== owner) {
+      delete sharedWith[userEmail];
+
+      await pool.query(
+        `UPDATE documents
+         SET shared_with = $1::jsonb,
+             last_modified = $2,
+             last_modified_by = $3
+         WHERE id = $4`,
+        [JSON.stringify(sharedWith), Date.now(), userEmail, id]
+      );
+
+      return res.json({ success: true, removedForUser: true });
+    }
+
+    // 2️⃣ אם זה הבעלים והמסמך לא משותף עם אף אחד → מוחקים פיזית
+    if (otherUsers.length === 0) {
+      await pool.query(
+        `DELETE FROM documents WHERE id = $1 AND owner = $2`,
+        [id, userEmail]
+      );
+      return res.json({ success: true, deletedForAll: true });
+    }
+
+    // 3️⃣ אם זה הבעלים אבל כן משותף עם אחרים → מעבירים בעלות למישהו אחר
+    const newOwner = otherUsers[0];
+    delete sharedWith[newOwner]; // הוא כבר יהיה owner, לא צריך להיות ב-shared_with
+
+    await pool.query(
+      `UPDATE documents
+       SET owner = $1,
+           shared_with = $2::jsonb,
+           last_modified = $3,
+           last_modified_by = $4
+       WHERE id = $5`,
+      [newOwner, JSON.stringify(sharedWith), Date.now(), userEmail, id]
+    );
+
+    return res.json({ success: true, transferredTo: newOwner });
+
   } catch (error) {
     console.error('❌ Delete error:', error);
     res.status(500).json({ error: 'Delete failed' });
   }
 });
+
 
 // ===== Start server =====
 app.listen(PORT, () => {
