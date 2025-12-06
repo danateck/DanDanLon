@@ -1034,7 +1034,35 @@ async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
 // הוסף את זה לפונקציית המחיקה הקיימת שלך
 async function deleteDocumentPermanently(docId) {
   
-   // 1️⃣ מוחקים בשרת (למשתמש הנוכחי בלבד)
+  // 1️⃣ שלוף את פרטי המסמך לפני המחיקה (כדי לדעת את הגודל)
+  let fileSize = 0;
+  let wasOwner = false;
+  
+  try {
+    const docRef = window.fs.doc(window.db, "documents", docId);
+    const docSnap = await window.fs.getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const docData = docSnap.data();
+      fileSize = docData.fileSize || 0;
+      
+      // בדוק אם אני הבעלים
+      const currentUser = normalizeEmail(getCurrentUserEmail());
+      wasOwner = normalizeEmail(docData.owner) === currentUser;
+      
+      console.log('📊 מסמך לפני מחיקה:', {
+        id: docId,
+        size: fileSize,
+        formattedSize: window.subscriptionManager?.formatBytes?.(fileSize) || fileSize,
+        wasOwner,
+        owner: docData.owner
+      });
+    }
+  } catch (e) {
+    console.warn('⚠️ לא הצלחנו לקרוא את המסמך לפני מחיקה:', e);
+  }
+  
+  // 2️⃣ מוחקים בשרת (למשתמש הנוכחי בלבד)
   const res = await fetch(`${API_BASE}/api/docs/${docId}`, {
     method: "DELETE",
     headers: await getAuthHeaders()
@@ -1046,49 +1074,58 @@ async function deleteDocumentPermanently(docId) {
     return;
   }
 
-  // 2️⃣ מסירים מה-UI שלי (allDocsData, רשימה על המסך וכו')
+  console.log('🔄 תוצאת מחיקה מהשרת:', data);
+
+  // 3️⃣ מסירים מה-UI שלי (allDocsData, רשימה על המסך וכו')
   if (Array.isArray(window.allDocsData)) {
     window.allDocsData = window.allDocsData.filter(d => d.id !== docId);
-    renderDocumentsList(); // או מה שזה לא יהיה אצלך
+    renderDocumentsList();
   }
 
-  // 3️⃣ רק אם deletedForAll === true → מותר למחוק גם מה-Firestore
+  // 4️⃣ רק אם deletedForAll === true → מותר למחוק גם מה-Firestore
   if (data.deletedForAll && window.db && window.fs) {
     try {
       const docRef = window.fs.doc(window.db, "documents", docId);
       await window.fs.deleteDoc(docRef);
-      console.log("🗑️ Firestore doc deleted for all:", docId);
+      console.log("🗑️ המסמך נמחק מ-Firestore לכולם:", docId);
     } catch (e) {
       console.warn("⚠️ Failed to delete Firestore doc:", e);
     }
   }
 
-  
-  // בסוף הפונקציה, הוסף:
-  if (window.subscriptionManager) {
+  // 5️⃣ עדכון מונים - רק אם אני הייתי הבעלים או אם נמחק לכולם
+  if (window.subscriptionManager && (wasOwner || data.deletedForAll)) {
     try {
-      // מצא את המסמך כדי לדעת את הגודל שלו
-      const docRef = window.fs.doc(window.db, "documents", docId);
-      const docSnap = await window.fs.getDoc(docRef);
+      // הפחת מהמונים
+      await window.subscriptionManager.updateDocumentCount(-1);
+      await window.subscriptionManager.updateStorageUsage(-fileSize);
       
-      if (docSnap.exists()) {
-        const docData = docSnap.data();
-        const fileSize = docData.fileSize || 0;
-        
-        // הפחת מהמונים
-        await window.subscriptionManager.updateDocumentCount(-1);
-        await window.subscriptionManager.updateStorageUsage(-fileSize);
-        
-        console.log('✅ עודכנו מונים אחרי מחיקה');
-        
-        // עדכן וידג'ט
-        if (window.updateStorageWidget) {
-          window.updateStorageWidget();
-        }
+      console.log('✅ עודכנו מונים אחרי מחיקה:', {
+        documents: -1,
+        storage: -fileSize,
+        formattedSize: window.subscriptionManager.formatBytes ? window.subscriptionManager.formatBytes(fileSize) : fileSize
+      });
+      
+      // עדכן וידג'ט
+      if (window.updateStorageWidget) {
+        window.updateStorageWidget();
       }
     } catch (error) {
       console.error('⚠️ שגיאה בעדכון מונים אחרי מחיקה:', error);
     }
+  } else if (!wasOwner && !data.deletedForAll) {
+    console.log('ℹ️ משתמש משותף מחק - מונים לא מתעדכנים');
+  }
+  
+  // 6️⃣ הודעת הצלחה
+  const message = data.deletedForAll 
+    ? '✅ המסמך נמחק לצמיתות עבור כולם'
+    : '✅ המסמך הוסר מהרשימה שלך (עדיין זמין למשתפים אחרים)';
+  
+  if (window.showAlert) {
+    window.showAlert(message, 'success');
+  } else {
+    alert(message);
   }
 }
 
@@ -9778,3 +9815,118 @@ window.syncStorageFromBackend = async function() {
     console.error("❌ Failed to sync storage from backend:", err);
   }
 };
+
+
+
+
+// ========================================
+// 🔄 פונקציה לחישוב מחדש של אחסון
+// ========================================
+// הוסף את זה ב-main.js או ב-subscription-manager.js
+
+window.recalculateStorage = async function() {
+  if (!window.subscriptionManager) {
+    alert('❌ מערכת מנויים לא זמינה');
+    return;
+  }
+  
+  try {
+    console.log('🔄 מחשב מחדש את האחסון...');
+    
+    // פונקציה לנרמול אימייל (מ-main.js)
+    const normalizeEmail = (email) => {
+      if (!email) return null;
+      return String(email).trim().toLowerCase();
+    };
+    
+    const currentUser = normalizeEmail(getCurrentUserEmail());
+    if (!currentUser) {
+      alert('❌ משתמש לא מחובר');
+      return;
+    }
+    
+    // שלוף את כל המסמכים של המשתמש מ-Firestore
+    const q = window.fs.query(
+      window.fs.collection(window.db, 'documents'),
+      window.fs.where('owner', '==', currentUser)
+    );
+    
+    const snapshot = await window.fs.getDocs(q);
+    
+    let totalSize = 0;
+    let totalDocs = 0;
+    const docDetails = [];
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const size = data.fileSize || 0;
+      totalSize += size;
+      totalDocs++;
+      
+      docDetails.push({
+        id: doc.id,
+        name: data.fileName || 'ללא שם',
+        size: size,
+        formattedSize: window.subscriptionManager.formatBytes(size)
+      });
+    });
+    
+    // הצג פירוט
+    console.log('📊 פירוט מסמכים:', docDetails);
+    console.log('📊 סיכום:', {
+      totalDocs,
+      totalSize,
+      formattedSize: window.subscriptionManager.formatBytes(totalSize)
+    });
+    
+    // שמור את המצב הישן
+    const oldStorage = window.subscriptionManager.userSubscription.usedStorage;
+    const oldDocs = window.subscriptionManager.userSubscription.documentCount;
+    
+    // עדכן את המנוי
+    window.subscriptionManager.userSubscription.usedStorage = totalSize;
+    window.subscriptionManager.userSubscription.documentCount = totalDocs;
+    await window.subscriptionManager.saveSubscription();
+    
+    // עדכן וידג'ט
+    if (window.updateStorageWidget) {
+      window.updateStorageWidget();
+    }
+    
+    console.log('✅ חישוב מחדש הושלם!');
+    console.log('📊 השוואה:', {
+      before: {
+        docs: oldDocs,
+        storage: window.subscriptionManager.formatBytes(oldStorage)
+      },
+      after: {
+        docs: totalDocs,
+        storage: window.subscriptionManager.formatBytes(totalSize)
+      },
+      diff: {
+        docs: totalDocs - oldDocs,
+        storage: window.subscriptionManager.formatBytes(totalSize - oldStorage)
+      }
+    });
+    
+    alert(
+      `✅ חישוב מחדש הושלם!\n\n` +
+      `מסמכים: ${totalDocs} (${totalDocs > oldDocs ? '+' : ''}${totalDocs - oldDocs})\n` +
+      `אחסון: ${window.subscriptionManager.formatBytes(totalSize)}\n` +
+      `(${totalSize > oldStorage ? '+' : ''}${window.subscriptionManager.formatBytes(totalSize - oldStorage)})`
+    );
+    
+  } catch (error) {
+    console.error('❌ שגיאה בחישוב מחדש:', error);
+    alert('❌ שגיאה בחישוב מחדש: ' + error.message);
+  }
+};
+
+// ========================================
+// 📝 הוראות שימוש:
+// ========================================
+// 1. הוסף את הפונקציה הזו ב-main.js (בסוף הקובץ)
+// 2. קרא לפונקציה מהקונסול: window.recalculateStorage()
+// 3. או הוסף כפתור בעמוד המנויים (ראה למטה)
+
+console.log('✅ פונקציית חישוב מחדש נטענה - קרא לה עם: window.recalculateStorage()');

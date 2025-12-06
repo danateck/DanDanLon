@@ -827,18 +827,15 @@ function updateStorageUsageWidget() {
   if (!Number.isFinite(usedPct) || usedPct < 0) usedPct = 0;
   if (usedPct > 100) usedPct = 100;
 
-  // 🔧 תצוגה חכמה: MB אם המכסה קטנה מ-1GB, אחרת GB
-  let textValue;
-  if (TOTAL_GB < 1) {
-    // מציגים ב-MB
-    const usedMB = usedBytes / MB;
-    const totalMB = TOTAL_BYTES / MB; // המרה ישירה מבייטים ל-MB
-    const freeMB = Math.max(0, totalMB - usedMB);
-    textValue = `אחסון פנוי: ${freeMB.toFixed(0)}MB מתוך ${totalMB.toFixed(0)}MB`;
-  } else {
-    // מציגים ב-GB
-    textValue = `אחסון פנוי: ${freeGB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
-  }
+// במקום ה-textValue הקיים
+let textValue;
+if (TOTAL_GB < 1) {
+  const usedMB  = usedBytes / MB;
+  const totalMB = TOTAL_BYTES / MB;
+  textValue = `בשימוש: ${usedMB.toFixed(1)}MB מתוך ${totalMB.toFixed(0)}MB`;
+} else {
+  textValue = `בשימוש: ${usedGB.toFixed(2)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
+}
 
   // 🔧 הגדרה מאולצת - מוודא שזה יעבוד!
   const widthValue = usedPct.toFixed(1) + "%";

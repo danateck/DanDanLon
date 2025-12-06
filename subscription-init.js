@@ -136,11 +136,9 @@ function updateStorageWidget() {
         <div class="storage-widget-fill" style="width: ${Math.min(100, info.storage.percentage)}%; background: ${barColor};"></div>
       </div>
       
-      <div class="storage-widget-text">
-  <span dir="ltr">${info.storage.formatted.used}</span>
-  <span> מתוך </span>
-  <span dir="ltr">${info.storage.formatted.limit}</span>
-</div>
+      <div class="storage-widget-text" dir="rtl">
+        ${info.storage.formatted.used} / ${info.storage.formatted.limit}
+      </div>
 
       
       <div class="storage-widget-docs">

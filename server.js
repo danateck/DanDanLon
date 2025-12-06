@@ -491,86 +491,130 @@ app.put('/api/docs/:id/trash', async (req, res) => {
   }
 });
 
-// 6️⃣ DELETE /api/docs/:id - Delete permanently
+// 6️⃣ DELETE /api/docs/:id - Delete permanently (respect shared users)
 app.delete('/api/docs/:id', async (req, res) => {
   try {
-    const userEmail = getUserFromRequest(req);
-    if (!userEmail) {
+    const userEmailRaw = getUserFromRequest(req);
+    if (!userEmailRaw) {
       return res.status(401).json({ error: 'Unauthenticated' });
     }
 
+    const userEmail = userEmailRaw.trim().toLowerCase();
     const { id } = req.params;
 
-    // נטען את המסמך
-    const docResult = await pool.query(
-      `SELECT owner, shared_with, deleted_for 
-       FROM documents 
+    // טוענים את המסמך מה-DB
+    const result = await pool.query(
+      `SELECT owner, shared_with, deleted_for
+       FROM documents
        WHERE id = $1`,
       [id]
     );
 
-    if (!docResult.rows.length) {
+    if (!result.rows.length) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    const doc = docResult.rows[0];
-    let owner = doc.owner;
-    const sharedWith = doc.shared_with || {};
-    const deletedFor = doc.deleted_for || {};
+    const row = result.rows[0];
 
-    // בדיקה שהמשתמש הזה בכלל קשור למסמך
-    const isSharedWithUser = !!sharedWith[userEmail];
+    // 🔹 בעלים
+    let owner = (row.owner || '').trim().toLowerCase();
+
+    // 🔹 פירוק shared_with למערך אימיילים
+    let sharedWithArr = [];
+    const sw = row.shared_with;
+
+    if (Array.isArray(sw)) {
+      // shared_with הוא כבר מערך
+      sharedWithArr = sw
+        .map(e => String(e || '').trim().toLowerCase())
+        .filter(Boolean);
+    } else if (sw && typeof sw === 'object') {
+      // במקרה שנשמר כאובייקט { email: true }
+      sharedWithArr = Object.keys(sw)
+        .filter(k => sw[k])
+        .map(k => String(k || '').trim().toLowerCase());
+    } else if (typeof sw === 'string' && sw.trim()) {
+      // במקרה נדיר שנשמר כמחרוזת JSON
+      try {
+        const parsed = JSON.parse(sw);
+        if (Array.isArray(parsed)) {
+          sharedWithArr = parsed
+            .map(e => String(e || '').trim().toLowerCase())
+            .filter(Boolean);
+        }
+      } catch (e) {
+        console.warn('shared_with is string but not JSON:', sw);
+      }
+    }
+
     const isOwner = owner === userEmail;
+    const isSharedWithUser = sharedWithArr.includes(userEmail);
 
+    // אם המשתמש בכלל לא קשור למסמך – חסימה
     if (!isOwner && !isSharedWithUser) {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
-    // ✏️ מסמנים שהמשתמש הזה מחק לצמיתות
-    deletedFor[userEmail] = true;
-
-    // כל המשתמשים שיכולים להיות קשורים למסמך
-    const participants = new Set([
-      owner,
-      ...Object.keys(sharedWith).filter(e => sharedWith[e])
-    ]);
-
-    // מסננים את מי שכבר מחק לעצמו
-    const activeParticipants = [...participants].filter(email => !deletedFor[email]);
-
-    // 🧨 אם אף אחד כבר לא "מחזיק" את הקובץ → מוחקים טוטאלית מה-DB
-    if (activeParticipants.length === 0) {
-      await pool.query(
-        `DELETE FROM documents WHERE id = $1`,
-        [id]
-      );
-      console.log(`🗑️ Document ${id} deleted for all users`);
-      return res.json({ success: true, deletedForAll: true });
+    // 🔹 ניהול deleted_for – מי כבר מחק לצמיתות
+    let deletedFor = row.deleted_for || {};
+    if (typeof deletedFor === 'string') {
+      try {
+        deletedFor = JSON.parse(deletedFor) || {};
+      } catch {
+        deletedFor = {};
+      }
+    }
+    if (!deletedFor || typeof deletedFor !== 'object') {
+      deletedFor = {};
     }
 
-    // 👑 אם הבעלים מחק אבל עדיין יש אחרים – מעבירים בעלות
+    // מסמנים שהמשתמש הנוכחי מחק לצמיתות
+    deletedFor[userEmail] = true;
+
+    // כל המשתתפים במסמך = בעלים + כל מי ששיתפת אליו
+    const participants = new Set(
+      [owner, ...sharedWithArr].filter(Boolean)
+    );
+
+    // משתתפים שעדיין *לא* מחקו
+    const activeParticipants = [...participants].filter(
+      email => !deletedFor[email]
+    );
+
+    // 🎯 מקרה 1: כולם מחקו לצמיתות → מוחקים מהרנדר
+    if (activeParticipants.length === 0) {
+      await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
+      return res.json({ ok: true, deletedForAll: true });
+    }
+
+    // 🎯 מקרה 2: עדיין יש מישהו שלא מחק → משאירים, רק מסתירים ממי שמחק
+
+    // אם הבעלים מחק – מעבירים בעלות למשתתף הראשון שעוד קיים
     if (deletedFor[owner]) {
-      owner = activeParticipants[0]; // הבעלים החדש
+      owner = activeParticipants[0];
     }
 
     await pool.query(
       `UPDATE documents
        SET owner = $1,
-           deleted_for = $2::jsonb,
+           deleted_for = $2,
            last_modified = $3,
            last_modified_by = $4
        WHERE id = $5`,
-      [owner, JSON.stringify(deletedFor), Date.now(), userEmail, id]
+      [owner, deletedFor, Date.now(), userEmailRaw, id]
     );
 
-    console.log(`✅ Marked deleted for ${userEmail}, doc ${id}`);
-    res.json({ success: true, deletedForAll: false });
-
-  } catch (error) {
-    console.error('❌ Delete error:', error);
-    res.status(500).json({ error: 'Delete failed' });
+    return res.json({
+      ok: true,
+      deletedForAll: false,
+      newOwner: owner
+    });
+  } catch (err) {
+    console.error('❌ Error deleting document:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // ===== Start server =====
