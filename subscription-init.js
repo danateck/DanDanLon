@@ -176,7 +176,6 @@ function addSubscriptionButton() {
     
     // שנה את הטקסט
     newBtn.innerHTML = `
-      <span style="font-size: 1.2rem;">💎</span>
       <span>פרימיום</span>
     `;
     
@@ -214,7 +213,7 @@ window.showSubscriptionSettings = function() {
   if (window.showCurrentLimitsInUI) {
     window.showCurrentLimitsInUI();
   }
-  
+
 };
 
 // ========================================
