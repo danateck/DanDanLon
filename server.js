@@ -325,9 +325,15 @@ app.post('/api/docs', upload.single('file'), async (req, res) => {
       uploaded_at: now
     });
   } catch (error) {
-    console.error('❌ Upload error:', error);
-    res.status(500).json({ error: 'Upload failed' });
-  }
+  console.error('❌ Upload error:', error);
+
+  res.status(500).json({
+    error: 'Upload failed',
+    message: error?.message || String(error),
+    code: error?.code || null
+  });
+}
+
 });
 
 // 3️⃣ GET /api/docs/:id/download - Download file
