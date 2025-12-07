@@ -288,29 +288,10 @@ setTimeout(() => {
 }, 200);
 
 
-// 🔄 עדכון משתמש – אחסון + מסמכים
-    if (window.subscriptionManager) {
-      try {
-        const bytes = Number(result.file_size) || file.size || 0;
-
-        // await window.subscriptionManager.updateStorageUsage(bytes);
-        // await window.subscriptionManager.updateDocumentCount(1);
-
-        if (typeof window.updateStorageWidget === "function") {
-          window.updateStorageWidget();
-        }
-        if (typeof window.updateStorageUsageWidget === "function") {
-          window.updateStorageUsageWidget();
-        }
-
-        if (typeof window.recalculateUserStorage === "function") {
+// אחרי ההעלאה, לחשב מחדש רק לפי המסמכים בפועל
+if (typeof window.recalculateUserStorage === "function") {
   await window.recalculateUserStorage();
 }
-
-      } catch (e) {
-        console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
-      }
-    }
 
 
     if (metadata.sharedFolderId) {

@@ -183,8 +183,13 @@ export class SubscriptionManager {
 
   // אתחול המשתמש הנוכחי
   async initialize(userEmail) {
+    this.userEmail = userEmail;
     this.currentUser = userEmail;
     await this.loadUserSubscription();
+    
+    // 🆕 רענן את ה-cache מיד בהתחלה
+    await this.refreshUsageFromFirestore(true);
+    
     return this.userSubscription;
   }
 
@@ -596,98 +601,120 @@ async setAbsoluteUsage(bytes, docsCount) {
   }
 
   // עדכון שימוש באחסון
-async updateStorageUsage(changeInBytes) {
-  // ⚠️ הפונקציה הזו מיועדת רק לעדכוני delta קטנים
-  // לחישוב מלא - השתמש ב-recalculateStorageFromFirestore
-  
-  const delta = Number(changeInBytes) || 0;
+// 🆕 מערכת Cache חכמה
+  _usageCache = null;
+  _cacheTimestamp = 0;
+  _cacheLifetime = 60000; // דקה אחת
 
-  if (!this.userSubscription) return;
-
-  // אם עדיין אין שדה – נאתחל
-  if (typeof this.userSubscription.usedStorage !== "number") {
-    this.userSubscription.usedStorage = 0;
-  }
-
-  // 🆕 תיקון: וודא שהערך הנוכחי הגיוני
-  if (!Number.isFinite(this.userSubscription.usedStorage) || 
-      this.userSubscription.usedStorage < 0 ||
-      this.userSubscription.usedStorage > 1000000000000) { // 1TB
-    console.warn('⚠️ Storage value corrupted, recalculating...');
-    await this.recalculateStorageFromFirestore();
-    return;
-  }
-
-  this.userSubscription.usedStorage += delta;
-
-  // 🆕 תיקון: אם הערך החדש משוגע - חשב מחדש
-  if (!Number.isFinite(this.userSubscription.usedStorage) || 
-      this.userSubscription.usedStorage < 0 ||
-      this.userSubscription.usedStorage > 1000000000000) {
-    console.warn('⚠️ Storage became corrupted after delta, recalculating...');
-    await this.recalculateStorageFromFirestore();
-    return;
-  }
-
-  await this.saveSubscription();
-  
-  console.log(`📊 Storage updated: ${delta > 0 ? '+' : ''}${this.formatBytes(delta)} → Total: ${this.formatBytes(this.userSubscription.usedStorage)}`);
-}
-
-// 🆕 פונקציה חדשה - חישוב מחדש מלא מ-Firestore
-async recalculateStorageFromFirestore() {
-  if (!this.db || !this.fs || !this.userEmail) {
-    console.warn('⚠️ Cannot recalculate: missing Firebase or userEmail');
-    return;
-  }
-
-  try {
-    const docsRef = this.fs.collection(this.db, "documents");
-    const q = this.fs.query(
-      docsRef,
-      this.fs.where("owner", "==", this.userEmail)
-    );
-
-    const snap = await this.fs.getDocs(q);
-
-    let total = 0;
-    let count = 0;
-
-    snap.forEach(doc => {
-      const data = doc.data() || {};
-      
-      // דלג על מסמכים במחזור או שנמחקו
-      if (data._trashed || data.deletedAt) return;
-      
-      const size = Number(data.size) || Number(data.fileSize) || 0;
-      if (size > 0 && Number.isFinite(size)) {
-        total += size;
-        count++;
-      }
-    });
-
-    // עדכן את המנוי
-    this.userSubscription.usedStorage = total;
-    this.userSubscription.documentCount = count;
-    
-    await this.saveSubscription();
-    
-    console.log(`✅ Storage recalculated: ${this.formatBytes(total)} from ${count} documents`);
-    
-    return { bytes: total, documents: count };
-  } catch (error) {
-    console.error('❌ Error recalculating storage:', error);
-    return null;
-  }
-}
-
-  // עדכון מספר מסמכים
-  async updateDocumentCount(change) {
-    this.userSubscription.documentCount += change;
-    if (this.userSubscription.documentCount < 0) {
-      this.userSubscription.documentCount = 0;
+  /**
+   * רענון מהיר מ-Firestore (עם cache)
+   */
+  async refreshUsageFromFirestore(forceRefresh = false) {
+    // אם יש cache תקף ולא מבקשים refresh - השתמש בו
+    if (!forceRefresh && this._usageCache && (Date.now() - this._cacheTimestamp) < this._cacheLifetime) {
+      console.log('📦 Using cached usage data');
+      return this._usageCache;
     }
-    await this.saveSubscription();
+
+    if (!this.db || !this.fs || !this.userEmail) {
+      console.warn('⚠️ Cannot refresh: missing Firebase or userEmail');
+      return null;
+    }
+
+    try {
+      console.log('🔄 Refreshing usage from Firestore...');
+      const docsRef = this.fs.collection(this.db, "documents");
+      
+      // מסמכים שאני הבעלים שלהם (לא במחזור)
+      const myDocsQuery = this.fs.query(
+        docsRef,
+        this.fs.where("owner", "==", this.userEmail)
+      );
+      
+      const myDocsSnap = await this.fs.getDocs(myDocsQuery);
+
+      let totalBytes = 0;
+      let totalDocs = 0;
+
+      myDocsSnap.forEach(doc => {
+        const data = doc.data() || {};
+        
+        // דלג על מסמכים במחזור
+        if (data._trashed || data.deletedAt || data.trashed) return;
+        
+        const size = Number(data.fileSize) || Number(data.size) || 0;
+        if (size > 0 && Number.isFinite(size)) {
+          totalBytes += size;
+        }
+        totalDocs++;
+      });
+      
+      // מסמכים ששותפו איתי (לא הבעלים, רק לספירה)
+      const sharedQuery = this.fs.query(
+        docsRef,
+        this.fs.where("sharedWith", "array-contains", this.userEmail)
+      );
+      
+      const sharedSnap = await this.fs.getDocs(sharedQuery);
+      
+      sharedSnap.forEach(doc => {
+        const data = doc.data() || {};
+        
+        // דלג על מחזור
+        if (data._trashed || data.deletedAt || data.trashed) return;
+        
+        // ספירת מסמכים בלבד (לא אחסון)
+        totalDocs++;
+      });
+
+      // שמור ב-cache
+      this._usageCache = { bytes: totalBytes, documents: totalDocs };
+      this._cacheTimestamp = Date.now();
+      
+      // עדכן גם במנוי (בשביל תצוגה)
+      this.userSubscription.usedStorage = totalBytes;
+      this.userSubscription.documentCount = totalDocs;
+      await this.saveSubscription();
+      
+      console.log(`✅ Usage refreshed: ${this.formatBytes(totalBytes)} from ${totalDocs} documents`);
+      
+      return this._usageCache;
+    } catch (error) {
+      console.error('❌ Error refreshing usage:', error);
+      return null;
+    }
+  }
+
+  // 🔄 עדכון אחסון (מהיר - רק cache)
+  async updateStorageUsage(changeInBytes) {
+    const delta = Number(changeInBytes) || 0;
+    
+    // עדכן את ה-cache המקומי מיידית (למשוב מהיר)
+    if (this._usageCache) {
+      this._usageCache.bytes = Math.max(0, this._usageCache.bytes + delta);
+      this.userSubscription.usedStorage = this._usageCache.bytes;
+    }
+    
+    // בעוד 2 שניות - רענן מהמקור (async, ללא המתנה)
+    setTimeout(() => {
+      this.refreshUsageFromFirestore(true).catch(console.error);
+    }, 2000);
+  }
+
+  // 🔄 עדכון מסמכים (מהיר - רק cache)
+  async updateDocumentCount(change) {
+    const delta = Number(change) || 0;
+    
+    // עדכן את ה-cache המקומי מיידית (למשוב מהיר)
+    if (this._usageCache) {
+      this._usageCache.documents = Math.max(0, this._usageCache.documents + delta);
+      this.userSubscription.documentCount = this._usageCache.documents;
+    }
+    
+    // בעוד 2 שניות - רענן מהמקור (async, ללא המתנה)
+    setTimeout(() => {
+      this.refreshUsageFromFirestore(true).catch(console.error);
+    }, 2000);
   }
 
   // פורמט בייטים לקריא
@@ -720,47 +747,52 @@ async recalculateStorageFromFirestore() {
 
 
   // קבלת מידע מלא על המנוי
-  // קבלת מידע מלא על המנוי
-getSubscriptionInfo() {
-  const plan = this.getCurrentPlan();
-  const sub = this.userSubscription || {};
-
-  let storage = Number(sub.usedStorage);
-  if (!Number.isFinite(storage) || storage < 0) storage = 0;
-
-  let docs = Number(sub.documentCount);
-  if (!Number.isFinite(docs) || docs < 0) docs = 0;
-
-  const totalStorage = this.getTotalStorage();
-
-  return {
-    plan: plan,
-    status: sub.status || 'active',
-    storage: {
-      used: storage,
-      limit: totalStorage,
-      percentage: this.getStoragePercentage(),
-      formatted: {
-        used: this.formatBytes(storage),
-        limit: this.formatBytes(totalStorage)
-      }
-    },
-    documents: {
-      count: docs,
-      limit: plan.maxDocuments,
-      percentage:
-        !plan.maxDocuments || plan.maxDocuments === Infinity
-          ? 0
-          : Math.min(100, (docs / plan.maxDocuments) * 100)
-    },
-    dates: {
-      start: sub.startDate || null,
-      end: sub.endDate || null,
-      cancelled: sub.cancelledDate || null,
-      graceEnd: sub.graceEndDate || null
+  async getSubscriptionInfo() {
+    // רענן את ה-cache אם צריך (אבל לא חייב להמתין)
+    if (!this._usageCache || (Date.now() - this._cacheTimestamp) > this._cacheLifetime) {
+      // רענן ברקע (לא חוסם)
+      this.refreshUsageFromFirestore(false).catch(console.error);
     }
-  };
-}
+    
+    const plan = this.getCurrentPlan();
+    const sub = this.userSubscription || {};
+
+    let storage = Number(sub.usedStorage);
+    if (!Number.isFinite(storage) || storage < 0) storage = 0;
+
+    let docs = Number(sub.documentCount);
+    if (!Number.isFinite(docs) || docs < 0) docs = 0;
+
+    const totalStorage = this.getTotalStorage();
+
+    return {
+      plan: plan,
+      status: sub.status || 'active',
+      storage: {
+        used: storage,
+        limit: totalStorage,
+        percentage: totalStorage === Infinity ? 0 : Math.min(100, (storage / totalStorage) * 100),
+        formatted: {
+          used: this.formatBytes(storage),
+          limit: this.formatBytes(totalStorage)
+        }
+      },
+      documents: {
+        count: docs,
+        limit: plan.maxDocuments,
+        percentage:
+          !plan.maxDocuments || plan.maxDocuments === Infinity
+            ? 0
+            : Math.min(100, (docs / plan.maxDocuments) * 100)
+      },
+      dates: {
+        start: sub.startDate || null,
+        end: sub.endDate || null,
+        cancelled: sub.cancelledDate || null,
+        graceEnd: sub.graceEndDate || null
+      }
+    };
+  }
 
 
 }
