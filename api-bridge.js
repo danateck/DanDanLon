@@ -302,6 +302,11 @@ setTimeout(() => {
         if (typeof window.updateStorageUsageWidget === "function") {
           window.updateStorageUsageWidget();
         }
+
+        if (typeof window.recalculateUserStorage === "function") {
+  await window.recalculateUserStorage();
+}
+
       } catch (e) {
         console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
       }
@@ -492,13 +497,14 @@ return { backendOk };
 
 // ═══ 5. Delete Forever ═══
 
+// ⚙️ גשר לשרת – לא מוחק Firestore / לא נוגע ב-allDocsData
 async function deleteDocForever(docId) {
   const me = getCurrentUser();
   if (!me) throw new Error("Not logged in");
 
   let backendOk = false;
+  let deletedForAll = false;
 
-  // מנסים למחוק בשרת – אבל לא נותנים לזה להפיל אותנו
   try {
     const headers = await getAuthHeaders();
 
@@ -514,58 +520,41 @@ async function deleteDocForever(docId) {
     clearTimeout(timeoutId);
 
     if (res.status === 404) {
-      const text = await res.text();
+      const text = await res.text().catch(() => "");
       console.warn(
-        "⚠️ Backend says doc not found or access denied on delete. Removing locally:",
+        "⚠️ Backend says doc not found or access denied on delete:",
         text
       );
     } else if (!res.ok) {
-      const text = await res.text();
-      console.warn("⚠️ Delete failed on backend, deleting locally:", text);
+      const text = await res.text().catch(() => "");
+      console.warn("⚠️ Delete failed on backend:", text);
     } else {
       backendOk = true;
+
+      // ⬅️ כאן אנחנו קוראים את deletedForAll מהשרת
+      try {
+        const data = await res.json().catch(() => null);
+        if (data && typeof data.deletedForAll === "boolean") {
+          deletedForAll = data.deletedForAll;
+        }
+      } catch (e) {
+        console.warn("⚠️ Could not parse delete response JSON:", e);
+      }
     }
   } catch (error) {
-    console.warn(
-      "⚠️ Delete request failed (network/CORS), deleting locally:",
-      error
-    );
+    console.warn("⚠️ Delete request failed (network/CORS):", error);
   }
 
-  console.log(
-    "✅ Deleted locally:",
+  console.log("✅ deleteDocForever bridge finished", {
     docId,
-    backendOk ? "(backend OK)" : "(backend FAILED)"
-  );
+    backendOk,
+    deletedForAll,
+  });
 
-  // Firestore
-  if (window.db && window.fs) {
-    try {
-      const docRef = window.fs.doc(window.db, "documents", docId);
-      await window.fs.deleteDoc(docRef);
-    } catch (err) {
-      console.warn("⚠️ Firestore delete failed:", err);
-    }
-  }
-
-  if (Array.isArray(window.allDocsData)) {
-  const idx = window.allDocsData.findIndex((d) => d.id === docId);
-  if (idx >= 0) {
-    window.allDocsData.splice(idx, 1);
-  }
+  // לא מוחקים Firestore, לא משנים allDocsData – זה תפקיד main.js
+  return { backendOk, deletedForAll };
 }
 
-// 🧮 עדכון מד האחסון אחרי מחיקה
-  if (typeof window.recalculateUserStorage === "function") {
-    window.recalculateUserStorage();
-  } else if (typeof window.updateStorageUsageWidget === "function") {
-    // fallback ישן אם מסיבה כלשהי אין recalculate
-    window.updateStorageUsageWidget();
-  }
-
-return { backendOk };
-
-}
 
 
 // ═══ 6. Download ═══

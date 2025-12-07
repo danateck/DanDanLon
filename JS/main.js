@@ -287,6 +287,12 @@ window.bootFromCloud = async function() {
     console.log("📦 Loaded", docs.length, "documents from Firestore");
     window.allDocsData = docs || [];
 
+
+    if (typeof window.recalculateUserStorage === "function") {
+  await window.recalculateUserStorage();
+}
+
+
     if (typeof window.updateStorageUsageWidget === "function") {
   window.updateStorageUsageWidget();
 } 
@@ -6957,78 +6963,107 @@ console.log("   - loadSavedSharedFolders()");
 // או פשוט החלף בקוד הזה:
 async function deleteDocForever(id) {
   console.log("🗑️ Deleting forever:", id);
-  const allDocsData = window.allDocsData || [];
-  const userNow = getCurrentUserEmail();
+
+  const allDocsData = Array.isArray(window.allDocsData) ? window.allDocsData : [];
+  const userNow = typeof getCurrentUserEmail === "function" ? getCurrentUserEmail() : null;
   const allUsersData = window.allUsersData || {};
+
+  if (!userNow) {
+    showNotification("את לא מחוברת", true);
+    return;
+  }
+
   const i = allDocsData.findIndex(d => d.id === id);
   if (i === -1) {
     showNotification("המסמך לא נמצא", true);
     return;
   }
+
   const doc = allDocsData[i];
+  let deletedForAll = false;
+
   try {
-    // Delete from backend if available
-        // Delete from backend (Render API) דרך ה-api-bridge
-    if (window.deleteDocForever && typeof window.deleteDocForever === 'function') {
+    // 🔗 דיבור עם השרת דרך api-bridge
+    if (typeof window.deleteDocForever === "function") {
       try {
-        await window.deleteDocForever(id); // ← קורא לפונקציה מ-api-bridge.js
-        console.log("✅ Deleted from backend (Render + DB)");
+        const backendRes = await window.deleteDocForever(id);
+        deletedForAll = !!(backendRes && backendRes.deletedForAll);
+        console.log("✅ Backend delete result:", backendRes);
       } catch (backendError) {
         console.warn("⚠️ Backend delete failed:", backendError);
       }
     }
-    // Delete from IndexedDB (local)
-    if (typeof deleteFileFromDB === 'function') {
-      await deleteFileFromDB(id).catch(() => {});
-    }
-    // Delete from Firestore
-    if (isFirebaseAvailable()) {
-      const docRef = window.fs.doc(window.db, "documents", id);
-      await window.fs.deleteDoc(docRef);
-      console.log("✅ Document deleted from Firestore:", id);
-    }
-    // Delete from Storage (if has downloadURL)
-    if (doc.downloadURL && window.storage) {
+
+    // 🗃️ מחיקה מ-IndexedDB המקומי (אם יש)
+    if (typeof deleteFileFromDB === "function") {
       try {
-        const storageRef = window.fs.ref(window.storage, doc.downloadURL);
-        await window.fs.deleteObject(storageRef);
-        console.log("✅ File deleted from Storage");
-      } catch (storageError) {
-        console.warn("⚠️ Could not delete from Storage:", storageError.message);
+        await deleteFileFromDB(id);
+      } catch {
+        /* לא נורא אם זה נכשל */
       }
     }
-    // Remove from local array
+
+    // 🗄️ מחיקה מ-Firestore ו-Storage רק אם *כולם* מחקו (deletedForAll === true)
+    if (deletedForAll) {
+      console.log("🧨 All participants deleted – removing from Firestore/Storage");
+
+      // Firestore
+      if (isFirebaseAvailable()) {
+        try {
+          const docRef = window.fs.doc(window.db, "documents", id);
+          await window.fs.deleteDoc(docRef);
+          console.log("✅ Document deleted from Firestore:", id);
+        } catch (err) {
+          console.warn("⚠️ Firestore delete failed:", err);
+        }
+      }
+
+      // Storage (אם יש קובץ)
+      if (doc.downloadURL && window.storage) {
+        try {
+          const storageRef = window.fs.ref(window.storage, doc.downloadURL);
+          await window.fs.deleteObject(storageRef);
+          console.log("✅ File deleted from Storage");
+        } catch (storageError) {
+          console.warn("⚠️ Could not delete from Storage:", storageError.message);
+        }
+      }
+    } else {
+      console.log("ℹ️ Skipping Firestore/Storage delete – עדיין יש משתתפים פעילים");
+    }
+
+    // 🧹 תמיד: להסיר מהתצוגה של המשתמש הנוכחי
     allDocsData.splice(i, 1);
     window.allDocsData = allDocsData;
+
     if (typeof setUserDocs === "function") {
       setUserDocs(userNow, allDocsData, allUsersData);
     }
-    showNotification("הקובץ נמחק לצמיתות");
-    
 
-    // 📊 עדכון מונה מסמכים
+    showNotification("הקובץ נמחק לצמיתות");
+
+    // 📊 עדכון מונה מסמכים במנוי
     if (window.subscriptionManager) {
       try {
         await window.subscriptionManager.updateDocumentCount(-1);
-        
-        // עדכן את הוידג'ט
-        if (window.updateStorageWidget) {
+
+        if (typeof window.updateStorageWidget === "function") {
           window.updateStorageWidget();
         }
       } catch (e) {
-        console.error('❌ שגיאה בעדכון מונה:', e);
+        console.error("❌ שגיאה בעדכון מונה:", e);
       }
     }
 
-
-
-    // 💾 עדכון תצוגת האחסון אחרי מחיקה
-    if (typeof window.updateStorageUsageWidget === "function") {
+    // 💾 עדכון אחסון (משתמש / וידג'ט)
+    if (typeof window.recalculateUserStorage === "function") {
+      await window.recalculateUserStorage();
+    } else if (typeof window.updateStorageUsageWidget === "function") {
       window.updateStorageUsageWidget();
     }
-    
-    // Refresh view
-    if (typeof openRecycleView === 'function') {
+
+    // ריענון מסך סל מחזור
+    if (typeof openRecycleView === "function") {
       openRecycleView();
     }
   } catch (error) {
@@ -7036,6 +7071,7 @@ async function deleteDocForever(id) {
     showNotification("שגיאה במחיקת המסמך", true);
   }
 }
+
 // ═══ תיקון 2: שחזור מסל מחזור ═══
 async function restoreDocument(id) {
   console.log("♻️ Restoring:", id);
