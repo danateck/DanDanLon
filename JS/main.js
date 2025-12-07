@@ -6980,19 +6980,25 @@ async function deleteDocForever(id) {
   }
 
   const doc = allDocsData[i];
-  let deletedForAll = false;
+   let deletedForAll = false;
+  let forceFullDelete = false; // ⬅️ חדש
 
   try {
     // 🔗 דיבור עם השרת דרך api-bridge
     if (typeof window.deleteDocForever === "function") {
       try {
         const backendRes = await window.deleteDocForever(id);
-        deletedForAll = !!(backendRes && backendRes.deletedForAll);
         console.log("✅ Backend delete result:", backendRes);
+
+        if (backendRes) {
+          deletedForAll = !!backendRes.deletedForAll;
+          forceFullDelete = !!backendRes.notInBackend; // ⬅️ אם אין ב-DB – מוחקים לוקאלית לגמרי
+        }
       } catch (backendError) {
         console.warn("⚠️ Backend delete failed:", backendError);
       }
     }
+
 
     // 🗃️ מחיקה מ-IndexedDB המקומי (אם יש)
     if (typeof deleteFileFromDB === "function") {
@@ -7004,8 +7010,11 @@ async function deleteDocForever(id) {
     }
 
     // 🗄️ מחיקה מ-Firestore ו-Storage רק אם *כולם* מחקו (deletedForAll === true)
-    if (deletedForAll) {
-      console.log("🧨 All participants deleted – removing from Firestore/Storage");
+        // 🗄️ מחיקה מ-Firestore / Storage:
+    //    1. אם כולם מחקו (deletedForAll)
+    //    2. או אם המסמך בכלל לא קיים ב-Backend (forceFullDelete)
+    if (deletedForAll || forceFullDelete) {
+      console.log("🧨 Removing from Firestore/Storage (deletedForAll or notInBackend)");
 
       // Firestore
       if (isFirebaseAvailable()) {
@@ -7029,8 +7038,9 @@ async function deleteDocForever(id) {
         }
       }
     } else {
-      console.log("ℹ️ Skipping Firestore/Storage delete – עדיין יש משתתפים פעילים");
+      console.log("ℹ️ Skipping Firestore/Storage delete – עדיין יש משתתפים פעילים ב-Backend");
     }
+
 
     // 🧹 תמיד: להסיר מהתצוגה של המשתמש הנוכחי
     allDocsData.splice(i, 1);

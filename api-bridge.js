@@ -498,12 +498,14 @@ return { backendOk };
 // ═══ 5. Delete Forever ═══
 
 // ⚙️ גשר לשרת – לא מוחק Firestore / לא נוגע ב-allDocsData
+// ⚙️ גשר לשרת – לא מוחק Firestore / לא נוגע ב-allDocsData
 async function deleteDocForever(docId) {
   const me = getCurrentUser();
   if (!me) throw new Error("Not logged in");
 
   let backendOk = false;
   let deletedForAll = false;
+  let notInBackend = false;
 
   try {
     const headers = await getAuthHeaders();
@@ -519,19 +521,25 @@ async function deleteDocForever(docId) {
 
     clearTimeout(timeoutId);
 
+    // 🔹 מקרה 404 – אין רשומה ב-Postgres
     if (res.status === 404) {
+      notInBackend = true;
       const text = await res.text().catch(() => "");
       console.warn(
-        "⚠️ Backend says doc not found or access denied on delete:",
+        "ℹ️ Doc not found in backend (likely old/local-only doc):",
         text
       );
-    } else if (!res.ok) {
+    }
+
+    // 🔹 כל שגיאה אחרת
+    else if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.warn("⚠️ Delete failed on backend:", text);
-    } else {
-      backendOk = true;
+    }
 
-      // ⬅️ כאן אנחנו קוראים את deletedForAll מהשרת
+    // 🔹 הצלחה אמיתית מהשרת – יש גם deletedForAll
+    else {
+      backendOk = true;
       try {
         const data = await res.json().catch(() => null);
         if (data && typeof data.deletedForAll === "boolean") {
@@ -549,11 +557,13 @@ async function deleteDocForever(docId) {
     docId,
     backendOk,
     deletedForAll,
+    notInBackend,
   });
 
-  // לא מוחקים Firestore, לא משנים allDocsData – זה תפקיד main.js
-  return { backendOk, deletedForAll };
+  // שימי לב: לא מוחקים כאן Firestore / Storage / allDocsData
+  return { backendOk, deletedForAll, notInBackend };
 }
+
 
 
 
