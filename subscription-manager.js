@@ -1,6 +1,6 @@
 // ========================================
 // 📋 מערכת ניהול מנויים - NestyFile
-// גרסה מתוקנת עם תיקון באג 927GB
+// עם תמיכה ב-Premium+ חד-פעמי
 // ========================================
 
 // תוכניות המנוי
@@ -14,13 +14,13 @@ export const SUBSCRIPTION_PLANS = {
     maxDocuments: 200,
     maxFileSize: 5 * 1024 * 1024, // 5MB בבייטים
     maxSharedUsers: 1,
-    maxSharedFolders: 1,
-    maxSharedProfiles: 1,
-    maxProfileInvitesPerProfile: 1,
+    maxSharedFolders: 1,              // 👈 תיקייה משותפת אחת
+    maxSharedProfiles: 1,             // 👈 אפשר לשתף פרופיל אחד
+    maxProfileInvitesPerProfile: 1,   // 👈 עד אדם אחד לכל פרופיל
     autoSuggestCategory: true,
     ocrFeatures: false,
     aiSearch: false,
-    fullFolderSharing: true,
+    fullFolderSharing: true,          // 👈 מותר תיקיות משותפות
     features: [
       '200MB נפח אחסון',
       'עד 200 מסמכים',
@@ -31,6 +31,7 @@ export const SUBSCRIPTION_PLANS = {
       'הצעה אוטומטית לתיקייה'
     ]
   },
+
 
   STANDARD: {
     id: 'standard',
@@ -44,6 +45,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedFolders: 5,
     maxSharedProfiles: 3,
     maxProfileInvitesPerProfile: 3,
+
     autoSuggestCategory: true,
     ocrFeatures: false,
     aiSearch: false,
@@ -57,7 +59,6 @@ export const SUBSCRIPTION_PLANS = {
       'שיתוף תיקיות שלמות'
     ]
   },
-  
   ADVANCED: {
     id: 'advanced',
     name: 'Advanced',
@@ -70,6 +71,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedFolders: 20,
     maxSharedProfiles: 10,
     maxProfileInvitesPerProfile: 10,
+
     autoSuggestCategory: true,
     ocrFeatures: true,
     aiSearch: false,
@@ -84,7 +86,6 @@ export const SUBSCRIPTION_PLANS = {
       'שיתוף תיקיות שלמות'
     ]
   },
-  
   PRO: {
     id: 'pro',
     name: 'Pro',
@@ -97,6 +98,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedFolders: 40,
     maxSharedProfiles: 20,
     maxProfileInvitesPerProfile: 20,
+
     autoSuggestCategory: true,
     ocrFeatures: true,
     aiSearch: true,
@@ -112,7 +114,6 @@ export const SUBSCRIPTION_PLANS = {
       'שיתוף תיקיות שלמות'
     ]
   },
-  
   PREMIUM: {
     id: 'premium',
     name: 'Premium',
@@ -125,6 +126,7 @@ export const SUBSCRIPTION_PLANS = {
     maxSharedFolders: Infinity,
     maxSharedProfiles: Infinity,
     maxProfileInvitesPerProfile: Infinity,
+
     autoSuggestCategory: true,
     ocrFeatures: true,
     aiSearch: true,
@@ -140,13 +142,12 @@ export const SUBSCRIPTION_PLANS = {
       'שיתוף תיקיות שלמות'
     ]
   },
-  
   PREMIUM_PLUS: {
     id: 'premium_plus',
     name: 'Premium+',
     nameHe: 'פרימיום+',
-    price: 99,
-    pricePerGB: 1.5,
+    price: 99, // בסיס
+    pricePerGB: 1.5, // ₪1.5 לכל GB נוסף (חד-פעמי!)
     storage: 50 * 1024 * 1024 * 1024, // 50GB בסיס + נוספים
     maxDocuments: Infinity,
     maxFileSize: 1024 * 1024 * 1024, // 1GB
@@ -198,9 +199,6 @@ export class SubscriptionManager {
       } else {
         const userData = userSnap.data();
         this.userSubscription = userData.subscription || await this.createFreeSubscription();
-        
-        // 🔧 תיקון באג: ודא שהערכים תקינים
-        this.sanitizeSubscription();
       }
 
       await this.checkSubscriptionExpiry();
@@ -209,25 +207,6 @@ export class SubscriptionManager {
     } catch (error) {
       console.error('שגיאה בטעינת מנוי:', error);
       return await this.createFreeSubscription();
-    }
-  }
-
-  // 🔧 פונקציה חדשה: נקה ערכים לא תקינים
-  sanitizeSubscription() {
-    if (!this.userSubscription) return;
-    
-    // תקן usedStorage
-    let storage = Number(this.userSubscription.usedStorage);
-    if (!Number.isFinite(storage) || storage < 0) {
-      console.warn('⚠️ תוקן usedStorage לא תקין:', this.userSubscription.usedStorage);
-      this.userSubscription.usedStorage = 0;
-    }
-    
-    // תקן documentCount
-    let docs = Number(this.userSubscription.documentCount);
-    if (!Number.isFinite(docs) || docs < 0) {
-      console.warn('⚠️ תוקן documentCount לא תקין:', this.userSubscription.documentCount);
-      this.userSubscription.documentCount = 0;
     }
   }
 
@@ -242,8 +221,8 @@ export class SubscriptionManager {
       graceEndDate: null,
       usedStorage: 0,
       documentCount: 0,
-      extraStorageGB: 0,
-      extraStoragePurchases: []
+      extraStorageGB: 0, // GB נוספים שנקנו (רק ל-Premium+)
+      extraStoragePurchases: [] // היסטוריית רכישות
     };
 
     try {
@@ -257,27 +236,6 @@ export class SubscriptionManager {
     } catch (error) {
       console.error('שגיאה ביצירת מנוי:', error);
       return subscription;
-    }
-  }
-
-  // שמירת מנוי
-  async saveSubscription() {
-    try {
-      // 🔧 נקה לפני שמירה
-      this.sanitizeSubscription();
-      
-      const userRef = this.fs.doc(this.db, `users/${this.currentUser}`);
-      await this.fs.setDoc(userRef, {
-        subscription: this.userSubscription
-      }, { merge: true });
-      
-      console.log('✅ מנוי נשמר:', {
-        storage: this.formatBytes(this.userSubscription.usedStorage),
-        docs: this.userSubscription.documentCount
-      });
-    } catch (error) {
-      console.error('שגיאה בשמירת מנוי:', error);
-      throw error;
     }
   }
 
@@ -329,54 +287,141 @@ export class SubscriptionManager {
     this.userSubscription.endDate = null;
     this.userSubscription.cancelledDate = null;
     this.userSubscription.graceEndDate = null;
+    this.userSubscription.extraStorageGB = 0; // מאפס GB נוספים
     
     await this.saveSubscription();
+    await this.cleanupOldFiles();
     
-    console.log(`✅ הועבר מ-${oldPlan} ל-free`);
+    return { oldPlan, newPlan: 'free' };
   }
 
-  // שדרוג מנוי
-  async upgradePlan(planId, paymentDetails = {}) {
+  // מחיקת קבצים ישנים
+  async cleanupOldFiles() {
+    try {
+      const freePlan = SUBSCRIPTION_PLANS.FREE;
+      
+      const docsRef = this.fs.collection(this.db, 'documents');
+      const q = this.fs.query(docsRef, this.fs.where('owner', '==', this.currentUser));
+      const snapshot = await this.fs.getDocs(q);
+      
+      let docs = [];
+      snapshot.forEach(doc => {
+        docs.push({ id: doc.id, ...doc.data() });
+      });
+
+      docs.sort((a, b) => {
+        const dateA = a.uploadDate ? new Date(a.uploadDate) : new Date(0);
+        const dateB = b.uploadDate ? new Date(b.uploadDate) : new Date(0);
+        return dateA - dateB;
+      });
+
+      let currentStorage = 0;
+      let keptDocs = [];
+      let deletedDocs = [];
+
+      for (let i = docs.length - 1; i >= 0; i--) {
+        const doc = docs[i];
+        const fileSize = doc.fileSize || 0;
+
+        if (currentStorage + fileSize <= freePlan.storage && 
+            keptDocs.length < freePlan.maxDocuments) {
+          keptDocs.push(doc);
+          currentStorage += fileSize;
+        } else {
+          deletedDocs.push(doc);
+        }
+      }
+
+      for (const doc of deletedDocs) {
+        try {
+          if (doc.fileURL) {
+            const fileRef = this.fs.ref(window.storage, doc.fileURL);
+            await this.fs.deleteObject(fileRef);
+          }
+          
+          const docRef = this.fs.doc(this.db, `documents/${doc.id}`);
+          await this.fs.deleteDoc(docRef);
+          
+          console.log(`🗑️ נמחק: ${doc.title || doc.id}`);
+        } catch (error) {
+          console.error(`שגיאה במחיקת ${doc.id}:`, error);
+        }
+      }
+
+      console.log(`✅ ניקוי הושלם: נשמרו ${keptDocs.length} קבצים, נמחקו ${deletedDocs.length} קבצים`);
+      
+      this.userSubscription.usedStorage = currentStorage;
+      this.userSubscription.documentCount = keptDocs.length;
+      await this.saveSubscription();
+
+      return { kept: keptDocs.length, deleted: deletedDocs.length };
+    } catch (error) {
+      console.error('שגיאה בניקוי קבצים:', error);
+      throw error;
+    }
+  }
+
+  // שמירת המנוי ב-Firestore
+  async saveSubscription() {
+    try {
+      const userRef = this.fs.doc(this.db, `users/${this.currentUser}`);
+      await this.fs.setDoc(userRef, {
+        subscription: this.userSubscription
+      }, { merge: true });
+    } catch (error) {
+      console.error('שגיאה בשמירת מנוי:', error);
+    }
+  }
+
+  // עדכון מנוי חדש
+  async upgradePlan(planId, autoRenew = true) {
     const plan = SUBSCRIPTION_PLANS[planId.toUpperCase()];
     if (!plan) {
       throw new Error('תוכנית לא קיימת');
     }
 
     const now = new Date();
-    const endDate = new Date(now);
+    const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 1);
 
-    this.userSubscription.plan = planId.toLowerCase();
+    this.userSubscription.plan = plan.id;
     this.userSubscription.status = 'active';
     this.userSubscription.startDate = now.toISOString();
     this.userSubscription.endDate = endDate.toISOString();
     this.userSubscription.cancelledDate = null;
     this.userSubscription.graceEndDate = null;
 
-    if (paymentDetails.orderId) {
-      this.userSubscription.lastPaymentOrderId = paymentDetails.orderId;
-      this.userSubscription.lastPaymentDate = now.toISOString();
-    }
-
     await this.saveSubscription();
-
-    console.log(`✅ שודרג ל-${plan.nameHe}`);
+    
+    console.log(`✅ שודרג לתוכנית: ${plan.nameHe}`);
     return this.userSubscription;
   }
 
-  // הוספת אחסון נוסף (Premium+ בלבד)
-  async addExtraStorage(extraGB, paymentDetails = {}) {
-    if (this.userSubscription.plan !== 'premium_plus') {
-      throw new Error('הוספת אחסון זמינה רק ב-Premium+');
+  // ========================================
+  // 🆕 רכישת אחסון נוסף (Premium+ בלבד)
+  // ========================================
+  async purchaseExtraStorage(extraGB, paymentDetails = {}) {
+    const currentPlan = this.getCurrentPlan();
+    
+    // ודא שיש מנוי פרימיום
+    if (currentPlan.id !== 'premium' && currentPlan.id !== 'premium_plus') {
+      throw new Error('רכישת אחסון נוסף זמינה רק למנוי פרימיום');
     }
     
-    if (extraGB < 1 || extraGB > 1000) {
-      throw new Error('יש להוסיף בין 1GB ל-1000GB');
+    if (!extraGB || extraGB < 1) {
+      throw new Error('יש לבחור לפחות 1GB');
     }
     
+    // שנה את התוכנית ל-Premium+ אם זו הקנייה הראשונה
+    if (currentPlan.id === 'premium') {
+      this.userSubscription.plan = 'premium_plus';
+    }
+    
+    // הוסף את ה-GB הנוספים
     const currentExtra = this.userSubscription.extraStorageGB || 0;
     this.userSubscription.extraStorageGB = currentExtra + extraGB;
     
+    // שמור את הרכישה בהיסטוריה
     if (!this.userSubscription.extraStoragePurchases) {
       this.userSubscription.extraStoragePurchases = [];
     }
@@ -434,6 +479,7 @@ export class SubscriptionManager {
     
     const basePlan = SUBSCRIPTION_PLANS[this.userSubscription.plan.toUpperCase()] || SUBSCRIPTION_PLANS.FREE;
     
+    // אם זה Premium+ עם GB נוספים
     if (this.userSubscription.plan === 'premium_plus') {
       const extraGB = this.userSubscription.extraStorageGB || 0;
       const baseStorage = SUBSCRIPTION_PLANS.PREMIUM.storage; // 50GB
@@ -450,23 +496,18 @@ export class SubscriptionManager {
     return basePlan;
   }
 
-  // 🔧 קביעת שימוש מוחלט (לתיקון באגים)
-  async setAbsoluteUsage(bytes, docsCount) {
-    if (!this.userSubscription) return;
+async setAbsoluteUsage(bytes, docsCount) {
+  if (!this.userSubscription) return;
 
-    const safeBytes = Number(bytes);
-    const safeDocs = Number(docsCount);
+  const safeBytes = Number(bytes);
+  const safeDocs = Number(docsCount);
 
-    this.userSubscription.usedStorage = Number.isFinite(safeBytes) && safeBytes >= 0 ? safeBytes : 0;
-    this.userSubscription.documentCount = Number.isFinite(safeDocs) && safeDocs >= 0 ? safeDocs : 0;
+  this.userSubscription.usedStorage = Number.isFinite(safeBytes) && safeBytes > 0 ? safeBytes : 0;
+  this.userSubscription.documentCount = Number.isFinite(safeDocs) && safeDocs > 0 ? safeDocs : 0;
 
-    console.log('✅ עודכן שימוש מוחלט:', {
-      storage: this.formatBytes(this.userSubscription.usedStorage),
-      docs: this.userSubscription.documentCount
-    });
+  await this.saveSubscription();
+}
 
-    await this.saveSubscription();
-  }
 
   // בדיקה אם פעולה מותרת
   async canPerformAction(action, data = {}) {
@@ -554,74 +595,32 @@ export class SubscriptionManager {
     }
   }
 
-  // 🔧 עדכון שימוש באחסון - גרסה מתוקנת
-  async updateStorageUsage(changeInBytes) {
-    const delta = Number(changeInBytes);
-    
-    // וידוא שהדלתא תקינה
-    if (!Number.isFinite(delta)) {
-      console.error('❌ changeInBytes לא תקין:', changeInBytes);
-      return;
-    }
+  // עדכון שימוש באחסון
+async updateStorageUsage(changeInBytes) {
+  const delta = Number(changeInBytes) || 0;
 
-    if (!this.userSubscription) {
-      console.warn('⚠️ אין userSubscription');
-      return;
-    }
+  if (!this.userSubscription) return;
 
-    // וידוא שיש ערך התחלתי תקין
-    if (typeof this.userSubscription.usedStorage !== 'number' || 
-        !Number.isFinite(this.userSubscription.usedStorage)) {
-      console.warn('⚠️ usedStorage לא תקין, מאתחל ל-0');
-      this.userSubscription.usedStorage = 0;
-    }
-
-    // חשב ערך חדש
-    const oldValue = this.userSubscription.usedStorage;
-    const newValue = oldValue + delta;
-
-    // וידוא שהערך החדש תקין
-    if (!Number.isFinite(newValue) || newValue < 0) {
-      console.error('❌ ערך חדש לא תקין:', { oldValue, delta, newValue });
-      this.userSubscription.usedStorage = Math.max(0, oldValue); // שמור את הערך הישן או 0
-    } else {
-      this.userSubscription.usedStorage = newValue;
-    }
-
-    console.log('📊 עדכון אחסון:', {
-      delta: this.formatBytes(delta),
-      old: this.formatBytes(oldValue),
-      new: this.formatBytes(this.userSubscription.usedStorage)
-    });
-
-    await this.saveSubscription();
+  // אם עדיין אין שדה – נאתחל
+  if (typeof this.userSubscription.usedStorage !== "number") {
+    this.userSubscription.usedStorage = 0;
   }
+
+  this.userSubscription.usedStorage += delta;
+
+  if (!Number.isFinite(this.userSubscription.usedStorage) || this.userSubscription.usedStorage < 0) {
+    this.userSubscription.usedStorage = 0;
+  }
+
+  await this.saveSubscription();
+}
 
   // עדכון מספר מסמכים
   async updateDocumentCount(change) {
-    const delta = Number(change);
-    
-    if (!Number.isFinite(delta)) {
-      console.error('❌ change לא תקין במסמכים:', change);
-      return;
-    }
-    
-    if (typeof this.userSubscription.documentCount !== 'number') {
-      this.userSubscription.documentCount = 0;
-    }
-    
-    this.userSubscription.documentCount += delta;
-    
+    this.userSubscription.documentCount += change;
     if (this.userSubscription.documentCount < 0) {
-      console.warn('⚠️ מספר מסמכים שלילי, מאפס');
       this.userSubscription.documentCount = 0;
     }
-    
-    console.log('📄 עדכון מסמכים:', {
-      delta,
-      new: this.userSubscription.documentCount
-    });
-    
     await this.saveSubscription();
   }
 
@@ -640,60 +639,64 @@ export class SubscriptionManager {
 
   // קבלת אחוז השימוש באחסון
   getStoragePercentage() {
-    const totalStorage = this.getTotalStorage();
-    if (!Number.isFinite(totalStorage) || totalStorage <= 0 || totalStorage === Infinity) {
-      return 0;
-    }
-
-    const used = Number(this.userSubscription.usedStorage);
-    if (!Number.isFinite(used) || used <= 0) {
-      return 0;
-    }
-
-    return Math.min(100, (used / totalStorage) * 100);
+  const totalStorage = this.getTotalStorage();
+  if (!Number.isFinite(totalStorage) || totalStorage <= 0 || totalStorage === Infinity) {
+    return 0;
   }
+
+  const used = Number(this.userSubscription.usedStorage);
+  if (!Number.isFinite(used) || used <= 0) {
+    return 0;
+  }
+
+  return Math.min(100, (used / totalStorage) * 100);
+}
+
 
   // קבלת מידע מלא על המנוי
-  getSubscriptionInfo() {
-    const plan = this.getCurrentPlan();
-    const sub = this.userSubscription || {};
+  // קבלת מידע מלא על המנוי
+getSubscriptionInfo() {
+  const plan = this.getCurrentPlan();
+  const sub = this.userSubscription || {};
 
-    let storage = Number(sub.usedStorage);
-    if (!Number.isFinite(storage) || storage < 0) storage = 0;
+  let storage = Number(sub.usedStorage);
+  if (!Number.isFinite(storage) || storage < 0) storage = 0;
 
-    let docs = Number(sub.documentCount);
-    if (!Number.isFinite(docs) || docs < 0) docs = 0;
+  let docs = Number(sub.documentCount);
+  if (!Number.isFinite(docs) || docs < 0) docs = 0;
 
-    const totalStorage = this.getTotalStorage();
+  const totalStorage = this.getTotalStorage();
 
-    return {
-      plan: plan,
-      status: sub.status || 'active',
-      storage: {
-        used: storage,
-        limit: totalStorage,
-        percentage: this.getStoragePercentage(),
-        formatted: {
-          used: this.formatBytes(storage),
-          limit: this.formatBytes(totalStorage)
-        }
-      },
-      documents: {
-        count: docs,
-        limit: plan.maxDocuments,
-        percentage:
-          !plan.maxDocuments || plan.maxDocuments === Infinity
-            ? 0
-            : Math.min(100, (docs / plan.maxDocuments) * 100)
-      },
-      dates: {
-        start: sub.startDate || null,
-        end: sub.endDate || null,
-        cancelled: sub.cancelledDate || null,
-        graceEnd: sub.graceEndDate || null
+  return {
+    plan: plan,
+    status: sub.status || 'active',
+    storage: {
+      used: storage,
+      limit: totalStorage,
+      percentage: this.getStoragePercentage(),
+      formatted: {
+        used: this.formatBytes(storage),
+        limit: this.formatBytes(totalStorage)
       }
-    };
-  }
+    },
+    documents: {
+      count: docs,
+      limit: plan.maxDocuments,
+      percentage:
+        !plan.maxDocuments || plan.maxDocuments === Infinity
+          ? 0
+          : Math.min(100, (docs / plan.maxDocuments) * 100)
+    },
+    dates: {
+      start: sub.startDate || null,
+      end: sub.endDate || null,
+      cancelled: sub.cancelledDate || null,
+      graceEnd: sub.graceEndDate || null
+    }
+  };
+}
+
+
 }
 
 // ייצוא לשימוש גלובלי
