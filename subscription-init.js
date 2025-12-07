@@ -45,7 +45,11 @@ async function initSubscriptions() {
           console.log('📊 מנוי נוכחי:', subscriptionManager.getCurrentPlan().nameHe);
           
           // עדכן את הוידג'ט
-          updateStorageWidget();
+                    // עדכן את הווידג'ט הישן (הפס הירוק בצד)
+          if (window.updateStorageUsageWidget) {
+            window.updateStorageUsageWidget();
+          }
+
           
           // הוסף כפתור מנוי להגדרות
           addSubscriptionButton();
@@ -80,6 +84,7 @@ async function initSubscriptions() {
 // וידג'ט אחסון משופר
 // ========================================
 function updateStorageWidget() {
+    return; // השבתת הווידג'ט החדש זמנית
   if (!subscriptionManager) return;
   
   const container = document.getElementById('storage-widget-container');
