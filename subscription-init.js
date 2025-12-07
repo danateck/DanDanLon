@@ -88,8 +88,8 @@ async function updateStorageWidget() {
     return;
   }
   
-  // ✅ קבל מידע מעודכן (יקרא מ-cache או ירענן אם צריך)
-  const info = await subscriptionManager.getSubscriptionInfo();
+  // ✅ קבל מידע (סינכרוני, יקרא ברקע מ-Firestore אם צריך)
+  const info = subscriptionManager.getSubscriptionInfo();
   const plan = info.plan;
   
   // הסתר את הוידג'ט הישן

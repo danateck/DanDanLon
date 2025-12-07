@@ -747,10 +747,10 @@ async setAbsoluteUsage(bytes, docsCount) {
 
 
   // קבלת מידע מלא על המנוי
-  async getSubscriptionInfo() {
-    // רענן את ה-cache אם צריך (אבל לא חייב להמתין)
+  getSubscriptionInfo() {
+    // ✅ רענן ברקע אם צריך (לא חוסם!)
     if (!this._usageCache || (Date.now() - this._cacheTimestamp) > this._cacheLifetime) {
-      // רענן ברקע (לא חוסם)
+      // רענן ברקע ללא המתנה
       this.refreshUsageFromFirestore(false).catch(console.error);
     }
     
