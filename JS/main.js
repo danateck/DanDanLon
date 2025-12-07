@@ -7069,7 +7069,7 @@ async function deleteDocForever(id) {
     // 📊 עדכון מונה מסמכים במנוי
     if (window.subscriptionManager) {
       try {
-        await window.subscriptionManager.updateDocumentCount(-1);
+       // await window.subscriptionManager.updateDocumentCount(-1);
 
         if (typeof window.updateStorageWidget === "function") {
           window.updateStorageWidget();
@@ -9808,37 +9808,37 @@ async function enhanceScanImage(file) {
 
 
 
-// ⚡ מחשב מחדש את סך האחסון של המשתמש
-window.recalculateUserStorage = async function() {
-  if (!window.fs || !window.db || !window.getCurrentUserEmail) return;
+// // ⚡ מחשב מחדש את סך האחסון של המשתמש
+// window.recalculateUserStorage = async function() {
+//   if (!window.fs || !window.db || !window.getCurrentUserEmail) return;
 
-  const me = window.getCurrentUserEmail();
-  const docsRef = window.fs.collection(window.db, "documents");
+//   const me = window.getCurrentUserEmail();
+//   const docsRef = window.fs.collection(window.db, "documents");
 
-  const q = window.fs.query(
-    docsRef,
-    window.fs.where("owner", "==", me)
-  );
+//   const q = window.fs.query(
+//     docsRef,
+//     window.fs.where("owner", "==", me)
+//   );
 
-  const snap = await window.fs.getDocs(q);
+//   const snap = await window.fs.getDocs(q);
 
-  let total = 0;
+//   let total = 0;
 
-  snap.forEach(doc => {
-    const data = doc.data() || {};
-    if (data.size) total += Number(data.size);
-  });
+//   snap.forEach(doc => {
+//     const data = doc.data() || {};
+//     if (data.size) total += Number(data.size);
+//   });
 
-  // שמירה במנהל המנויים
-  if (window.subscriptionManager?.userSubscription) {
-    window.subscriptionManager.userSubscription.usedStorage = total;
-  }
+//   // שמירה במנהל המנויים
+//   if (window.subscriptionManager?.userSubscription) {
+//     window.subscriptionManager.userSubscription.usedStorage = total;
+//   }
 
-  // רענון התצוגה למטה
-  if (window.updateStorageUI) window.updateStorageUI();
+//   // רענון התצוגה למטה
+//   if (window.updateStorageUI) window.updateStorageUI();
 
-  console.log("✔️ אחסון עודכן:", total, "bytes");
-};
+//   console.log("✔️ אחסון עודכן:", total, "bytes");
+// };
 
 
 

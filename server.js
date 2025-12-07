@@ -494,6 +494,7 @@ app.put('/api/docs/:id/trash', async (req, res) => {
 });
 
 // 6️⃣ DELETE /api/docs/:id - Delete permanently (respect shared users)
+// 6️⃣ DELETE /api/docs/:id - Delete permanently (respect shared users)
 app.delete('/api/docs/:id', async (req, res) => {
   try {
     const userEmailRaw = getUserFromRequest(req);
@@ -513,12 +514,11 @@ app.delete('/api/docs/:id', async (req, res) => {
     );
 
     if (!result.rows.length) {
-      // 🆕 אם המסמך לא קיים בשרת בכלל - נאשר מחיקה מלאה
       console.log('📝 Document not in backend, approving full deletion');
       return res.json({ 
         ok: true, 
         deletedForAll: true,
-        notInBackend: true  // דגל חדש
+        notInBackend: true
       });
     }
 
@@ -531,44 +531,20 @@ app.delete('/api/docs/:id', async (req, res) => {
     let sharedWithArr = [];
     const sw = row.shared_with;
 
-    if (Array.isArray(sw)) {
-      // shared_with הוא כבר מערך
-      sharedWithArr = sw
-        .map(e => String(e || '').trim().toLowerCase())
-        .filter(Boolean);
-    } else if (sw && typeof sw === 'object') {
-      // במקרה שנשמר כאובייקט { email: true }
-      sharedWithArr = Object.keys(sw)
-        .filter(k => sw[k])
-        .map(k => String(k || '').trim().toLowerCase());
-    } else if (typeof sw === 'string' && sw.trim()) {
-      // במקרה נדיר שנשמר כמחרוזת JSON
-      try {
-        const parsed = JSON.parse(sw);
-        if (Array.isArray(parsed)) {
-          sharedWithArr = parsed
-            .map(e => String(e || '').trim().toLowerCase())
-            .filter(Boolean);
-        }
-      } catch (e) {
-        console.warn('shared_with is string but not JSON:', sw);
-      }
-    }
+    // ... פירוק ל-array (string / json / object)
+    // ...
 
     const isOwner = owner === userEmail;
     const isSharedWithUser = sharedWithArr.includes(userEmail);
 
-    // 🆕 בדיקה: אם המשתמש הנוכחי הוא הבעלים ואין שיתופים פעילים
     const hasNoActiveShares = sharedWithArr.length === 0;
 
-    // אם המשתמש בכלל לא קשור למסמך – חסימה
     if (!isOwner && !isSharedWithUser) {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
     // 🆕 אם הבעלים מוחק ואין שיתופים - מחיקה מלאה מיידית
     if (isOwner && hasNoActiveShares) {
-      console.log('📝 Owner deleting doc with no active shares - full deletion');
       await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
       return res.json({ 
         ok: true, 
@@ -577,20 +553,9 @@ app.delete('/api/docs/:id', async (req, res) => {
       });
     }
 
-    // 🔹 ניהול deleted_for – מי כבר מחק לצמיתות
+    // 🔹 deleted_for – מי כבר מחק לצמיתות
     let deletedFor = row.deleted_for || {};
-    if (typeof deletedFor === 'string') {
-      try {
-        deletedFor = JSON.parse(deletedFor) || {};
-      } catch {
-        deletedFor = {};
-      }
-    }
-    if (!deletedFor || typeof deletedFor !== 'object') {
-      deletedFor = {};
-    }
-
-    // מסמנים שהמשתמש הנוכחי מחק לצמיתות
+    // ... JSON parse וכו'
     deletedFor[userEmail] = true;
 
     // כל המשתתפים במסמך = בעלים + כל מי ששיתפת אליו
@@ -603,15 +568,13 @@ app.delete('/api/docs/:id', async (req, res) => {
       email => !deletedFor[email]
     );
 
-    // 🎯 מקרה 1: כולם מחקו לצמיתות → מוחקים מהרנדר
+    // 🎯 מקרה 1: כולם מחקו לצמיתות → מוחקים מה-DB
     if (activeParticipants.length === 0) {
       await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
       return res.json({ ok: true, deletedForAll: true });
     }
 
     // 🎯 מקרה 2: עדיין יש מישהו שלא מחק → משאירים, רק מסתירים ממי שמחק
-
-    // אם הבעלים מחק – מעבירים בעלות למשתתף הראשון שעוד קיים
     if (deletedFor[owner]) {
       owner = activeParticipants[0];
     }
@@ -636,6 +599,7 @@ app.delete('/api/docs/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 

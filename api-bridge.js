@@ -293,8 +293,8 @@ setTimeout(() => {
       try {
         const bytes = Number(result.file_size) || file.size || 0;
 
-        await window.subscriptionManager.updateStorageUsage(bytes);
-        await window.subscriptionManager.updateDocumentCount(1);
+        // await window.subscriptionManager.updateStorageUsage(bytes);
+        // await window.subscriptionManager.updateDocumentCount(1);
 
         if (typeof window.updateStorageWidget === "function") {
           window.updateStorageWidget();
@@ -311,6 +311,27 @@ setTimeout(() => {
         console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
       }
     }
+
+
+    if (metadata.sharedFolderId) {
+    const folderRef = window.fs.doc(window.db, "sharedFolders", metadata.sharedFolderId);
+    const folderSnap = await window.fs.getDoc(folderRef);
+    if (folderSnap.exists()) {
+        const folder = folderSnap.data();
+
+        // מוסיפים מסמך לפולדר
+        await window.fs.updateDoc(folderRef, {
+            documents: [...(folder.documents || []), newId]
+        });
+
+        // מוסיפים לכל משתמש מהתיקייה
+        for (const m of folder.members) {
+            await window.addDocumentToUserCache(m, newId);
+        }
+    }
+}
+
+
 
     return doc;
 
@@ -888,12 +909,13 @@ window.updateStorageUsageWidget = updateStorageUsageWidget;
 
 
 
-// ⚡ מחשב מחדש את סך האחסון של המשתמש לפי allDocsData
+// ⚡ מחשב מחדש את סך האחסון והמסמכים לפי allDocsData
 window.recalculateUserStorage = async function() {
   try {
     if (!window.subscriptionManager) return;
 
     const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
+
     const me = (typeof getCurrentUserEmail === "function")
       ? getCurrentUserEmail()
       : null;
@@ -901,17 +923,30 @@ window.recalculateUserStorage = async function() {
     if (!me) return;
 
     const meNorm = me.trim().toLowerCase();
+
     let usedBytes = 0;
     let docsCount = 0;
 
     for (const d of docs) {
-      if (!d || !d.owner) continue;
-      if (String(d.owner).trim().toLowerCase() !== meNorm) continue;
+      if (!d) continue;
+
+      // מסמכים בסל מחזור / מחוקים גלובלית
       if (d._trashed || d.deletedAt) continue;
 
-      let size = Number(d.fileSize ?? d.file_size ?? d.size);
-      if (!Number.isFinite(size) || size <= 0) {
-        size = 300 * 1024; // ברירת מחדל אם אין גודל
+      // אם יש deleted_for לפי משתמש – לא נספור לי אותם
+      const deletedFor = d.deleted_for || d.deletedFor || {};
+      if (deletedFor[meNorm]) continue;
+
+      // בשלב הזה – זה מסמך שאני רואה (שלי או משותף)
+
+      let size = Number(
+        d.file_size ??  // מהשרת (Postgres / Render)
+        d.fileSize ??   // מה-Firestore
+        d.size          // כל שדה גיבוי אחר
+      );
+
+      if (!Number.isFinite(size) || size < 0) {
+        size = 0; // לא ננפח סתם ל-300KB
       }
 
       usedBytes += size;
