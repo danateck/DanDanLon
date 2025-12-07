@@ -513,7 +513,13 @@ app.delete('/api/docs/:id', async (req, res) => {
     );
 
     if (!result.rows.length) {
-      return res.status(404).json({ error: 'Document not found' });
+      // 🆕 אם המסמך לא קיים בשרת בכלל - נאשר מחיקה מלאה
+      console.log('📝 Document not in backend, approving full deletion');
+      return res.json({ 
+        ok: true, 
+        deletedForAll: true,
+        notInBackend: true  // דגל חדש
+      });
     }
 
     const row = result.rows[0];
@@ -552,9 +558,23 @@ app.delete('/api/docs/:id', async (req, res) => {
     const isOwner = owner === userEmail;
     const isSharedWithUser = sharedWithArr.includes(userEmail);
 
+    // 🆕 בדיקה: אם המשתמש הנוכחי הוא הבעלים ואין שיתופים פעילים
+    const hasNoActiveShares = sharedWithArr.length === 0;
+
     // אם המשתמש בכלל לא קשור למסמך – חסימה
     if (!isOwner && !isSharedWithUser) {
       return res.status(403).json({ error: 'Not allowed' });
+    }
+
+    // 🆕 אם הבעלים מוחק ואין שיתופים - מחיקה מלאה מיידית
+    if (isOwner && hasNoActiveShares) {
+      console.log('📝 Owner deleting doc with no active shares - full deletion');
+      await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
+      return res.json({ 
+        ok: true, 
+        deletedForAll: true,
+        reason: 'owner_with_no_shares'
+      });
     }
 
     // 🔹 ניהול deleted_for – מי כבר מחק לצמיתות

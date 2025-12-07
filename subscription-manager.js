@@ -597,6 +597,9 @@ async setAbsoluteUsage(bytes, docsCount) {
 
   // עדכון שימוש באחסון
 async updateStorageUsage(changeInBytes) {
+  // ⚠️ הפונקציה הזו מיועדת רק לעדכוני delta קטנים
+  // לחישוב מלא - השתמש ב-recalculateStorageFromFirestore
+  
   const delta = Number(changeInBytes) || 0;
 
   if (!this.userSubscription) return;
@@ -606,13 +609,76 @@ async updateStorageUsage(changeInBytes) {
     this.userSubscription.usedStorage = 0;
   }
 
+  // 🆕 תיקון: וודא שהערך הנוכחי הגיוני
+  if (!Number.isFinite(this.userSubscription.usedStorage) || 
+      this.userSubscription.usedStorage < 0 ||
+      this.userSubscription.usedStorage > 1000000000000) { // 1TB
+    console.warn('⚠️ Storage value corrupted, recalculating...');
+    await this.recalculateStorageFromFirestore();
+    return;
+  }
+
   this.userSubscription.usedStorage += delta;
 
-  if (!Number.isFinite(this.userSubscription.usedStorage) || this.userSubscription.usedStorage < 0) {
-    this.userSubscription.usedStorage = 0;
+  // 🆕 תיקון: אם הערך החדש משוגע - חשב מחדש
+  if (!Number.isFinite(this.userSubscription.usedStorage) || 
+      this.userSubscription.usedStorage < 0 ||
+      this.userSubscription.usedStorage > 1000000000000) {
+    console.warn('⚠️ Storage became corrupted after delta, recalculating...');
+    await this.recalculateStorageFromFirestore();
+    return;
   }
 
   await this.saveSubscription();
+  
+  console.log(`📊 Storage updated: ${delta > 0 ? '+' : ''}${this.formatBytes(delta)} → Total: ${this.formatBytes(this.userSubscription.usedStorage)}`);
+}
+
+// 🆕 פונקציה חדשה - חישוב מחדש מלא מ-Firestore
+async recalculateStorageFromFirestore() {
+  if (!this.db || !this.fs || !this.userEmail) {
+    console.warn('⚠️ Cannot recalculate: missing Firebase or userEmail');
+    return;
+  }
+
+  try {
+    const docsRef = this.fs.collection(this.db, "documents");
+    const q = this.fs.query(
+      docsRef,
+      this.fs.where("owner", "==", this.userEmail)
+    );
+
+    const snap = await this.fs.getDocs(q);
+
+    let total = 0;
+    let count = 0;
+
+    snap.forEach(doc => {
+      const data = doc.data() || {};
+      
+      // דלג על מסמכים במחזור או שנמחקו
+      if (data._trashed || data.deletedAt) return;
+      
+      const size = Number(data.size) || Number(data.fileSize) || 0;
+      if (size > 0 && Number.isFinite(size)) {
+        total += size;
+        count++;
+      }
+    });
+
+    // עדכן את המנוי
+    this.userSubscription.usedStorage = total;
+    this.userSubscription.documentCount = count;
+    
+    await this.saveSubscription();
+    
+    console.log(`✅ Storage recalculated: ${this.formatBytes(total)} from ${count} documents`);
+    
+    return { bytes: total, documents: count };
+  } catch (error) {
+    console.error('❌ Error recalculating storage:', error);
+    return null;
+  }
 }
 
   // עדכון מספר מסמכים

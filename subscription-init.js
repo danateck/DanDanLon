@@ -80,7 +80,6 @@ async function initSubscriptions() {
 // וידג'ט אחסון משופר
 // ========================================
 function updateStorageWidget() {
-    //return; // השבתת הווידג'ט החדש זמנית
   if (!subscriptionManager) return;
   
   const container = document.getElementById('storage-widget-container');
@@ -98,7 +97,7 @@ function updateStorageWidget() {
     oldWidget.style.display = 'none';
   }
 
-  // צבע מתקדם לפי אחוז השימוש
+  // צבע לפי אחוז שימוש
   let barColor = '#10b981'; // ירוק
   if (info.storage.percentage > 80) {
     barColor = '#ef4444'; // אדום
@@ -124,44 +123,37 @@ function updateStorageWidget() {
     warnings.push('⚠️ נגמר מקום באחסון');
   }
   
-  // HTML של הוידג'ט
+  // 🆕 HTML פשוט וברור
   container.innerHTML = `
-    <div class="storage-widget-new" onclick="window.showSubscriptionSettings()">
-      <div class="storage-widget-header">
+    <div class="storage-widget-simple" onclick="window.showSubscriptionSettings()">
+      <div class="storage-header">
         <span class="storage-icon">💾</span>
-        <span class="storage-title">אחסון</span>
-        ${warnings.length > 0 ? '<span class="storage-warning-badge">⚠️</span>' : ''}
+        <span class="storage-plan-name">${plan.nameHe}</span>
       </div>
       
-      <div class="storage-widget-bar">
-        <div class="storage-widget-fill" style="width: ${Math.min(100, info.storage.percentage)}%; background: ${barColor};"></div>
+      <div class="storage-bar-container">
+        <div class="storage-bar-fill" style="width: ${Math.min(100, info.storage.percentage)}%; background: ${barColor};"></div>
       </div>
       
-      <div class="storage-widget-text" dir="rtl">
-        ${info.storage.formatted.used} / ${info.storage.formatted.limit}
-      </div>
-
-      
-      <div class="storage-widget-docs">
-        ${info.documents.count}${plan.maxDocuments !== Infinity ? `/${plan.maxDocuments}` : ''} מסמכים
-      </div>
-      
-      <div class="storage-widget-plan">
-        תוכנית: <strong>${plan.nameHe}</strong>
-        ${info.status === 'cancelled' ? ' <span style="color: #ef4444;">(בוטל)</span>' : ''}
+      <div class="storage-info">
+        <div class="storage-line">
+          <span>אחסון:</span>
+          <strong>${info.storage.formatted.used} / ${info.storage.formatted.limit}</strong>
+        </div>
+        <div class="storage-line">
+          <span>מסמכים:</span>
+          <strong>${info.documents.count}${plan.maxDocuments !== Infinity ? `/${plan.maxDocuments}` : ''}</strong>
+        </div>
       </div>
       
       ${warnings.length > 0 ? `
-        <div class="storage-widget-warning">
+        <div class="storage-warnings">
           ${warnings.join('<br>')}
-          <br>
-          <small style="color: #2d6a4f; font-weight: 600;">לחץ לשדרוג</small>
         </div>
       ` : ''}
     </div>
   `;
   
-  // חשוף את הפונקציה גלובלית
   window.updateStorageWidget = updateStorageWidget;
 }
 
@@ -351,112 +343,107 @@ window.closeDialog = function() {
 // ========================================
 const styles = document.createElement('style');
 styles.textContent = `
-  /* וידג'ט אחסון */
-  .storage-widget-new {
+  /* וידג'ט אחסון פשוט */
+  .storage-widget-simple {
     background: var(--bg-card, white);
     border-radius: 12px;
     padding: 1rem;
     margin: 1rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
     border: 2px solid var(--border-soft, #e0e0e0);
-    position: relative;
   }
   
-  .storage-widget-new:hover {
+  .storage-widget-simple:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     border-color: rgba(82, 152, 115, 0.5);
   }
   
-  .storage-widget-header {
+  .storage-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
-    position: relative;
   }
   
   .storage-icon {
     font-size: 1.25rem;
   }
   
-  .storage-title {
+  .storage-plan-name {
     font-weight: 600;
-    color: var(--text-mid, #333);
-    font-size: 0.95rem;
-    flex: 1;
-  }
-  
-  .storage-warning-badge {
+    color: var(--text-dark, #333);
     font-size: 1rem;
-    animation: pulse 2s infinite;
   }
   
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-  
-  .storage-widget-bar {
+  .storage-bar-container {
     width: 100%;
     height: 8px;
     background: var(--border-soft, #e0e0e0);
     border-radius: 4px;
     overflow: hidden;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
   }
   
-  .storage-widget-fill {
+  .storage-bar-fill {
     height: 100%;
     transition: width 0.3s ease, background 0.3s ease;
     border-radius: 4px;
   }
   
-  .storage-widget-text,
-  .storage-widget-docs,
-  .storage-widget-plan {
-    font-size: 0.85rem;
-    color: var(--text-dark, #666);
-    margin-bottom: 0.25rem;
+  .storage-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
   
-  .storage-widget-plan strong {
-    color: var(--accent-strong, #333);
+  .storage-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--text-mid, #666);
   }
   
-  .storage-widget-warning {
+  .storage-line strong {
+    color: var(--text-dark, #333);
+    font-weight: 600;
+  }
+  
+  .storage-warnings {
     margin-top: 0.75rem;
-    padding: 0.5rem;
+    padding: 0.75rem;
     background: rgba(239, 68, 68, 0.1);
     border-radius: 6px;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: #dc2626;
     line-height: 1.4;
   }
   
   /* Dark mode */
-  .theme-dark .storage-widget-new {
-    background: #121816;
+  .theme-dark .storage-widget-simple {
+    background: #1a1f1d;
     border-color: rgba(82, 152, 115, 0.3);
   }
   
-  .theme-dark .storage-widget-bar {
+  .theme-dark .storage-bar-container {
     background: rgba(82, 152, 115, 0.2);
   }
   
-  .theme-dark .storage-title {
+  .theme-dark .storage-plan-name {
     color: #e8f0ec;
   }
   
-  .theme-dark .storage-widget-text,
-  .theme-dark .storage-widget-docs,
-  .theme-dark .storage-widget-plan {
+  .theme-dark .storage-line {
     color: #b8c9c0;
   }
   
-  .theme-dark .storage-widget-warning {
+  .theme-dark .storage-line strong {
+    color: #e8f0ec;
+  }
+  
+  .theme-dark .storage-warnings {
     background: rgba(239, 68, 68, 0.2);
     color: #fca5a5;
   }
