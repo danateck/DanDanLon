@@ -223,6 +223,9 @@ window.showSubscriptionSettings = function() {
 function updateSubscriptionPageContent() {
   if (!subscriptionManager) return;
   
+
+
+
   const info = subscriptionManager.getSubscriptionInfo();
   const plan = info.plan;
   

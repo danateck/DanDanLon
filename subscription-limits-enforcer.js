@@ -159,35 +159,26 @@ window.checkAddInvitationLimits = function(folder, newEmail) {
   }
   
   const plan = window.subscriptionManager.getCurrentPlan();
-  const owner = (folder.owner || "").trim().toLowerCase();
-
-  const members = Array.isArray(folder.members) ? folder.members : [];
-  const membersWithoutOwner = members.filter(m => {
-    if (!m) return false;
-    return m.trim().toLowerCase() !== owner;
-  }).length;
-
-  const pendingInvites = Array.isArray(folder.pendingInvites)
-    ? folder.pendingInvites.filter(inv => inv && inv.status === 'pending').length
-    : 0;
-
-  const totalOthers = membersWithoutOwner + pendingInvites;
-
-  if (plan.maxSharedUsers !== Infinity && totalOthers >= plan.maxSharedUsers) {
+  
+  // ספור משתמשים קיימים
+  const currentMembers = folder.members ? folder.members.length : 1;
+  const pendingInvites = folder.pendingInvites ? folder.pendingInvites.filter(inv => inv.status === 'pending').length : 0;
+  const totalUsers = currentMembers + pendingInvites;
+  
+  if (plan.maxSharedUsers !== Infinity && totalUsers >= plan.maxSharedUsers) {
     return {
       allowed: false,
       reason: `⚠️ הגעת למכסת המשתפים!\n\n` +
-              `משתמשים פעילים (חוץ ממך): ${membersWithoutOwner}\n` +
+              `משתמשים פעילים: ${currentMembers}\n` +
               `הזמנות ממתינות: ${pendingInvites}\n` +
               `מקסימום בתוכנית ${plan.nameHe}: ${plan.maxSharedUsers} משתפים\n\n` +
               `💎 שדרג את התוכנית להוספת משתפים נוספים`,
       showUpgrade: true
     };
   }
-
+  
   return { allowed: true };
 };
-
 
 // ========================================
 // פונקציה להצגת הודעת שגיאה + אופציה לשדרוג

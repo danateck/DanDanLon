@@ -516,7 +516,14 @@ async function createSharedFolder(folderName, invitedEmails = []) {
   console.log("📁 createSharedFolder called:", folderName);
   const currentUser = getCurrentUserEmail();
   if (!currentUser || !isFirebaseAvailable()) throw new Error("User not logged in");
-  
+  // 🔒 בדיקת מגבלות שיתוף תיקיות
+  if (window.checkCreateSharedFolderLimits) {
+    const limitCheck = window.checkCreateSharedFolderLimits(invitedEmails);
+    if (!limitCheck.allowed) {
+      window.showLimitError(limitCheck);
+      throw new Error(limitCheck.reason);
+    }
+  }
   // 🔒 בדיקת מגבלות מנוי לפני יצירת תיקייה משותפת
   if (window.checkCreateSharedFolderLimits) {
     const normalized = invitedEmails.map(normalizeEmail);
