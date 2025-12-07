@@ -485,7 +485,9 @@ async function markDocTrashed(docId, trashed) {
   }
 }
 
-if (typeof window.updateStorageUsageWidget === "function") {
+if (typeof window.recalculateUserStorage === "function") {
+  await window.recalculateUserStorage();
+} else if (typeof window.updateStorageUsageWidget === "function") {
   window.updateStorageUsageWidget();
 }
 

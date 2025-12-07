@@ -2825,15 +2825,26 @@ deleteBtn.addEventListener("click", async () => {
   // פונקציה פנימית שעושה את מחיקת האמת
   const doDelete = async () => {
     try {
-      if (window.deleteDocForever && window.deleteDocForever !== deleteDocForever) {
-        await window.deleteDocForever(doc.id);
-      } else if (typeof deleteDocForever === "function") {
+      // שלא ילחצו פעמיים באמצע פעולה
+      deleteBtn.disabled = true;
+
+      // ✅ תמיד ננסה קודם את הפונקציה מה-main.js (העוטפת)
+      if (typeof deleteDocForever === "function") {
         await deleteDocForever(doc.id);
+      } else if (window.deleteDocForever) {
+        // fallback נדיר – אם משום מה הגרסה הגלובלית קיימת
+        await window.deleteDocForever(doc.id);
       } else {
         console.error("❌ deleteDocForever function not found");
         return;
       }
 
+      // ✅ להוריד את הכרטיס מהמסך מיד
+      if (typeof card !== "undefined" && card && card.parentNode) {
+        card.parentNode.removeChild(card);
+      }
+
+      // ✅ לרענן את מסך סל המחזור (ליתר ביטחון)
       if (typeof openRecycleView === "function") {
         openRecycleView();
       } else {
@@ -2844,6 +2855,8 @@ deleteBtn.addEventListener("click", async () => {
       if (typeof showNotification === "function") {
         showNotification("שגיאה במחיקת המסמך", true);
       }
+    } finally {
+      deleteBtn.disabled = false;
     }
   };
 
@@ -2853,7 +2866,7 @@ deleteBtn.addEventListener("click", async () => {
     showConfirm(
       "למחוק לצמיתות? אי אפשר לשחזר.",
       () => {
-        // כאן אין async, אבל זה בסדר לקרוא לפונקציה אסינכרונית בלי await
+        // אפשר לקרוא לפונקציה אסינכרונית בלי await – זה בסדר
         doDelete();
       }
     );
@@ -2862,6 +2875,7 @@ deleteBtn.addEventListener("click", async () => {
     await doDelete();
   }
 });
+
 
     actions.appendChild(restoreBtn);
     actions.appendChild(deleteBtn);
