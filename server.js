@@ -528,69 +528,53 @@ app.delete('/api/docs/:id', async (req, res) => {
 
     // טוענים את המסמך מה-DB
     const result = await pool.query(
-      `SELECT id, owner, shared_with, deleted_for,
-              trashed, deleted_at, deleted_by, last_modified, last_modified_by
+      `SELECT id, owner, shared_with, deleted_for
        FROM documents
        WHERE id = $1`,
       [id]
     );
 
     if (!result.rows.length) {
-      // אין רשומה במסד – מבחינתך זה כבר לא קיים
-      console.log(' Document not in backend, approving full deletion');
-      return res.json({
-        ok: true,
-        deletedForAll: true,
-        notInBackend: true
-      });
+      return res.status(404).json({ error: 'Document not found' });
     }
 
     const doc = result.rows[0];
 
-    const owner = (doc.owner || '').trim().toLowerCase();
-    const sharedWith = doc.shared_with || {};      // JSONB → אובייקט
-    const deletedFor = doc.deleted_for || {};      // JSONB → אובייקט
+    // JSONB מ-Postgres יכול להיות null / 0 / {} – ננקה
+    let owner = (doc.owner || '').trim().toLowerCase();
+
+    let sharedWith = {};
+    if (doc.shared_with && typeof doc.shared_with === 'object') {
+      sharedWith = doc.shared_with;
+    }
+
+    let deletedFor = {};
+    if (doc.deleted_for && typeof doc.deleted_for === 'object') {
+      deletedFor = doc.deleted_for;
+    }
 
     const isOwner = owner === userEmail;
     const isSharedWithUser = !!sharedWith[userEmail];
 
-    // אם המשתמש כבר לא קשור למסמך – מבחינתך זה כבר "מחוק"
+    // אם המשתמש בכלל לא קשור למסמך – אין לו מה למחוק בשרת
     if (!isOwner && !isSharedWithUser) {
-      console.log(' User not participant anymore, treating as client-only delete');
-      return res.json({
-        ok: true,
-        deletedForAll: false,
-        alreadyDetached: true
-      });
+      return res.status(403).json({ error: 'Not allowed' });
     }
 
-    // נעדכן deleted_for למשתמש הנוכחי
+    // מסמנים שלמשתמש הזה המסמך מחוק
     const newDeletedFor = { ...deletedFor, [userEmail]: true };
 
-    // 🧠 בדיקה: האם *כל* מי שקשור למסמך כבר מחק לצמיתות?
-const allUsers = [
-  owner,
-  ...Object.keys(sharedWith)
-].filter(Boolean); // מסנן null / undefined / ""
+    // כל המשתתפים במסמך (בעלים + שותפים)
+    const allUsers = [
+      owner,
+      ...Object.keys(sharedWith || {})
+    ].filter(Boolean);
 
-const allDeleted = allUsers.length > 0
-  && allUsers.every(email => newDeletedFor[email]);
+    // מי עדיין "פעיל" (לא מחק לצמיתות)?
+    const activeUsers = allUsers.filter(email => !newDeletedFor[email]);
 
-if (allDeleted) {
-  // ✅ כולם (בעלים + כל המשתתפים) מחקו → אפשר למחוק לגמרי מה-DB
-  await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
-  return res.json({
-    ok: true,
-    deletedForAll: true
-  });
-}
-
-    const activeParticipants = allUsers.filter(
-      email => !newDeletedFor[email]
-    );
-
-    // 🟥 אם *אף אחד* כבר לא פעיל → למחוק לגמרי מה-DB
-    if (activeParticipants.length === 0) {
+    // 🟢 אם אף אחד כבר לא פעיל → מוחקים לגמרי מה-DB
+    if (activeUsers.length === 0) {
       await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
       return res.json({
         ok: true,
@@ -598,61 +582,59 @@ if (allDeleted) {
       });
     }
 
-    // 🟢 אם את ה-OWNER
+    // 🟣 אם נשארו משתמשים פעילים – המסמך נשאר ברנדר,
+    // רק העדכון תלוי אם מי שמוחק הוא ה-OWNER או משתתף.
     if (isOwner) {
-      // הבעלים החדש = המשתמש הפעיל הראשון
-      const newOwnerEmail = activeParticipants[0];
+      // הבעלים מוחק לצמיתות, אבל יש עוד אנשים שלא מחקו → מעבירים בעלות
+      const newOwnerEmail = activeUsers[0]; // אחד מהמשתמשים שעוד לא מחק
 
-      // shared_with חדש:
+      // בונים shared_with חדש:
+      // - מורידים את הבעלים הישן (userEmail)
+      // - מורידים את ה-newOwner מהרשימה, כי עכשיו הוא owner
       const newSharedWith = { ...sharedWith };
-      delete newSharedWith[userEmail];     // לא לשים את הבעלים הקודם ב-shared
-      delete newSharedWith[newOwnerEmail]; // הבעלים החדש לא ב-shared
+      delete newSharedWith[userEmail];
+      delete newSharedWith[newOwnerEmail];
 
       await pool.query(
         `
         UPDATE documents
         SET owner = $1,
             shared_with = $2,
-            deleted_for = $3,
-            trashed = false,
-            deleted_at = NULL,
-            deleted_by = NULL,
-            last_modified = $4,
-            last_modified_by = $5
-        WHERE id = $6
+            deleted_for = $3
+        WHERE id = $4
         `,
-        [newOwnerEmail, newSharedWith, newDeletedFor, Date.now(), userEmailRaw, id]
+        [newOwnerEmail, newSharedWith, newDeletedFor, id]
       );
 
       return res.json({
         ok: true,
-        deletedForAll: false,
-        newOwner: newOwnerEmail
+        transferred: true,
+        newOwner: newOwnerEmail,
+        deletedForAll: false
+      });
+    } else {
+      // 🟠 המשתתף (לא בעלים) מוחק לעצמו בלבד
+      await pool.query(
+        `
+        UPDATE documents
+        SET deleted_for = $1
+        WHERE id = $2
+        `,
+        [newDeletedFor, id]
+      );
+
+      return res.json({
+        ok: true,
+        deletedFor: userEmail,
+        deletedForAll: false
       });
     }
-
-    // 🟠 אם את רק משתתפת (לא OWNER) שמוחקת לעצמה לצמיתות
-    await pool.query(
-      `
-      UPDATE documents
-      SET deleted_for = $1,
-          last_modified = $2,
-          last_modified_by = $3
-      WHERE id = $4
-      `,
-      [newDeletedFor, Date.now(), userEmailRaw, id]
-    );
-
-    return res.json({
-      ok: true,
-      deletedForAll: false,
-      owner
-    });
   } catch (err) {
     console.error('Error deleting document:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 
