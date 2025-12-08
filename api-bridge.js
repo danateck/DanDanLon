@@ -503,6 +503,9 @@ return { backendOk };
 
 // ⚙️ גשר לשרת – לא מוחק Firestore / לא נוגע ב-allDocsData
 // ⚙️ גשר לשרת – לא מוחק Firestore / לא נוגע ב-allDocsData
+// 🔧 תיקון api-bridge.js - deleteDocForever
+// החלף את הפונקציה הזו במלואה
+
 async function deleteDocForever(docId) {
   const me = getCurrentUser();
   if (!me) throw new Error("Not logged in");
@@ -510,6 +513,7 @@ async function deleteDocForever(docId) {
   let backendOk = false;
   let deletedForAll = false;
   let notInBackend = false;
+  let newOwner = null; // ✅ הוספנו!
 
   try {
     const headers = await getAuthHeaders();
@@ -541,13 +545,19 @@ async function deleteDocForever(docId) {
       console.warn("⚠️ Delete failed on backend:", text);
     }
 
-    // 🔹 הצלחה אמיתית מהשרת – יש גם deletedForAll
+    // 🔹 הצלחה אמיתית מהשרת – יש גם deletedForAll ו-newOwner
     else {
       backendOk = true;
       try {
         const data = await res.json().catch(() => null);
-        if (data && typeof data.deletedForAll === "boolean") {
-          deletedForAll = data.deletedForAll;
+        if (data) {
+          if (typeof data.deletedForAll === "boolean") {
+            deletedForAll = data.deletedForAll;
+          }
+          // ✅ שמור את newOwner אם קיים
+          if (data.newOwner) {
+            newOwner = data.newOwner;
+          }
         }
       } catch (e) {
         console.warn("⚠️ Could not parse delete response JSON:", e);
@@ -562,10 +572,11 @@ async function deleteDocForever(docId) {
     backendOk,
     deletedForAll,
     notInBackend,
+    newOwner, // ✅ הוספנו ללוג
   });
 
-  // שימי לב: לא מוחקים כאן Firestore / Storage / allDocsData
-  return { backendOk, deletedForAll, notInBackend };
+  // ✅ החזר גם את newOwner
+  return { backendOk, deletedForAll, notInBackend, newOwner };
 }
 
 
