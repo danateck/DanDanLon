@@ -547,10 +547,17 @@ app.delete('/api/docs/:id', async (req, res) => {
     const isOwner = owner === userEmail;
     const isSharedWithUser = !!sharedWith[userEmail];
 
-    // המשתמש בכלל קשור למסמך?
-    if (!isOwner && !isSharedWithUser) {
-      return res.status(403).json({ error: 'Not allowed' });
-    }
+    // אם המשתמש בכלל לא קשור למסמך – מבחינת השרת הכול כבר "מנותק"
+// נאשר מחיקה מקומית בלבד (בפרונט / Firestore)
+if (!isOwner && !isSharedWithUser) {
+  console.log(' User not participant anymore, treating as client-only delete');
+  return res.json({
+    ok: true,
+    deletedForAll: false,
+    alreadyDetached: true
+  });
+}
+
 
     // נתחיל מזה שתמיד נסמן שמבחינת המשתמש הזה – המסמך מחוק
     const newDeletedFor = { ...deletedFor, [userEmail]: true };
@@ -585,15 +592,19 @@ app.delete('/api/docs/:id', async (req, res) => {
 
       // 2. מעדכנים ב-DB:
       await pool.query(
-        `
-        UPDATE documents
-        SET owner = $1,
-            shared_with = $2,
-            deleted_for = $3
-        WHERE id = $4
-      `,
-        [newOwnerEmail, newSharedWith, newDeletedFor, id]
-      );
+  `
+  UPDATE documents
+  SET owner = $1,
+      shared_with = $2,
+      deleted_for = $3,
+      trashed = false,
+      deleted_at = NULL,
+      deleted_by = NULL
+  WHERE id = $4
+  `,
+  [newOwnerEmail, newSharedWith, newDeletedFor, id]
+);
+
 
       // 💡 תוצאה:
       // - אצלך: המסמך מסומן מחוק (deleted_for[userEmail] = true) → לא מופיע אצלך (לא ברגיל ולא בסל, תלוי איך את מסננת)
