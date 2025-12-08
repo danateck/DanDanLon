@@ -2824,41 +2824,44 @@ deleteBtn.innerHTML = `
 deleteBtn.addEventListener("click", async () => {
   // פונקציה פנימית שעושה את מחיקת האמת
   const doDelete = async () => {
-    try {
-      // שלא ילחצו פעמיים באמצע פעולה
-      deleteBtn.disabled = true;
+  try {
+    // שלא ילחצו פעמיים באמצע פעולה
+    deleteBtn.disabled = true;
 
-      // ✅ תמיד ננסה קודם את הפונקציה מה-main.js (העוטפת)
-      if (typeof deleteDocForever === "function") {
-        await deleteDocForever(doc.id);
-      } else if (window.deleteDocForever) {
-        // fallback נדיר – אם משום מה הגרסה הגלובלית קיימת
-        await window.deleteDocForever(doc.id);
-      } else {
-        console.error("❌ deleteDocForever function not found");
-        return;
-      }
-
-      // ✅ להוריד את הכרטיס מהמסך מיד
-      if (typeof card !== "undefined" && card && card.parentNode) {
-        card.parentNode.removeChild(card);
-      }
-
-      // ✅ לרענן את מסך סל המחזור (ליתר ביטחון)
-      if (typeof openRecycleView === "function") {
-        openRecycleView();
-      } else {
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error("❌ Delete forever failed:", err);
-      if (typeof showNotification === "function") {
-        showNotification("שגיאה במחיקת המסמך", true);
-      }
-    } finally {
-      deleteBtn.disabled = false;
+    // נוודא שיש את הפונקציה מה-api-bridge
+    if (typeof window.deleteDocForever !== "function") {
+      console.error("❌ window.deleteDocForever (api-bridge) not found");
+      return;
     }
-  };
+
+    // 🔹 קוראים ישירות לגשר (זה שמדבר עם השרת)
+    const backendRes = await window.deleteDocForever(doc.id);
+    console.log("✅ Backend delete result:", backendRes);
+
+    // מכאן אפשר להשתמש בנתונים שחוזרים אם תרצי:
+    // const { deletedForAll, notInBackend, newOwner } = backendRes || {};
+
+    // ✅ להוריד את הכרטיס מהמסך מיד
+    if (typeof card !== "undefined" && card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+
+    // ✅ לרענן את מסך סל המחזור (ימשוך שוב את הרשימה העדכנית)
+    if (typeof openRecycleView === "function") {
+      openRecycleView();
+    } else {
+      window.location.reload();
+    }
+  } catch (err) {
+    console.error("❌ Delete forever failed:", err);
+    if (typeof showNotification === "function") {
+      showNotification("שגיאה במחיקת המסמך", true);
+    }
+  } finally {
+    deleteBtn.disabled = false;
+  }
+};
+
 
   const confirmDelete = localStorage.getItem("confirmDelete") !== "false";
 
@@ -7028,6 +7031,8 @@ async function deleteDocForever(id) {
 
     // 🗄️ עדכון Firestore לפי תוצאת השרת
     if (isFirebaseAvailable()) {
+              const backendRes = await window.deleteDocForever(docId);
+
       try {
         const docRef = window.fs.doc(window.db, "documents", id);
         
@@ -7050,6 +7055,8 @@ async function deleteDocForever(id) {
             }
           }
         }
+
+
         // 2️⃣ העברת בעלות - עדכן את המסמך ב-Firestore
         else if (backendRes && backendRes.newOwner) {
           console.log(`🔄 Transferring ownership to ${backendRes.newOwner}`);
@@ -7076,7 +7083,7 @@ async function deleteDocForever(id) {
       }
     }
 
-    
+
 
 
     // 🧹 תמיד: להסיר מהתצוגה של המשתמש הנוכחי
@@ -10020,3 +10027,139 @@ window.recalculateStorage = async function() {
 // 3. או הוסף כפתור בעמוד המנויים (ראה למטה)
 
 console.log('✅ פונקציית חישוב מחדש נטענה - קרא לה עם: window.recalculateStorage()');
+
+
+
+
+
+async function deleteDocForeverClient(doc) {
+  const docId = doc.id;
+  const fileSize = doc.fileSize || 0;
+
+  let backendRes = null;
+
+  try {
+    // ⬅️ זו הפונקציה מה-api-bridge.js
+    backendRes = await window.deleteDocForever(docId);
+  } catch (err) {
+    console.warn("⚠️ Backend delete failed:", err);
+  }
+
+  const { deletedForAll, notInBackend, newOwner } = backendRes || {};
+
+  // 🔹 1. בצד שלך – להוריד מה-UI
+  if (Array.isArray(window.allDocsData)) {
+    window.allDocsData = window.allDocsData.filter(d => d.id !== docId);
+  }
+
+  // 🔹 2. אם יש Firestore – לטפל שם
+  if (window.db && window.fs) {
+    try {
+      const docRef = window.fs.doc(window.db, "documents", docId);
+
+      if (deletedForAll || notInBackend) {
+        // כולם מחקו → מוחקים את המסמך לגמרי מה-Firestore
+        await window.fs.deleteDoc(docRef);
+      } else if (newOwner) {
+        // רק הבעלים הקודם מחק → מעדכנים owner ב-Firestore
+        await window.fs.updateDoc(docRef, {
+          owner: newOwner,
+          lastModified: Date.now()
+        });
+      }
+    } catch (err) {
+      console.warn("⚠️ Firestore update failed:", err);
+    }
+  }
+
+  // 🔹 3. לרענן את ה-UI (רשימות/סל מחזור)
+  if (typeof window.renderDocuments === "function") {
+    window.renderDocuments();
+  }
+
+  // 🔹 4. עדכון אחסון
+  if (window.subscriptionManager && fileSize) {
+    try {
+      await window.subscriptionManager.updateStorageUsage(-fileSize);
+      await window.subscriptionManager.updateDocumentCount(-1);
+      if (typeof window.recalculateUserStorage === "function") {
+        await window.recalculateUserStorage();
+      }
+    } catch (e) {
+      console.warn("⚠️ בעיה בעדכון אחסון אחרי מחיקה:", e);
+    }
+  }
+}
+
+
+
+async function handleDeleteForever(doc) {
+  const docId = doc.id;
+  const fileSize = Number(doc.fileSize ?? doc.file_size ?? 0) || 0;
+
+  let backendRes = null;
+
+  try {
+    backendRes = await window.deleteDocForever(docId);
+  } catch (err) {
+    console.warn("⚠️ Backend delete failed:", err);
+  }
+
+  backendRes = backendRes || {};
+  const { deletedForAll, notInBackend, newOwner } = backendRes;
+
+  // 🔹 1. לעדכן Firestore (אם עובד אצלך)
+  if (window.db && window.fs) {
+    try {
+      const docRef = window.fs.doc(window.db, "documents", docId);
+
+      if (deletedForAll || notInBackend) {
+        // כולם מחקו → מחיקת המסמך מה-Firestore
+        await window.fs.deleteDoc(docRef);
+      } else if (newOwner) {
+        // הבעלים החדש → לוודא שלא נשאר כ-Trash
+        await window.fs.updateDoc(docRef, {
+          owner: newOwner,
+          _trashed: false,
+          deletedAt: null
+        });
+      } else {
+        // רק את מחקת → אפשר גם לא לגעת ב-Firestore בכלל
+      }
+    } catch (err) {
+      console.warn("⚠️ Firestore update failed:", err);
+    }
+  }
+
+  // 🔹 2. להסיר אצלך מה־UI (allDocsData)
+  if (Array.isArray(window.allDocsData)) {
+    const me = (typeof getCurrentUserEmail === "function")
+      ? getCurrentUserEmail().toLowerCase()
+      : null;
+
+    window.allDocsData = window.allDocsData.filter(d => {
+      if (!d || d.id !== docId) return true;
+      // אם את הבעלים/משתתפת – לא להציג לך
+      if (me && (d.owner?.toLowerCase() === me || d.sharedWith?.includes?.(me))) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  // 🔹 3. לרענן תצוגה
+  if (typeof window.renderDocuments === "function") {
+    window.renderDocuments();
+  }
+
+  // 🔹 4. לעדכן אחסון (כמות/גודל)
+  if (window.subscriptionManager && fileSize > 0) {
+    try {
+      await window.recalculateUserStorage?.();
+    } catch (e) {
+      console.warn("⚠️ בעיה בעדכון אחסון אחרי מחיקה:", e);
+    }
+  }
+}
+
+
