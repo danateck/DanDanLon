@@ -609,87 +609,95 @@ async setAbsoluteUsage(bytes, docsCount) {
   /**
    * רענון מהיר מ-Firestore (עם cache)
    */
-  async refreshUsageFromFirestore(forceRefresh = false) {
-    // אם יש cache תקף ולא מבקשים refresh - השתמש בו
-    if (!forceRefresh && this._usageCache && (Date.now() - this._cacheTimestamp) < this._cacheLifetime) {
-      console.log('📦 Using cached usage data');
-      return this._usageCache;
-    }
+async refreshUsageFromFirestore(forceRefresh = false) {
+  // אם יש cache תקף ולא מבקשים refresh - השתמש בו
+  if (
+    !forceRefresh &&
+    this._usageCache &&
+    (Date.now() - this._cacheTimestamp) < this._cacheLifetime
+  ) {
+    console.log('📦 Using cached usage data');
+    return this._usageCache;
+  }
 
-    if (!this.db || !this.fs || !this.userEmail) {
-      console.warn('⚠️ Cannot refresh: missing Firebase or userEmail');
-      return null;
-    }
+  if (!this.db || !this.fs || !this.userEmail) {
+    console.warn('⚠️ Cannot refresh: missing Firebase or userEmail');
+    return null;
+  }
 
-    try {
-      console.log('🔄 Refreshing usage from Firestore...');
-      const docsRef = this.fs.collection(this.db, "documents");
-      
-      // מסמכים שאני הבעלים שלהם (לא במחזור)
-      const myDocsQuery = this.fs.query(
-        docsRef,
-        this.fs.where("owner", "==", this.userEmail)
-      );
-      
-      const myDocsSnap = await this.fs.getDocs(myDocsQuery);
+  try {
+    console.log('🔄 Refreshing usage from Firestore...');
+    const docsRef = this.fs.collection(this.db, "documents");
 
-      let totalBytes = 0;
-      let totalDocs = 0;
+    // מסמכים שאני הבעלים שלהם
+    const ownedQuery = this.fs.query(
+      docsRef,
+      this.fs.where("owner", "==", this.userEmail)
+    );
 
-      myDocsSnap.forEach(doc => {
-        const data = doc.data() || {};
-        
-        // דלג על מסמכים במחזור
-        if (data._trashed || data.deletedAt || data.trashed) return;
-        
-        const size = Number(data.fileSize) || Number(data.size) || 0;
-        if (size > 0 && Number.isFinite(size)) {
-          totalBytes += size;
-        }
-        totalDocs++;
-      });
-      
-      // מסמכים ששותפו איתי (לא הבעלים, רק לספירה)
-        // מסמכים ששותפו איתי (לא הבעלים)
-  const sharedQuery = this.fs.query(
-    docsRef,
-    this.fs.where("sharedWith", "array-contains", this.userEmail)
-  );
-  const sharedSnap = await this.fs.getDocs(sharedQuery);
+    // מסמכים שמשותפים איתי
+    const sharedQuery = this.fs.query(
+      docsRef,
+      this.fs.where("sharedWith", "array-contains", this.userEmail)
+    );
 
-  sharedSnap.forEach(doc => {
-    const data = doc.data() || {};
+    const [ownedSnap, sharedSnap] = await Promise.all([
+      this.fs.getDocs(ownedQuery),
+      this.fs.getDocs(sharedQuery),
+    ]);
 
-    // דלג על מסמכים שנמצאים במחזור
-    if (data._trashed || data.deletedAt || data.trashed) return;
+    let totalBytes = 0;
+    let totalDocs = 0;
 
-    // ✅ עכשיו: גם סופרים אחסון *וגם* מסמכים
-    const size = Number(data.fileSize) || Number(data.size) || 0;
-    if (size > 0 && Number.isFinite(size)) {
-      totalBytes += size;
-    }
+    // 🛑 שלא נספור את אותו מסמך פעמיים (גם כבעלים וגם כמשותף)
+    const seenIds = new Set();
 
-    totalDocs++;
-  });
+    const handleDoc = (doc) => {
+      const id = doc.id;
+      if (seenIds.has(id)) return; // כבר נספר
+      seenIds.add(id);
 
+      const data = doc.data() || {};
 
-      // שמור ב-cache
-      this._usageCache = { bytes: totalBytes, documents: totalDocs };
-      this._cacheTimestamp = Date.now();
-      
-      // עדכן גם במנוי (בשביל תצוגה)
+      // דלג על מסמכים שנמצאים בסל מחזור / מחוקים
+      if (data._trashed || data.deletedAt || data.trashed) return;
+
+      const size =
+        Number(data.fileSize) ||
+        Number(data.size) ||
+        Number(data.file_size) ||
+        0;
+
+      if (size > 0 && Number.isFinite(size)) {
+        totalBytes += size;
+        totalDocs += 1;
+      }
+    };
+
+    ownedSnap.forEach(handleDoc);
+    sharedSnap.forEach(handleDoc);
+
+    // שמור ב-cache
+    this._usageCache = { bytes: totalBytes, documents: totalDocs };
+    this._cacheTimestamp = Date.now();
+
+    // עדכן גם במנוי (בשביל תצוגה)
+    if (this.userSubscription) {
       this.userSubscription.usedStorage = totalBytes;
       this.userSubscription.documentCount = totalDocs;
       await this.saveSubscription();
-      
-      console.log(`✅ Usage refreshed: ${this.formatBytes(totalBytes)} from ${totalDocs} documents`);
-      
-      return this._usageCache;
-    } catch (error) {
-      console.error('❌ Error refreshing usage:', error);
-      return null;
     }
+
+    console.log(
+      `✅ Usage refreshed: ${this.formatBytes(totalBytes)} from ${totalDocs} documents`
+    );
+
+    return this._usageCache;
+  } catch (error) {
+    console.error('❌ Error refreshing usage:', error);
+    return null;
   }
+}
 
   // 🔄 עדכון אחסון (מהיר - רק cache)
   async updateStorageUsage(changeInBytes) {
