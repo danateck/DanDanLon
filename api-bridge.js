@@ -291,7 +291,7 @@ setTimeout(() => {
   try {
     const bytes = Number(result.file_size) || file.size || 0;
     await window.subscriptionManager.updateStorageUsage(bytes);
-    await window.subscriptionManager.updateDocumentCount(1);
+    //await window.subscriptionManager.updateDocumentCount(1);
 
     if (typeof window.updateStorageWidget === "function") {
       window.updateStorageWidget();
@@ -492,8 +492,7 @@ return { backendOk };
 
 // ═══ 5. Delete Forever ═══
 
-// ⚙️ גשר לשרת – לא מוחק Firestore / לא נוגע ב-allDocsData
-// ⚙️ גשר לשרת – לא מוחק Firestore / לא נוגע ב-allDocsData
+// ═══ 5. Delete Forever ═══
 async function deleteDocForever(docId) {
   const me = getCurrentUser();
   if (!me) throw new Error("Not logged in");
@@ -501,11 +500,10 @@ async function deleteDocForever(docId) {
   let backendOk = false;
   let deletedForAll = false;
   let notInBackend = false;
-  let newOwner = null; // ✅ הוספתי!
+  let newOwner = null;
 
   try {
     const headers = await getAuthHeaders();
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -517,24 +515,14 @@ async function deleteDocForever(docId) {
 
     clearTimeout(timeoutId);
 
-    // 🔹 מקרה 404 – אין רשומה ב-Postgres
     if (res.status === 404) {
+      // אין רשומה בשרת – מתייחסים כאילו נמחק לכולם
       notInBackend = true;
-      const text = await res.text().catch(() => "");
-      console.warn(
-        "ℹ️ Doc not found in backend (likely old/local-only doc):",
-        text
-      );
-    }
-
-    // 🔹 כל שגיאה אחרת
-    else if (!res.ok) {
+      console.warn("ℹ️ Doc not found in backend");
+    } else if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.warn("⚠️ Delete failed on backend:", text);
-    }
-
-    // 🔹 הצלחה אמיתית מהשרת – יש גם deletedForAll ו-newOwner
-    else {
+    } else {
       backendOk = true;
       try {
         const data = await res.json().catch(() => null);
@@ -542,10 +530,9 @@ async function deleteDocForever(docId) {
           if (typeof data.deletedForAll === "boolean") {
             deletedForAll = data.deletedForAll;
           }
-          // ✅ שמור את newOwner אם קיים
           if (data.newOwner) {
-            newOwner = data.newOwner;
-            console.log("🔄 Server returned newOwner:", newOwner);
+            newOwner = (data.newOwner || "").toLowerCase().trim();
+            console.log(" Server returned newOwner:", newOwner);
           }
         }
       } catch (e) {
@@ -556,15 +543,66 @@ async function deleteDocForever(docId) {
     console.warn("⚠️ Delete request failed (network/CORS):", error);
   }
 
+  // 🔹 פה מתחיל החלק שלא היה לך – סנכרון Firestore + allDocsData 🔹
+  try {
+    if (window.db && window.fs) {
+      const docRef = window.fs.doc(window.db, "documents", docId);
+
+      if (deletedForAll || notInBackend) {
+        // ✅ נמחק לכולם → מוחקים את המסמך מ-Firestore
+        await window.fs.deleteDoc(docRef).catch(() => {});
+      } else {
+        // ✅ נשאר למשתתפים אחרים → מוציאים אותך מהמסמך, מעדכנים בעלות וכו'
+        const snap = await window.fs.getDoc(docRef).catch(() => null);
+
+        if (snap && snap.exists && snap.exists()) {
+          const data = snap.data() || {};
+          const shared = Array.isArray(data.sharedWith)
+            ? data.sharedWith
+            : [];
+
+          const myEmail = (me || "").toLowerCase().trim();
+          const cleanedShared = shared.filter(
+            (e) => (e || "").toLowerCase().trim() !== myEmail
+          );
+
+          const patch = {
+            sharedWith: cleanedShared,
+            _trashed: false,                 // אצלך הוא כבר לא בסל
+            lastModified: Date.now(),
+            lastModifiedBy: me,
+          };
+
+          // אם השרת העביר בעלות – נעדכן גם ב-Firestore
+          if (newOwner && newOwner !== myEmail) {
+            patch.owner = newOwner;
+          }
+
+          await window.fs
+            .updateDoc(docRef, patch)
+            .catch((err) =>
+              console.warn("⚠️ Firestore update after delete failed:", err)
+            );
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("⚠️ Firestore cleanup after delete failed:", err);
+  }
+
+  // 🔹 מנקים גם את הזיכרון המקומי של ה-UI
+  if (Array.isArray(window.allDocsData)) {
+    window.allDocsData = window.allDocsData.filter((d) => d.id !== docId);
+  }
+
   console.log("✅ deleteDocForever bridge finished", {
     docId,
     backendOk,
     deletedForAll,
     notInBackend,
-    newOwner, // ✅ הוספתי ללוג
+    newOwner,
   });
 
-  // ✅ החזר גם את newOwner
   return { backendOk, deletedForAll, notInBackend, newOwner };
 }
 
