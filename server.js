@@ -355,16 +355,17 @@ if (file.size > MAX_DB_FILE_SIZE) {
 // 3️⃣ GET /api/docs/:id/download - Download file (FIXED)
 app.get('/api/docs/:id/download', async (req, res) => {
   try {
-    const userEmail = getUserFromRequest(req);
-    if (!userEmail) {
+    const userEmailRaw = getUserFromRequest(req);
+    if (!userEmailRaw) {
       return res.status(401).json({ error: 'Unauthenticated' });
     }
 
+    const requestingUser = userEmailRaw.trim().toLowerCase();
     const { id } = req.params;
-    console.log('📥 Download request:', { id, user: userEmail });
+    console.log('📥 Download request:', { id, user: requestingUser });
 
     const result = await pool.query(`
-      SELECT file_data, file_name, mime_type, owner, shared_with
+      SELECT file_data, file_name, mime_type, owner, shared_with, deleted_for
       FROM documents
       WHERE id = $1
     `, [id]);
@@ -375,43 +376,121 @@ app.get('/api/docs/:id/download', async (req, res) => {
     }
 
     const doc = result.rows[0];
-    
-    // 🔑 Parse shared_with properly
-    let sharedWith = [];
-    if (doc.shared_with) {
-      if (typeof doc.shared_with === 'string') {
-        try { sharedWith = JSON.parse(doc.shared_with); } catch (e) { sharedWith = []; }
-      } else if (Array.isArray(doc.shared_with)) {
-        sharedWith = doc.shared_with;
+
+    // ---------- פירוש shared_with בצורה גמישה ----------
+    let sharedWithEmails = [];
+    const sw = doc.shared_with;
+
+    if (sw) {
+      if (Array.isArray(sw)) {
+        // במקרה נדיר שזה נשמר כמערך מיילים
+        sharedWithEmails = sw
+          .map(e => (e || '').toString().trim().toLowerCase())
+          .filter(Boolean);
+      } else if (typeof sw === 'object') {
+        // JSONB אובייקט: { "user1@mail": true, "user2@mail": true }
+        sharedWithEmails = Object.keys(sw)
+          .filter(k => sw[k])
+          .map(k => k.trim().toLowerCase());
+      } else if (typeof sw === 'string') {
+        // מחרוזת – ננסה לפרש כ-JSON
+        try {
+          const parsed = JSON.parse(sw);
+          if (Array.isArray(parsed)) {
+            sharedWithEmails = parsed
+              .map(e => (e || '').toString().trim().toLowerCase())
+              .filter(Boolean);
+          } else if (parsed && typeof parsed === 'object') {
+            sharedWithEmails = Object.keys(parsed)
+              .filter(k => parsed[k])
+              .map(k => k.trim().toLowerCase());
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not parse shared_with string JSON:', sw);
+        }
       }
     }
-    
-    // Normalize to lowercase
-    sharedWith = sharedWith.map(e => (e || '').toLowerCase());
-    const ownerEmail = (doc.owner || '').toLowerCase();
-    const requestingUser = userEmail.toLowerCase();
 
-    console.log('🔐 Access check:', { owner: ownerEmail, user: requestingUser, sharedWith });
-    
-    // Check access
-    if (ownerEmail !== requestingUser && !sharedWith.includes(requestingUser)) {
-      console.log('❌ Access denied for:', requestingUser);
+    // ---------- פירוש deleted_for ----------
+    let deletedFor = {};
+    const df = doc.deleted_for;
+    if (df) {
+      if (typeof df === 'object') {
+        deletedFor = df;
+      } else if (typeof df === 'string') {
+        try {
+          const parsedDf = JSON.parse(df);
+          if (parsedDf && typeof parsedDf === 'object') {
+            deletedFor = parsedDf;
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not parse deleted_for JSON string:', df);
+        }
+      }
+    }
+
+    // ננרמל גם את המפתחות ל-lowercase לבדיקה
+    const normalizedDeletedFor = {};
+    Object.keys(deletedFor || {}).forEach(k => {
+      const key = (k || '').toString().trim().toLowerCase();
+      if (key) normalizedDeletedFor[key] = !!deletedFor[k];
+    });
+
+    // אם המשתמש הזה מחק לעצמו לצמיתות → אין לו גישה
+    if (normalizedDeletedFor[requestingUser]) {
+      console.log('❌ Access denied (deleted_for) for:', requestingUser);
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    // ---------- קביעת רשימת המשתתפים במסמך ----------
+    let ownerEmail = (doc.owner || '').toString().trim().toLowerCase();
+
+    const participantsSet = new Set();
+
+    // נוסיף owner רק אם זה לא "0" ולא ריק
+    if (ownerEmail && ownerEmail !== '0') {
+      participantsSet.add(ownerEmail);
+    }
+
+    // נוסיף כל Shared
+    sharedWithEmails.forEach(email => {
+      if (email) participantsSet.add(email);
+    });
+
+    const participants = Array.from(participantsSet);
+
+    console.log('🔐 Access check:', {
+      owner: ownerEmail,
+      user: requestingUser,
+      sharedWith: sharedWithEmails,
+      participants,
+      deletedFor: normalizedDeletedFor
+    });
+
+    // אם המשתמש בכלל לא מופיע ברשימת המשתתפים → אין הרשאה
+    if (!participants.includes(requestingUser)) {
+      console.log('❌ Access denied (not participant):', requestingUser);
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // ---------- בדיקת קובץ ----------
     if (!doc.file_data) {
       return res.status(404).json({ error: 'No file data' });
     }
 
     console.log('✅ Sending file:', doc.file_name);
-    res.setHeader('Content-Type', doc.mime_type);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(doc.file_name)}"`);
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(doc.file_name || 'document')}"`
+    );
     res.send(doc.file_data);
   } catch (error) {
     console.error('❌ Download error:', error);
     res.status(500).json({ error: 'Download failed' });
   }
 });
+
 
 // 4️⃣ PUT /api/docs/:id - Update document
 app.put('/api/docs/:id', async (req, res) => {
@@ -514,8 +593,6 @@ app.put('/api/docs/:id/trash', async (req, res) => {
   }
 });
 
-// 6️⃣ DELETE /api/docs/:id - Delete permanently (respect shared users)
-// 6️⃣ DELETE /api/docs/:id - Delete permanently (respect shared users)
 app.delete('/api/docs/:id', async (req, res) => {
   try {
     const userEmailRaw = getUserFromRequest(req);
@@ -526,7 +603,7 @@ app.delete('/api/docs/:id', async (req, res) => {
     const userEmail = userEmailRaw.trim().toLowerCase();
     const { id } = req.params;
 
-    // טוענים את המסמך מה-DB
+    // נטען את המסמך מה-DB
     const result = await pool.query(
       `SELECT id, owner, shared_with, deleted_for
        FROM documents
@@ -540,101 +617,92 @@ app.delete('/api/docs/:id', async (req, res) => {
 
     const doc = result.rows[0];
 
-    // JSONB מ-Postgres יכול להיות null / 0 / {} – ננקה
-    let owner = (doc.owner || '').trim().toLowerCase();
-
+    // נבנה אובייקט shared_with "בריא"
     let sharedWith = {};
     if (doc.shared_with && typeof doc.shared_with === 'object') {
       sharedWith = doc.shared_with;
     }
 
-    let deletedFor = {};
-    if (doc.deleted_for && typeof doc.deleted_for === 'object') {
-      deletedFor = doc.deleted_for;
+    // deleted_for גם כברירת מחדל לאובייקט
+    const deletedFor = (doc.deleted_for && typeof doc.deleted_for === 'object')
+      ? doc.deleted_for
+      : {};
+
+    // ---- רשימת כל המשתתפים במסמך ----
+    const participantsSet = new Set();
+
+    // owner – רק אם זה מייל אמיתי (לא 0 / null)
+    if (doc.owner && typeof doc.owner === 'string' && doc.owner !== '0') {
+      participantsSet.add(doc.owner.trim().toLowerCase());
     }
 
-    const isOwner = owner === userEmail;
-    const isSharedWithUser = !!sharedWith[userEmail];
+    // כל המפתחות של shared_with
+    Object.keys(sharedWith).forEach(email => {
+      if (email) {
+        participantsSet.add(email.trim().toLowerCase());
+      }
+    });
 
-    // אם המשתמש בכלל לא קשור למסמך – אין לו מה למחוק בשרת
-    if (!isOwner && !isSharedWithUser) {
+    const participants = Array.from(participantsSet);
+
+    // אם המשתמש בכלל לא קשור למסמך – אין לו זכות למחוק
+    if (!participants.includes(userEmail)) {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
-    // מסמנים שלמשתמש הזה המסמך מחוק
+    // נסמן שהמשתמש הנוכחי מחק לצמיתות
     const newDeletedFor = { ...deletedFor, [userEmail]: true };
 
-    // כל המשתתפים במסמך (בעלים + שותפים)
-    const allUsers = [
-      owner,
-      ...Object.keys(sharedWith || {})
-    ].filter(Boolean);
+    // מי עדיין "חי" במסמך אחרי המחיקה הזאת? (לא מחוקים)
+    const remaining = participants.filter(email => !newDeletedFor[email]);
 
-    // מי עדיין "פעיל" (לא מחק לצמיתות)?
-    const activeUsers = allUsers.filter(email => !newDeletedFor[email]);
-
-    // 🟢 אם אף אחד כבר לא פעיל → מוחקים לגמרי מה-DB
-    if (activeUsers.length === 0) {
+    // ---- אם אף אחד לא נשאר → מוחקים לגמרי מה-DB (וגם מה-Storage אם תרצי) ----
+    if (remaining.length === 0) {
       await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
+
+      // אם יש לך storage_path ו- Firebase Storage, תקראי מפה לפונקציה שמוחקת את הקובץ הפיזי
+
       return res.json({
         ok: true,
-        deletedForAll: true
+        hardDeleted: true,
+        deletedForAll: true,
       });
     }
 
-    // 🟣 אם נשארו משתמשים פעילים – המסמך נשאר ברנדר,
-    // רק העדכון תלוי אם מי שמוחק הוא ה-OWNER או משתתף.
-    if (isOwner) {
-      // הבעלים מוחק לצמיתות, אבל יש עוד אנשים שלא מחקו → מעבירים בעלות
-      const newOwnerEmail = activeUsers[0]; // אחד מהמשתמשים שעוד לא מחק
+    // ---- יש עדיין משתמשים שלא מחקו: מסדרים בעלות חדשה ----
 
-      // בונים shared_with חדש:
-      // - מורידים את הבעלים הישן (userEmail)
-      // - מורידים את ה-newOwner מהרשימה, כי עכשיו הוא owner
-      const newSharedWith = { ...sharedWith };
-      delete newSharedWith[userEmail];
-      delete newSharedWith[newOwnerEmail];
+    // הבעלים החדש יהיה הראשון ברשימת remaining
+    const newOwnerEmail = remaining[0];
 
-      await pool.query(
-        `
-        UPDATE documents
-        SET owner = $1,
-            shared_with = $2,
-            deleted_for = $3
-        WHERE id = $4
-        `,
-        [newOwnerEmail, newSharedWith, newDeletedFor, id]
-      );
+    // כל השאר – נכנסים ל-shared_with
+    const newSharedWith = {};
+    remaining.slice(1).forEach(email => {
+      newSharedWith[email] = true;
+    });
 
-      return res.json({
-        ok: true,
-        transferred: true,
-        newOwner: newOwnerEmail,
-        deletedForAll: false
-      });
-    } else {
-      // 🟠 המשתתף (לא בעלים) מוחק לעצמו בלבד
-      await pool.query(
-        `
-        UPDATE documents
-        SET deleted_for = $1
-        WHERE id = $2
-        `,
-        [newDeletedFor, id]
-      );
+    await pool.query(
+      `
+      UPDATE documents
+      SET owner = $1,
+          shared_with = $2,
+          deleted_for = $3
+      WHERE id = $4
+      `,
+      [newOwnerEmail, newSharedWith, newDeletedFor, id]
+    );
 
-      return res.json({
-        ok: true,
-        deletedFor: userEmail,
-        deletedForAll: false
-      });
-    }
+    return res.json({
+      ok: true,
+      hardDeleted: false,
+      deletedForAll: false,
+      newOwner: newOwnerEmail,
+      deletedFor: userEmail,
+    });
   } catch (err) {
     console.error('Error deleting document:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
-
 
 
 
