@@ -650,22 +650,28 @@ async setAbsoluteUsage(bytes, docsCount) {
       });
       
       // מסמכים ששותפו איתי (לא הבעלים, רק לספירה)
-      const sharedQuery = this.fs.query(
-        docsRef,
-        this.fs.where("sharedWith", "array-contains", this.userEmail)
-      );
-      
-      const sharedSnap = await this.fs.getDocs(sharedQuery);
-      
-      sharedSnap.forEach(doc => {
-        const data = doc.data() || {};
-        
-        // דלג על מחזור
-        if (data._trashed || data.deletedAt || data.trashed) return;
-        
-        // ספירת מסמכים בלבד (לא אחסון)
-        totalDocs++;
-      });
+        // מסמכים ששותפו איתי (לא הבעלים)
+  const sharedQuery = this.fs.query(
+    docsRef,
+    this.fs.where("sharedWith", "array-contains", this.userEmail)
+  );
+  const sharedSnap = await this.fs.getDocs(sharedQuery);
+
+  sharedSnap.forEach(doc => {
+    const data = doc.data() || {};
+
+    // דלג על מסמכים שנמצאים במחזור
+    if (data._trashed || data.deletedAt || data.trashed) return;
+
+    // ✅ עכשיו: גם סופרים אחסון *וגם* מסמכים
+    const size = Number(data.fileSize) || Number(data.size) || 0;
+    if (size > 0 && Number.isFinite(size)) {
+      totalBytes += size;
+    }
+
+    totalDocs++;
+  });
+
 
       // שמור ב-cache
       this._usageCache = { bytes: totalBytes, documents: totalDocs };
