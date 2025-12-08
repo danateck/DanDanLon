@@ -7023,37 +7023,60 @@ async function deleteDocForever(id) {
       }
     }
 
-    // 🗄️ מחיקה מ-Firestore ו-Storage רק אם *כולם* מחקו (deletedForAll === true)
-        // 🗄️ מחיקה מ-Firestore / Storage:
-    //    1. אם כולם מחקו (deletedForAll)
-    //    2. או אם המסמך בכלל לא קיים ב-Backend (forceFullDelete)
-    if (deletedForAll || forceFullDelete) {
-      console.log("🧨 Removing from Firestore/Storage (deletedForAll or notInBackend)");
+    
+    // 🔧 תיקון deleteDocForever - מחליף את השורות 7026-7056
 
-      // Firestore
-      if (isFirebaseAvailable()) {
-        try {
-          const docRef = window.fs.doc(window.db, "documents", id);
+    // 🗄️ עדכון Firestore לפי תוצאת השרת
+    if (isFirebaseAvailable()) {
+      try {
+        const docRef = window.fs.doc(window.db, "documents", id);
+        
+        // 1️⃣ מחיקה מלאה
+        if (deletedForAll || forceFullDelete) {
+          console.log("🧨 Removing from Firestore/Storage (deletedForAll or notInBackend)");
+          
+          // מחיקת המסמך מ-Firestore
           await window.fs.deleteDoc(docRef);
           console.log("✅ Document deleted from Firestore:", id);
-        } catch (err) {
-          console.warn("⚠️ Firestore delete failed:", err);
+          
+          // מחיקת הקובץ מ-Storage (אם יש)
+          if (doc.downloadURL && window.storage) {
+            try {
+              const storageRef = window.fs.ref(window.storage, doc.downloadURL);
+              await window.fs.deleteObject(storageRef);
+              console.log("✅ File deleted from Storage");
+            } catch (storageError) {
+              console.warn("⚠️ Could not delete from Storage:", storageError.message);
+            }
+          }
         }
-      }
-
-      // Storage (אם יש קובץ)
-      if (doc.downloadURL && window.storage) {
-        try {
-          const storageRef = window.fs.ref(window.storage, doc.downloadURL);
-          await window.fs.deleteObject(storageRef);
-          console.log("✅ File deleted from Storage");
-        } catch (storageError) {
-          console.warn("⚠️ Could not delete from Storage:", storageError.message);
+        // 2️⃣ העברת בעלות - עדכן את המסמך ב-Firestore
+        else if (backendRes && backendRes.newOwner) {
+          console.log(`🔄 Transferring ownership to ${backendRes.newOwner}`);
+          
+          // עדכן את המסמך עם הבעלים החדש
+          await window.fs.updateDoc(docRef, {
+            owner: backendRes.newOwner,
+            // ✅ ווודא שהמסמך לא מסומן כ-trashed
+            _trashed: false,
+            trashed: false,
+            deletedAt: null,
+            deletedBy: null
+          });
+          
+          console.log(`✅ Ownership transferred to ${backendRes.newOwner} in Firestore`);
         }
+        // 3️⃣ אחרת - רק עדכון שהמשתמש הנוכחי מחק
+        else {
+          console.log("ℹ️ Partial delete - document still active for other users");
+        }
+        
+      } catch (err) {
+        console.warn("⚠️ Firestore update failed:", err);
       }
-    } else {
-      console.log("ℹ️ Skipping Firestore/Storage delete – עדיין יש משתתפים פעילים ב-Backend");
     }
+
+    
 
 
     // 🧹 תמיד: להסיר מהתצוגה של המשתמש הנוכחי

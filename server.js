@@ -273,6 +273,21 @@ app.post('/api/docs', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    // 🔴 מגבלה ריאלית ל-DB (לא למנוי!) – כדי שלא יפיל את Postgres
+const MAX_DB_FILE_SIZE = 20 * 1024 * 1024; // 20MB לדוגמה
+
+if (file.size > MAX_DB_FILE_SIZE) {
+  console.warn(
+    `⚠️ File too big for DB: ${file.size} bytes (limit ${MAX_DB_FILE_SIZE})`
+  );
+  return res.status(413).json({
+    error: 'file_too_large_for_db',
+    message: 'הקובץ גדול מדי כדי להישמר במסד הנתונים בשרת הנוכחי'
+  });
+}
+
+
+
     console.log('📤 Upload from:', userEmail);
     console.log('📄 File:', file.originalname, file.size, 'bytes');
 
