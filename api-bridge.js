@@ -632,6 +632,15 @@ async function downloadDocument(docId, fileName) {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.error(`❌ Download failed ${res.status}:`, text);
+
+      // 🟣 שינוי: אם זה 401/403 – זורקים שגיאה מיוחדת כדי ש-viewDocument ידע שזה עניין של הרשאות
+      if (res.status === 401 || res.status === 403) {
+        const err = new Error("NO_PERMISSION");
+        err.code = res.status;
+        err.rawBody = text;
+        throw err;
+      }
+
       throw new Error("Download failed");
     }
 
@@ -707,6 +716,7 @@ async function downloadDocument(docId, fileName) {
     throw error;
   }
 }
+
 
 // ═══ Expose Globally ═══
 

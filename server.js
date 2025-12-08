@@ -567,11 +567,23 @@ app.delete('/api/docs/:id', async (req, res) => {
     // נעדכן deleted_for למשתמש הנוכחי
     const newDeletedFor = { ...deletedFor, [userEmail]: true };
 
-    // כל המשתתפים האפשריים (בעלים + shared_with keys)
-    const allUsers = [
-      owner,
-      ...Object.keys(sharedWith)
-    ].filter(Boolean);
+    // 🧠 בדיקה: האם *כל* מי שקשור למסמך כבר מחק לצמיתות?
+const allUsers = [
+  owner,
+  ...Object.keys(sharedWith)
+].filter(Boolean); // מסנן null / undefined / ""
+
+const allDeleted = allUsers.length > 0
+  && allUsers.every(email => newDeletedFor[email]);
+
+if (allDeleted) {
+  // ✅ כולם (בעלים + כל המשתתפים) מחקו → אפשר למחוק לגמרי מה-DB
+  await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
+  return res.json({
+    ok: true,
+    deletedForAll: true
+  });
+}
 
     const activeParticipants = allUsers.filter(
       email => !newDeletedFor[email]

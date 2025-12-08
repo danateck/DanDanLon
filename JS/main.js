@@ -7220,11 +7220,30 @@ async function viewDocument(doc) {
         );
         if (typeof hideLoading === "function") hideLoading();
         if (typeof showNotification === "function") {
-          showNotification("הקובץ הורד בהצלחה! ✅");
+          showNotification("הקובץ נפתח בהצלחה! ✅");
         }
         return;
       } catch (apiError) {
-        console.warn("⚠️ API failed, trying direct URL:", apiError);
+        console.warn("⚠️ API download failed:", apiError);
+
+        // 🟣 חדש: אם מדובר בבעיה של הרשאות – לא מנסים direct URL ולא פותחים {"Unauthenticated"}
+        if (
+          apiError &&
+          (apiError.message === "NO_PERMISSION" ||
+            apiError.code === 401 ||
+            apiError.code === 403)
+        ) {
+          if (typeof hideLoading === "function") hideLoading();
+          if (typeof showNotification === "function") {
+            showNotification("אין לך הרשאה לפתוח את המסמך הזה 🚫", true);
+          } else {
+            alert("אין לך הרשאה לפתוח את המסמך הזה");
+          }
+          return;
+        }
+
+        // אם זו לא שגיאת הרשאות – נמשיך לנסות direct URL כמו קודם
+        console.warn("⚠️ API failed, trying direct URL as fallback:", apiError);
       }
     }
     
@@ -7242,13 +7261,18 @@ async function viewDocument(doc) {
     }
     
     if (typeof hideLoading === "function") hideLoading();
-    showNotification("הקובץ לא זמין להורדה", true);
+    if (typeof showNotification === "function") {
+      showNotification("הקובץ לא זמין להורדה", true);
+    }
   } catch (error) {
     console.error("❌ Download error:", error);
     if (typeof hideLoading === "function") hideLoading();
-    showNotification("שגיאה בהורדת הקובץ", true);
+    if (typeof showNotification === "function") {
+      showNotification("שגיאה בהורדת הקובץ", true);
+    }
   }
 }
+
 // ═══ תיקון 4: הורדת קובץ ═══
 async function downloadDocument(doc) {
   console.log("📥 Downloading:", doc.title);
