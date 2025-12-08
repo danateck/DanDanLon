@@ -599,7 +599,6 @@ app.delete('/api/docs/:id', async (req, res) => {
     if (!userEmailRaw) {
       return res.status(401).json({ error: 'Unauthenticated' });
     }
-
     const userEmail = userEmailRaw.trim().toLowerCase();
     const { id } = req.params;
 
@@ -617,29 +616,77 @@ app.delete('/api/docs/:id', async (req, res) => {
 
     const doc = result.rows[0];
 
-    // נבנה אובייקט shared_with "בריא"
-    let sharedWith = {};
-    if (doc.shared_with && typeof doc.shared_with === 'object') {
-      sharedWith = doc.shared_with;
+    // ---------- פירוש shared_with בצורה נכונה ----------
+    let sharedWithEmails = [];
+    const sw = doc.shared_with;
+
+    if (sw) {
+      if (Array.isArray(sw)) {
+        // JSONB שנשמר כמערך ['a@mail', 'b@mail']
+        sharedWithEmails = sw
+          .map(e => (e || '').toString().trim().toLowerCase())
+          .filter(e => e && e.includes('@'));
+      } else if (typeof sw === 'object') {
+        // JSONB שנשמר כאובייקט { "a@mail": true, "b@mail": true }
+        sharedWithEmails = Object.keys(sw)
+          .filter(k => sw[k])
+          .map(k => k.trim().toLowerCase())
+          .filter(e => e && e.includes('@'));
+      } else if (typeof sw === 'string') {
+        // במקרה שנשמר כמחרוזת JSON
+        try {
+          const parsed = JSON.parse(sw);
+          if (Array.isArray(parsed)) {
+            sharedWithEmails = parsed
+              .map(e => (e || '').toString().trim().toLowerCase())
+              .filter(e => e && e.includes('@'));
+          } else if (parsed && typeof parsed === 'object') {
+            sharedWithEmails = Object.keys(parsed)
+              .filter(k => parsed[k])
+              .map(k => k.trim().toLowerCase())
+              .filter(e => e && e.includes('@'));
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not parse shared_with string JSON:', sw);
+        }
+      }
     }
 
-    // deleted_for גם כברירת מחדל לאובייקט
-    const deletedFor = (doc.deleted_for && typeof doc.deleted_for === 'object')
-      ? doc.deleted_for
-      : {};
+    // ---------- פירוש deleted_for ----------
+    let deletedFor = {};
+    const df = doc.deleted_for;
+    if (df) {
+      if (typeof df === 'object') {
+        deletedFor = df;
+      } else if (typeof df === 'string') {
+        try {
+          const parsedDf = JSON.parse(df);
+          if (parsedDf && typeof parsedDf === 'object') {
+            deletedFor = parsedDf;
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not parse deleted_for JSON string:', df);
+        }
+      }
+    }
+    if (!deletedFor || typeof deletedFor !== 'object') {
+      deletedFor = {};
+    }
 
-    // ---- רשימת כל המשתתפים במסמך ----
+    // ---------- רשימת כל המשתתפים במסמך ----------
+    let ownerEmail = (doc.owner || '').toString().trim().toLowerCase();
+
     const participantsSet = new Set();
 
-    // owner – רק אם זה מייל אמיתי (לא 0 / null)
-    if (doc.owner && typeof doc.owner === 'string' && doc.owner !== '0') {
-      participantsSet.add(doc.owner.trim().toLowerCase());
+    // נוסיף owner רק אם זה מייל אמיתי
+    if (ownerEmail && ownerEmail !== '0' && ownerEmail.includes('@')) {
+      participantsSet.add(ownerEmail);
     }
 
-    // כל המפתחות של shared_with
-    Object.keys(sharedWith).forEach(email => {
-      if (email) {
-        participantsSet.add(email.trim().toLowerCase());
+    // נוסיף את כל המיילים התקינים מתוך shared_with
+    sharedWithEmails.forEach(email => {
+      if (email && email.includes('@')) {
+        participantsSet.add(email);
       }
     });
 
@@ -651,17 +698,15 @@ app.delete('/api/docs/:id', async (req, res) => {
     }
 
     // נסמן שהמשתמש הנוכחי מחק לצמיתות
-    const newDeletedFor = { ...deletedFor, [userEmail]: true };
+    const newDeletedFor = { ...deletedFor };
+    newDeletedFor[userEmail] = true;
 
     // מי עדיין "חי" במסמך אחרי המחיקה הזאת? (לא מחוקים)
     const remaining = participants.filter(email => !newDeletedFor[email]);
 
-    // ---- אם אף אחד לא נשאר → מוחקים לגמרי מה-DB (וגם מה-Storage אם תרצי) ----
+    // ---------- אם אף אחד לא נשאר → מוחקים לגמרי ----------
     if (remaining.length === 0) {
       await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
-
-      // אם יש לך storage_path ו- Firebase Storage, תקראי מפה לפונקציה שמוחקת את הקובץ הפיזי
-
       return res.json({
         ok: true,
         hardDeleted: true,
@@ -669,12 +714,9 @@ app.delete('/api/docs/:id', async (req, res) => {
       });
     }
 
-    // ---- יש עדיין משתמשים שלא מחקו: מסדרים בעלות חדשה ----
+    // ---------- יש עדיין משתמשים: קובעים בעלות חדשה ----------
+    const newOwnerEmail = remaining[0]; // תמיד מייל אמיתי (עבר דרך includes('@'))
 
-    // הבעלים החדש יהיה הראשון ברשימת remaining
-    const newOwnerEmail = remaining[0];
-
-    // כל השאר – נכנסים ל-shared_with
     const newSharedWith = {};
     remaining.slice(1).forEach(email => {
       newSharedWith[email] = true;
