@@ -2823,7 +2823,7 @@ deleteBtn.innerHTML = `
 
 deleteBtn.addEventListener("click", async () => {
   // פונקציה פנימית שעושה את מחיקת האמת
-  const doDelete = async () => {
+const doDelete = async () => {
   try {
     // שלא ילחצו פעמיים באמצע פעולה
     deleteBtn.disabled = true;
@@ -2834,19 +2834,81 @@ deleteBtn.addEventListener("click", async () => {
       return;
     }
 
-    // 🔹 קוראים ישירות לגשר (זה שמדבר עם השרת)
+    // 🔹 קוראים לגשר שמדבר עם השרת
     const backendRes = await window.deleteDocForever(doc.id);
-    console.log("✅ Backend delete result:", backendRes);
+    console.log("✅ Backend delete result:", backendRes || {});
+    const { deletedForAll, notInBackend, newOwner } = backendRes || {};
 
-    // מכאן אפשר להשתמש בנתונים שחוזרים אם תרצי:
-    // const { deletedForAll, notInBackend, newOwner } = backendRes || {};
+    // 🔹 1. תמיד – להסיר את המסמך מה-UI אצלך (גם מרשימות וגם מסל)
+    if (Array.isArray(window.allDocsData)) {
+      window.allDocsData = window.allDocsData.filter(d => d.id !== doc.id);
+    }
 
-    // ✅ להוריד את הכרטיס מהמסך מיד
+    // 🔹 2. Firestore – לסנכרן מצב
+    if (window.db && window.fs) {
+      try {
+        const docRef = window.fs.doc(window.db, "documents", doc.id);
+
+        // אם המסמך נמחק לכולם / לא קיים ב-Backend → נמחק גם ב-Firestore
+        if (deletedForAll || notInBackend) {
+          await window.fs.deleteDoc(docRef);
+        } else if (newOwner) {
+          // אם הבעלות עברה למישהו אחר:
+          const me =
+            (typeof getCurrentUserEmail === "function"
+              ? getCurrentUserEmail()
+              : window.auth?.currentUser?.email) || null;
+
+          const fsUpdate = {
+            owner: newOwner,
+            _trashed: false,
+            lastModified: Date.now(),
+          };
+
+          // להוציא אותך מ-sharedWith אם יש תמיכה ב-arrayRemove
+          if (me && typeof window.fs.arrayRemove === "function") {
+            fsUpdate.sharedWith = window.fs.arrayRemove(me.toLowerCase());
+          }
+
+          await window.fs.updateDoc(docRef, fsUpdate);
+        }
+      } catch (err) {
+        console.warn("⚠️ Firestore update failed after deleteForever:", err);
+      }
+    }
+
+    // 🔹 3. עדכון אחסון – לפחות לאפס את התצוגה מהצד שלך
+    if (window.subscriptionManager && doc.fileSize) {
+      try {
+        const bytes = Number(doc.fileSize) || 0;
+
+        // כשכולם מחקו → להוריד מהאחסון / מסמכים
+        if (deletedForAll || notInBackend) {
+          await window.subscriptionManager.updateStorageUsage(-bytes);
+          await window.subscriptionManager.updateDocumentCount(-1);
+        } else {
+          // רק את מחקת לצמיתות → מבחינת החשבון שלך הוא כבר לא נספר
+          await window.subscriptionManager.updateStorageUsage(-bytes);
+          await window.subscriptionManager.updateDocumentCount(-1);
+        }
+
+        if (typeof window.updateStorageWidget === "function") {
+          window.updateStorageWidget();
+        }
+        if (typeof window.updateStorageUsageWidget === "function") {
+          window.updateStorageUsageWidget();
+        }
+      } catch (e) {
+        console.warn("⚠️ בעיה בעדכון אחסון אחרי מחיקה לצמיתות:", e);
+      }
+    }
+
+    // ✅ להוריד את הכרטיס מהמסך מיד (למקרה שעדיין קיים)
     if (typeof card !== "undefined" && card && card.parentNode) {
       card.parentNode.removeChild(card);
     }
 
-    // ✅ לרענן את מסך סל המחזור (ימשוך שוב את הרשימה העדכנית)
+    // ✅ לרענן את מסך סל המחזור – עכשיו הוא כבר לא ברשימה
     if (typeof openRecycleView === "function") {
       openRecycleView();
     } else {
@@ -2861,6 +2923,7 @@ deleteBtn.addEventListener("click", async () => {
     deleteBtn.disabled = false;
   }
 };
+
 
 
   const confirmDelete = localStorage.getItem("confirmDelete") !== "false";

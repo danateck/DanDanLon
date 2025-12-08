@@ -265,15 +265,13 @@ async function uploadDocument(file, metadata = {}) {
       );
     }
     
-    // Update local cache
+// Update local cache
 if (Array.isArray(window.allDocsData)) {
   window.allDocsData.push(doc);
 }
 
-
-if (typeof window.recalculateUserStorage === "function") {
-  window.recalculateUserStorage();
-}
+// ❌ אל תעשי כאן recalculateUserStorage בהעלאה
+// נסמוך על העדכון דרך subscriptionManager + ריענון מסך אחר כך
 
 
 
