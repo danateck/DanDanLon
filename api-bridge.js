@@ -792,6 +792,7 @@ function updateStorageUsageWidget() {
   const barFill   = document.getElementById("storageUsageBarFill");
   const textEl    = document.getElementById("storageUsageText");
   const percentEl = document.getElementById("storageUsagePercent");
+  const docsEl    = document.getElementById("storageDocsText"); // 🆕 שורה חדשה למסמכים
 
   if (!barFill || !textEl || !percentEl) {
     console.log("⚠️ Old storage widget not found (probably using new subscription system)");
@@ -803,11 +804,13 @@ function updateStorageUsageWidget() {
   
   // 🔧 קבלת מכסת אחסון מה-subscriptionManager אם קיים
   let TOTAL_BYTES = 200 * MB; // ברירת מחדל: 200MB (תוכנית Free)
-  
+  let maxDocs = null;         // 🆕 מגבלת מסמכים (אם קיימת)
+
   if (window.subscriptionManager) {
     try {
       const plan = window.subscriptionManager.getCurrentPlan();
-      TOTAL_BYTES = plan.storage; // בבייטים
+      TOTAL_BYTES = plan.storage;      // בבייטים
+      maxDocs = plan.maxDocuments;     // מגבלת מסמכים (יכול להיות Infinity)
       console.log(`💎 Using storage limit from ${plan.nameHe}: ${(TOTAL_BYTES / MB).toFixed(0)}MB`);
     } catch (error) {
       console.warn('⚠️ Could not get plan from subscriptionManager:', error);
@@ -827,6 +830,7 @@ function updateStorageUsageWidget() {
     barFill.style.setProperty('width', '0%', 'important');
     percentEl.textContent = "0%";
     textEl.textContent    = `אחסון פנוי: ${TOTAL_GB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
+    if (docsEl) docsEl.textContent = `0 מסמכים`;
     console.log("💾 Storage widget: no user");
     return;
   }
@@ -866,6 +870,7 @@ function updateStorageUsageWidget() {
       ? `${usedMB.toFixed(1)}MB`
       : `${usedGB.toFixed(2)}GB`;
     textEl.textContent = `אחסון: ${usedDisplay} (ללא הגבלה ∞)`;
+    if (docsEl) docsEl.textContent = `${myDocs.length} מסמכים`;
     console.log("💎 Storage widget: Unlimited (Premium+)");
     return;
   }
@@ -874,37 +879,52 @@ function updateStorageUsageWidget() {
   if (!Number.isFinite(usedPct) || usedPct < 0) usedPct = 0;
   if (usedPct > 100) usedPct = 100;
 
-// במקום ה-textValue הקיים
-let textValue;
-if (TOTAL_GB < 1) {
-  const usedMB  = usedBytes / MB;
-  const totalMB = TOTAL_BYTES / MB;
-  textValue = `בשימוש: ${usedMB.toFixed(1)}MB מתוך ${totalMB.toFixed(0)}MB`;
-} else {
-  textValue = `בשימוש: ${usedGB.toFixed(2)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
-}
+  // 💾 הטקסט של האחסון – בדיוק כמו שהיה
+  let textValue;
+  if (TOTAL_GB < 1) {
+    const usedMB  = usedBytes / MB;
+    const totalMB = TOTAL_BYTES / MB;
+    textValue = `בשימוש: ${usedMB.toFixed(1)}MB מתוך ${totalMB.toFixed(0)}MB`;
+  } else {
+    textValue = `בשימוש: ${usedGB.toFixed(2)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
+  }
+
+  // 🆕 חישוב טקסט למסמכים
+  let docsCount = myDocs.length;
+  // אם יש subscriptionManager עם documentCount – נעדיף אותו
+  if (window.subscriptionManager && window.subscriptionManager.userSubscription) {
+    const subDocs = Number(window.subscriptionManager.userSubscription.documentCount);
+    if (Number.isFinite(subDocs)) {
+      docsCount = subDocs;
+    }
+  }
+
+  let docsText;
+  if (typeof maxDocs === "number" && maxDocs !== Infinity) {
+    docsText = `${docsCount}/${maxDocs} מסמכים`;
+  } else {
+    docsText = `${docsCount} מסמכים`;
+  }
 
   // 🔧 הגדרה מאולצת - מוודא שזה יעבוד!
-  const widthValue = usedPct.toFixed(1) + "%";
+  const widthValue   = usedPct.toFixed(1) + "%";
   const percentValue = Math.round(usedPct) + "%";
   
-  // נסיון 1: setProperty עם important
   barFill.style.setProperty('width', widthValue, 'important');
-  
-  // נסיון 2: ישירות על ה-attribute
   barFill.setAttribute('style', `width: ${widthValue} !important`);
-  
-  // נסיון 3: שמירה ב-dataset כגיבוי
   barFill.dataset.width = widthValue;
   
-  // עדכון הטקסטים
-  percentEl.textContent = percentValue;
+  percentEl.textContent   = percentValue;
   percentEl.dataset.value = percentValue;
   
-  textEl.textContent = textValue;
-  textEl.dataset.text = textValue;
+  textEl.textContent   = textValue;
+  textEl.dataset.text  = textValue;
+
+  if (docsEl) {
+    docsEl.textContent   = docsText;
+    docsEl.dataset.text  = docsText;
+  }
   
-  // 🔧 כיפוף - נאלץ את הדפדפן לרענן
   void barFill.offsetHeight; // Trigger reflow
   barFill.style.display = 'block';
 
@@ -914,17 +934,13 @@ if (TOTAL_GB < 1) {
     usedBytes,
     usedGB: usedGB.toFixed(3),
     usedPct: usedPct.toFixed(2),
-    // ערכים שנקבעו
     setWidth: widthValue,
     setPercent: percentValue,
     setText: textValue,
-    // בדיקה שזה באמת עבד
-    actualStyleWidth: barFill.style.width,
-    actualAttrStyle: barFill.getAttribute('style'),
-    actualPercent: percentEl.textContent,
-    actualText: textEl.textContent
+    docsText
   });
 }
+
 
 // שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
 window.updateStorageUsageWidget = updateStorageUsageWidget;
