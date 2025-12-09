@@ -286,12 +286,14 @@ setTimeout(() => {
 }, 200);
 
 
-// 🔄 עדכון משתמש – אחסון + מסמכים
-    if (window.subscriptionManager) {
+// עדכון שימוש באחסון אחרי העלאה
+if (window.subscriptionManager) {
   try {
-    const bytes = Number(result.file_size) || file.size || 0;
-    await window.subscriptionManager.updateStorageUsage(bytes);
-    //await window.subscriptionManager.updateDocumentCount(1);
+    // ❗ לא עושים פה updateStorageUsage / updateDocumentCount ידנית
+    // משתמשים רק בחישוב מחדש מה-Firestore
+    if (typeof window.subscriptionManager.refreshUsageFromFirestore === "function") {
+      await window.subscriptionManager.refreshUsageFromFirestore(true);
+    }
 
     if (typeof window.updateStorageWidget === "function") {
       window.updateStorageWidget();
@@ -299,11 +301,11 @@ setTimeout(() => {
     if (typeof window.updateStorageUsageWidget === "function") {
       window.updateStorageUsageWidget();
     }
-    // ❌ אל תקראי פה ל-recalculateUserStorage
   } catch (e) {
-    console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
+    console.warn("⚠️ לא הצלחתי לרענן שימוש באחסון אחרי העלאה:", e);
   }
 }
+
 
     return doc;
 
