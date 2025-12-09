@@ -8484,6 +8484,58 @@ async function shareProfile(profileId) {
   }
 
 
+    // 🔒 מגבלה גלובלית: כמה אנשים מותר לשתף איתם פרופילים בכלל (כל הפרופילים ביחד)
+  if (window.subscriptionManager && window.fs && window.db) {
+    try {
+      const plan = window.subscriptionManager.getCurrentPlan();
+
+      // ננסה לקחת מגבלה גלובלית מהתוכנית, ואם אין – למנוי שחוסם ל־1 בפרופיל נאכוף 1 בכלל
+      let globalLimit = plan.maxProfileInvitesTotal ?? Infinity;
+      const perProfileLimit = plan.maxProfileInvitesPerProfile ?? Infinity;
+      if (!Number.isFinite(globalLimit) && perProfileLimit === 1) {
+        // חינמי: מותר לשתף רק אדם אחד בכללי
+        globalLimit = 1;
+      }
+
+      if (Number.isFinite(globalLimit)) {
+        const colAll = window.fs.collection(window.db, "profileInvites");
+        const qAll = window.fs.query(
+          colAll,
+          window.fs.where("profileOwner", "==", me)
+        );
+
+        const snapAll = await window.fs.getDocs(qAll);
+
+        const existingGlobal = new Set();
+        snapAll.docs.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          if (data.status === "rejected") return;   // לא סופרים מסורבים
+          if (!data.to) return;
+          existingGlobal.add(String(data.to).trim().toLowerCase());
+        });
+
+        const alreadySharedGlobal = existingGlobal.has(toEmail);
+
+        // אם זה מייל חדש, וכבר יש לי X מיילים ששיתפתי אותם – נחסום
+        if (!alreadySharedGlobal && existingGlobal.size >= globalLimit) {
+          const limitText = globalLimit === 1
+            ? "אדם אחד בסך הכל."
+            : `${globalLimit} אנשים בסך הכל.`;
+
+          alert(
+            `⚠️ הגעת למספר המקסימלי של אנשים שאפשר לשתף איתם פרופילים בתוכנית ${plan.nameHe}.\n\n` +
+            `בתוכנית הנוכחית אפשר לשתף פרופילים עם ${limitText}`
+          );
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("⚠️ שגיאה בבדיקת מגבלת שיתוף פרופילים גלובלית:", e);
+    }
+  }
+
+  
+
   try {
     // 1️⃣ יצירת בקשה ב-Firestore
     const col = window.fs.collection(window.db, "profileInvites");
