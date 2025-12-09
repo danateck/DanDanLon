@@ -700,36 +700,36 @@ async refreshUsageFromFirestore(forceRefresh = false) {
 }
 
   // 🔄 עדכון אחסון (מהיר - רק cache)
-  async updateStorageUsage(changeInBytes) {
-    const delta = Number(changeInBytes) || 0;
-    
-    // עדכן את ה-cache המקומי מיידית (למשוב מהיר)
-    if (this._usageCache) {
-      this._usageCache.bytes = Math.max(0, this._usageCache.bytes + delta);
-      this.userSubscription.usedStorage = this._usageCache.bytes;
+  async updateStorageUsage(bytesDelta = 0) {
+    try {
+      console.log('🔄 updateStorageUsage called with delta =', bytesDelta, '→ doing full refresh from Firestore');
+
+      // מאפס cache כדי שהרענון יהיה אמיתי
+      this._usageCache = null;
+      this._cacheTimestamp = 0;
+
+      // רענון מלא – זה *המקור היחיד לאמת*
+      await this.refreshUsageFromFirestore(true);
+    } catch (err) {
+      console.error('❌ updateStorageUsage failed:', err);
     }
-    
-    // בעוד 2 שניות - רענן מהמקור (async, ללא המתנה)
-    setTimeout(() => {
-      this.refreshUsageFromFirestore(true).catch(console.error);
-    }, 2000);
   }
 
+
   // 🔄 עדכון מסמכים (מהיר - רק cache)
-  async updateDocumentCount(change) {
-    const delta = Number(change) || 0;
-    
-    // עדכן את ה-cache המקומי מיידית (למשוב מהיר)
-    if (this._usageCache) {
-      this._usageCache.documents = Math.max(0, this._usageCache.documents + delta);
-      this.userSubscription.documentCount = this._usageCache.documents;
+  async updateDocumentCount(countDelta = 0) {
+    try {
+      console.log('🔄 updateDocumentCount called with delta =', countDelta, '→ doing full refresh from Firestore');
+
+      this._usageCache = null;
+      this._cacheTimestamp = 0;
+
+      await this.refreshUsageFromFirestore(true);
+    } catch (err) {
+      console.error('❌ updateDocumentCount failed:', err);
     }
-    
-    // בעוד 2 שניות - רענן מהמקור (async, ללא המתנה)
-    setTimeout(() => {
-      this.refreshUsageFromFirestore(true).catch(console.error);
-    }, 2000);
   }
+
 
   // פורמט בייטים לקריא
   formatBytes(bytes, decimals = 2) {
