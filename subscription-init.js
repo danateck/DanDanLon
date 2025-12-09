@@ -125,42 +125,45 @@ async function updateStorageWidget() {
   }
   
   // HTML של הוידג'ט
-  container.innerHTML = `
-    <div class="storage-widget-new" onclick="window.showSubscriptionSettings()">
-      <div class="storage-widget-header">
-        <span class="storage-icon">💾</span>
-        <span class="storage-title">אחסון</span>
-        ${warnings.length > 0 ? '<span class="storage-warning-badge">⚠️</span>' : ''}
-      </div>
-      
-      <div class="storage-widget-bar">
-        <div class="storage-widget-fill" style="width: ${Math.min(100, info.storage.percentage)}%; background: ${barColor};"></div>
-      </div>
-      
-      <div class="storage-widget-text" dir="rtl">
-        ${info.storage.formatted.used} / ${info.storage.formatted.limit}
-      </div>
-
-      
-      <div class="storage-widget-docs">
-        ${info.documents.count}${plan.maxDocuments !== Infinity ? `/${plan.maxDocuments}` : ''} מסמכים
-      </div>
-      
-      <div class="storage-widget-plan">
-        תוכנית: <strong>${plan.nameHe}</strong>
-        ${info.status === 'cancelled' ? ' <span style="color: #ef4444;">(בוטל)</span>' : ''}
-      </div>
-      
-      ${warnings.length > 0 ? `
-        <div class="storage-widget-warning">
-          ${warnings.join('<br>')}
-          <br>
-          <small style="color: #2d6a4f; font-weight: 600;">לחץ לשדרוג</small>
-        </div>
-      ` : ''}
+// HTML של הוידג'ט – גרסת "פס" כמו בתמונה השנייה
+container.innerHTML = `
+  <div class="storage-widget-new" onclick="window.showSubscriptionSettings && window.showSubscriptionSettings()">
+    
+    <div class="storage-widget-header">
+      <span class="storage-title">אחסון</span>
+      <span class="storage-percent">${Math.round(info.storage.percentage)}%</span>
+      ${warnings.length ? '<span class="storage-warning-badge">⚠️</span>' : ''}
     </div>
-  `;
-  
+
+    <div class="storage-widget-bar">
+      <div
+        class="storage-widget-fill"
+        style="width:${Math.min(info.storage.percentage, 100)}%; background:${barColor};">
+      </div>
+    </div>
+
+    <div class="storage-widget-text">
+      ${info.storage.formatted.used} / ${info.storage.formatted.limit}
+    </div>
+
+    <div class="storage-widget-docs">
+      ${info.documents.count}${plan.maxDocuments !== Infinity ? `/${plan.maxDocuments}` : ''} מסמכים
+    </div>
+
+    <div class="storage-widget-plan">
+      תוכנית: <strong>${plan.nameHe}</strong>${info.status === 'cancelled' ? ' (בוטל)' : ''}
+    </div>
+
+    ${warnings.length ? `
+      <div class="storage-widget-warning">
+        ${warnings.join('<br>')}
+        <br>לחץ לשדרוג
+      </div>
+    ` : ''}
+  </div>
+`;
+
+
   // חשוף את הפונקציה גלובלית
   window.updateStorageWidget = updateStorageWidget;
 }
@@ -460,6 +463,18 @@ styles.textContent = `
     background: rgba(239, 68, 68, 0.2);
     color: #fca5a5;
   }
+
+  .storage-percent {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-mid, #333);
+  }
+
+  .theme-dark .storage-percent {
+    color: #e8f0ec;
+  }
+
+
 `;
 document.head.appendChild(styles);
 
