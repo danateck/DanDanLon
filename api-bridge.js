@@ -880,14 +880,24 @@ function updateStorageUsageWidget() {
   if (usedPct > 100) usedPct = 100;
 
   // 💾 הטקסט של האחסון – בדיוק כמו שהיה
+const LRM = '\u200E'; // Left-to-Right Mark
+
 let textValue;
 if (TOTAL_GB < 1) {
   const usedMB  = usedBytes / MB;
   const totalMB = TOTAL_BYTES / MB;
-  textValue = `בשימוש: ${usedMB.toFixed(1)} MB מתוך ${totalMB.toFixed(0)} MB`;
+
+  const usedStr  = `${LRM}${usedMB.toFixed(1)} MB${LRM}`;
+  const totalStr = `${LRM}${totalMB.toFixed(0)} MB${LRM}`;
+
+  textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
 } else {
-  textValue = `בשימוש: ${usedGB.toFixed(2)} GB מתוך ${TOTAL_GB.toFixed(1)} GB`;
+  const usedStr  = `${LRM}${usedGB.toFixed(2)} GB${LRM}`;
+  const totalStr = `${LRM}${TOTAL_GB.toFixed(1)} GB${LRM}`;
+
+  textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
 }
+
 
 
   // 🆕 חישוב טקסט למסמכים
