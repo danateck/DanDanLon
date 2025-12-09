@@ -80,93 +80,65 @@ async function initSubscriptions() {
 // וידג'ט אחסון משופר
 // ========================================
 async function updateStorageWidget() {
-  if (!subscriptionManager) return;
-  
-  const container = document.getElementById('storage-widget-container');
-  if (!container) {
-    console.warn('⚠️ לא נמצא storage-widget-container');
+  if (!window.subscriptionManager) return;
+
+  // זה הווידג'ט הבר שאת רוצה להשאיר
+  const widget = document.getElementById("storageWidget");
+  if (!widget) {
+    console.warn("⚠️ לא נמצא storageWidget");
     return;
   }
-  
-  // ✅ קבל מידע (סינכרוני, יקרא ברקע מ-Firestore אם צריך)
-  const info = subscriptionManager.getSubscriptionInfo();
-  const plan = info.plan;
-  
-  // הסתר את הוידג'ט הישן
-  const oldWidget = document.getElementById('storageWidget');
-  if (oldWidget) {
-    oldWidget.style.display = 'none';
-  }
 
-  // צבע מתקדם לפי אחוז השימוש
-  let barColor = '#10b981'; // ירוק
-  if (info.storage.percentage > 80) {
-    barColor = '#ef4444'; // אדום
-  } else if (info.storage.percentage > 60) {
-    barColor = '#f59e0b'; // כתום
-  }
-  
-  // בדיקות מגבלות
-  const warnings = [];
-  
-  // מגבלת מסמכים
-  if (plan.maxDocuments !== Infinity) {
-    const docsPercent = (info.documents.count / plan.maxDocuments) * 100;
-    if (docsPercent >= 100) {
-      warnings.push(`⚠️ הגעת למכסת המסמכים (${plan.maxDocuments})`);
-    } else if (docsPercent >= 90) {
-      warnings.push(`⚠️ ${plan.maxDocuments - info.documents.count} מסמכים נותרו`);
+  const percentEl = document.getElementById("storageUsagePercent");
+  const barFill = document.getElementById("storageUsageBarFill");
+  const textEl = document.getElementById("storageUsageText");
+
+  try {
+    // לוקחים מידע מהמנוי
+    const info = window.subscriptionManager.getSubscriptionInfo();
+    if (!info || !info.storage || !info.storage.formatted) {
+      widget.style.visibility = "visible";
+      return;
     }
+
+    const percent = Math.round(info.storage.percentage || 0);
+    const used = info.storage.formatted.used;   // למשל "1.95MB"
+    const limit = info.storage.formatted.limit; // למשל "200MB"
+
+    // אחוז בצד שמאל
+    if (percentEl) {
+      percentEl.textContent = percent + "%";
+    }
+
+    // רוחב הפס
+    if (barFill) {
+      barFill.style.width = Math.min(percent, 100) + "%";
+
+      // צבע לפי אחוז (לא חובה, רק בונוס)
+      if (percent > 80) {
+        barFill.style.backgroundColor = "#ef4444"; // אדום
+      } else if (percent > 60) {
+        barFill.style.backgroundColor = "#f59e0b"; // כתום
+      } else {
+        barFill.style.backgroundColor = "#10b981"; // ירוק
+      }
+    }
+
+    // טקסט מתחת לפס
+    if (textEl) {
+      textEl.textContent = `בשימוש: ${used} מתוך ${limit}`;
+    }
+
+    // אחרי שהכול מוכן – מראים
+    widget.style.visibility = "visible";
+  } catch (err) {
+    console.error("❌ Error in updateStorageWidget:", err);
+    widget.style.visibility = "visible";
   }
-  
-  // מגבלת אחסון
-  if (plan.storage !== Infinity && info.storage.percentage >= 90) {
-    warnings.push('⚠️ נגמר מקום באחסון');
-  }
-  
-  // HTML של הוידג'ט
-// HTML של הוידג'ט – גרסת "פס" כמו בתמונה השנייה
-container.innerHTML = `
-  <div class="storage-widget-new" onclick="window.showSubscriptionSettings && window.showSubscriptionSettings()">
-    
-    <div class="storage-widget-header">
-      <span class="storage-title">אחסון</span>
-      <span class="storage-percent">${Math.round(info.storage.percentage)}%</span>
-      ${warnings.length ? '<span class="storage-warning-badge">⚠️</span>' : ''}
-    </div>
-
-    <div class="storage-widget-bar">
-      <div
-        class="storage-widget-fill"
-        style="width:${Math.min(info.storage.percentage, 100)}%; background:${barColor};">
-      </div>
-    </div>
-
-    <div class="storage-widget-text">
-      ${info.storage.formatted.used} / ${info.storage.formatted.limit}
-    </div>
-
-    <div class="storage-widget-docs">
-      ${info.documents.count}${plan.maxDocuments !== Infinity ? `/${plan.maxDocuments}` : ''} מסמכים
-    </div>
-
-    <div class="storage-widget-plan">
-      תוכנית: <strong>${plan.nameHe}</strong>${info.status === 'cancelled' ? ' (בוטל)' : ''}
-    </div>
-
-    ${warnings.length ? `
-      <div class="storage-widget-warning">
-        ${warnings.join('<br>')}
-        <br>לחץ לשדרוג
-      </div>
-    ` : ''}
-  </div>
-`;
-
-
-  // חשוף את הפונקציה גלובלית
-  window.updateStorageWidget = updateStorageWidget;
 }
+
+// שיהיה גם גלובלי כמו קודם
+window.updateStorageWidget = updateStorageWidget;
 
 // ========================================
 // כפתור "המנוי שלי"
@@ -367,6 +339,13 @@ styles.textContent = `
     position: relative;
   }
   
+
+  #storageWidget {
+  visibility: hidden;
+}
+
+
+
   .storage-widget-new:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0,0,0,0.15);
