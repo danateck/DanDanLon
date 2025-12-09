@@ -5019,41 +5019,105 @@ uploadToSharedBtn.addEventListener("click", async () => {
       });
       // כפתור הזמנה
       membersBar.querySelector("#detail_inv_btn").addEventListener("click", async () => {
-        const emailEl = membersBar.querySelector("#detail_inv_email");
-        const targetEmail = (emailEl.value || "").trim().toLowerCase();
-        if (!targetEmail) { 
-          showNotification("הקלידי מייל של הנמען", true); 
-          return; 
-        }
-        const myEmail = (allUsersData[userNow].email || userNow).toLowerCase();
-        if (targetEmail === myEmail) { 
-          showNotification("את כבר חברה בתיקייה הזו", true); 
-          return; 
-        }
-        showLoading("בודק אם המשתמש קיים...");
-        const exists = await checkUserExistsInFirestore(targetEmail);
-        hideLoading();
-        if (!exists) { 
-          showNotification("אין משתמש עם המייל הזה במערכת", true); 
-          return; 
-        }
-        showLoading("שולח הזמנה...");
-        const meUser = allUsersData[userNow];
-        const folderName = meUser.sharedFolders[openId]?.name || "";
-        const success = await sendShareInviteToFirestore(
-          myEmail,
-          targetEmail,
-          openId,
-          folderName
-        );
-        hideLoading();
-        if (success) {
-          showNotification("ההזמנה נשלחה בהצלחה! ✉️");
-          emailEl.value = "";
+  const emailEl = membersBar.querySelector("#detail_inv_email");
+  const targetEmail = (emailEl.value || "").trim().toLowerCase();
+  if (!targetEmail) {
+    showNotification("הקלידי מייל של הנמען", true);
+    return;
+  }
+
+  const meUser = allUsersData[userNow];
+  const myEmail = (meUser.email || userNow).toLowerCase();
+
+  if (targetEmail === myEmail) {
+    showNotification("את כבר חברה בתיקייה הזו", true);
+    return;
+  }
+
+  // 1️⃣ בדיקה שהמשתמש קיים במערכת
+  showLoading("בודק אם המשתמש קיים.");
+  const exists = await checkUserExistsInFirestore(targetEmail);
+  hideLoading();
+
+  if (!exists) {
+    showNotification("אין משתמש עם המייל הזה במערכת", true);
+    return;
+  }
+
+  // 2️⃣ 🔒 מגבלה: בתוכנית חינמית אפשר לשתף תיקייה רק עם אדם אחד
+  try {
+    if (window.subscriptionManager) {
+      const info = window.subscriptionManager.getSubscriptionInfo();
+      const plan = info?.plan;
+
+      // מידע על התיקייה הנוכחית
+      const folderMeta = meUser.sharedFolders?.[openId] || {};
+      const owner = normalizeEmail(meUser.email || userNow);
+
+      const members = Array.isArray(folderMeta.members)
+        ? folderMeta.members.map(normalizeEmail).filter(Boolean)
+        : [];
+
+      const pending = Array.isArray(folderMeta.pendingInvites)
+        ? folderMeta.pendingInvites
+            .map(i => normalizeEmail(i.email || i))
+            .filter(Boolean)
+        : [];
+
+      // כל מי שקשור לתיקייה חוץ מהבעלים
+      const others = [...new Set([...members, ...pending])]
+        .filter(e => e && e !== owner);
+
+      const alreadyIncluded = others.includes(targetEmail);
+
+      // אם זו תוכנית עם maxSharedUsers===1 (חינמית) וכבר יש אדם אחר בתיקייה
+      if (plan && plan.maxSharedUsers === 1 && !alreadyIncluded && others.length >= 1) {
+        if (typeof window.showLimitError === "function") {
+          window.showLimitError({
+            code: "MAX_SHARED_MEMBERS_FREE",
+            allowed: false,
+            plan,
+            reason: "בתוכנית החינמית אפשר לשתף תיקייה משותפת רק עם אדם אחד.",
+          });
         } else {
-          showNotification("שגיאה בשליחת ההזמנה, נסי שוב", true);
+          showNotification(
+            "⚠️ בתוכנית החינמית אפשר לשתף תיקייה רק עם אדם אחד.\n\n💎 שדרגי לתוכנית בתשלום כדי לשתף עם יותר אנשים.",
+            true
+          );
         }
-      });
+
+        const premiumPanel = document.getElementById("premiumPanel");
+        if (premiumPanel) {
+          premiumPanel.classList.remove("hidden");
+        }
+
+        return; // לא שולחים הזמנה נוספת
+      }
+    }
+  } catch (err) {
+    console.warn("⚠️ בעיה בבדיקת מגבלת שיתוף:", err);
+    // אם משהו קרס בבדיקה – לא חוסמים, מתנהג רגיל
+  }
+
+  // 3️⃣ אם עברנו את כל הבדיקות – שולחים את ההזמנה
+  showLoading("שולח הזמנה.");
+  const folderName = meUser.sharedFolders[openId]?.name || "";
+  const success = await sendShareInviteToFirestore(
+    myEmail,
+    targetEmail,
+    openId,
+    folderName
+  );
+  hideLoading();
+
+  if (success) {
+    showNotification("ההזמנה נשלחה בהצלחה! ✉️");
+    emailEl.value = "";
+  } else {
+    showNotification("שגיאה בשליחת ההזמנה, נסי שוב", true);
+  }
+});
+
       return;
     }
     // --- שינוי שם (לכל החברים) ---
