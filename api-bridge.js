@@ -270,30 +270,21 @@ if (Array.isArray(window.allDocsData)) {
   window.allDocsData.push(doc);
 }
 
-// ❌ אל תעשי כאן recalculateUserStorage בהעלאה
-// נסמוך על העדכון דרך subscriptionManager + ריענון מסך אחר כך
-
-
-
-// ✅ עדכון מערכת מנויים (אם קיימת)
-
-
-// פותח חלון בחירה אחרי העלאה
+// ✅ פותח חלון בחירה אחרי העלאה
 setTimeout(() => {
-    if (typeof openFolderSelectionModal === "function") {
-        openFolderSelectionModal(doc.id);
-    }
+  if (typeof openFolderSelectionModal === "function") {
+    openFolderSelectionModal(doc.id);
+  }
 }, 200);
 
-
-// עדכון שימוש באחסון אחרי העלאה
+// ✅ עדכון מערכת מנויים (אם קיימת)
 if (window.subscriptionManager) {
   try {
-    // ❗ לא עושים פה updateStorageUsage / updateDocumentCount ידנית
-    // משתמשים רק בחישוב מחדש מה-Firestore
-    if (typeof window.subscriptionManager.refreshUsageFromFirestore === "function") {
-      await window.subscriptionManager.refreshUsageFromFirestore(true);
-    }
+    const bytes = Number(result.file_size) || file.size || 0;
+
+    // רק המערכת החדשה מטפלת באחסון
+    await window.subscriptionManager.updateStorageUsage(bytes);
+    await window.subscriptionManager.updateDocumentCount(1);
 
     if (typeof window.updateStorageWidget === "function") {
       window.updateStorageWidget();
@@ -302,8 +293,11 @@ if (window.subscriptionManager) {
       window.updateStorageUsageWidget();
     }
   } catch (e) {
-    console.warn("⚠️ לא הצלחתי לרענן שימוש באחסון אחרי העלאה:", e);
+    console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
   }
+} else if (typeof window.recalculateUserStorage === "function") {
+  // ⬅️ רק אם *אין* subscriptionManager – נ fallback למערכת הישנה
+  window.recalculateUserStorage();
 }
 
 
