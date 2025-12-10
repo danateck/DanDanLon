@@ -750,6 +750,44 @@ app.delete('/api/docs/:id', async (req, res) => {
 
 
 
+// 📦 סטטיסטיקת אחסון לפי בעלות בלבד
+app.get('/api/storage-stats', async (req, res) => {
+  try {
+    const userEmailRaw = getUserFromRequest(req);
+    if (!userEmailRaw) {
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+
+    const userEmail = userEmailRaw.trim().toLowerCase();
+
+    // רק קבצים שהמשתמש הוא הבעלים שלהם
+    const result = await pool.query(
+      `
+      SELECT 
+        COALESCE(SUM(file_size), 0) AS used_bytes,
+        COUNT(*) AS docs_count
+      FROM documents
+      WHERE owner = $1
+        AND NOT (deleted_for ? $1)
+      `,
+      [userEmail]
+    );
+
+    const row = result.rows[0] || { used_bytes: 0, docs_count: 0 };
+
+    res.json({
+      usedBytes: Number(row.used_bytes) || 0,
+      docsCount: Number(row.docs_count) || 0,
+    });
+  } catch (err) {
+    console.error('❌ /api/storage-stats error:', err);
+    res.status(500).json({ error: 'Failed to load storage stats' });
+  }
+});
+
+
+
+
 // ===== Start server =====
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

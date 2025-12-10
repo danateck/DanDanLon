@@ -609,6 +609,7 @@ async setAbsoluteUsage(bytes, docsCount) {
   /**
    * רענון מהיר מ-Firestore (עם cache)
    */
+// 📦 רענון שימוש באחסון *רק* על מסמכים שהמשתמש הבעלים שלהם
 async refreshUsageFromFirestore(forceRefresh = false) {
   // אם יש cache תקף ולא מבקשים refresh - השתמש בו
   if (
@@ -626,37 +627,21 @@ async refreshUsageFromFirestore(forceRefresh = false) {
   }
 
   try {
-    console.log('🔄 Refreshing usage from Firestore...');
+    console.log('🔄 Refreshing usage from Firestore (OWNED ONLY)...');
     const docsRef = this.fs.collection(this.db, "documents");
 
-    // מסמכים שאני הבעלים שלהם
+    // ✅ רק מסמכים שאני הבעלים שלהם
     const ownedQuery = this.fs.query(
       docsRef,
       this.fs.where("owner", "==", this.userEmail)
     );
 
-    // מסמכים שמשותפים איתי
-    const sharedQuery = this.fs.query(
-      docsRef,
-      this.fs.where("sharedWith", "array-contains", this.userEmail)
-    );
-
-    const [ownedSnap, sharedSnap] = await Promise.all([
-      this.fs.getDocs(ownedQuery),
-      this.fs.getDocs(sharedQuery),
-    ]);
+    const ownedSnap = await this.fs.getDocs(ownedQuery);
 
     let totalBytes = 0;
     let totalDocs = 0;
 
-    // 🛑 שלא נספור את אותו מסמך פעמיים (גם כבעלים וגם כמשותף)
-    const seenIds = new Set();
-
-    const handleDoc = (doc) => {
-      const id = doc.id;
-      if (seenIds.has(id)) return; // כבר נספר
-      seenIds.add(id);
-
+    ownedSnap.forEach((doc) => {
       const data = doc.data() || {};
 
       // דלג על מסמכים שנמצאים בסל מחזור / מחוקים
@@ -672,16 +657,13 @@ async refreshUsageFromFirestore(forceRefresh = false) {
         totalBytes += size;
         totalDocs += 1;
       }
-    };
+    });
 
-    ownedSnap.forEach(handleDoc);
-    sharedSnap.forEach(handleDoc);
-
-    // שמור ב-cache
+    // שמור ב-cache (אם תרצי בעתיד – אפשר להוסיף גם shared)
     this._usageCache = { bytes: totalBytes, documents: totalDocs };
     this._cacheTimestamp = Date.now();
 
-    // עדכן גם במנוי (בשביל תצוגה)
+    // עדכן גם במנוי (זה מה שהמגבלות משתמשות בו)
     if (this.userSubscription) {
       this.userSubscription.usedStorage = totalBytes;
       this.userSubscription.documentCount = totalDocs;
@@ -689,7 +671,7 @@ async refreshUsageFromFirestore(forceRefresh = false) {
     }
 
     console.log(
-      `✅ Usage refreshed: ${this.formatBytes(totalBytes)} from ${totalDocs} documents`
+      `✅ Usage refreshed (OWNED): ${this.formatBytes(totalBytes)} from ${totalDocs} documents`
     );
 
     return this._usageCache;
@@ -698,6 +680,7 @@ async refreshUsageFromFirestore(forceRefresh = false) {
     return null;
   }
 }
+
 
   // 🔄 עדכון אחסון (מהיר - רק cache)
   async updateStorageUsage(bytesDelta = 0) {
