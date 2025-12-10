@@ -94,7 +94,14 @@ async function updateStorageWidget() {
   const textEl = document.getElementById("storageUsageText");
 
   try {
-    // לוקחים מידע מהמנוי
+    // ⬅️⬅️⬅️ הדבר החשוב החדש:
+    // לפני שמציגים – מושכים מהשרת את המצב האמיתי של האחסון
+    if (window.subscriptionManager &&
+        typeof window.subscriptionManager.refreshFromServer === "function") {
+      await window.subscriptionManager.refreshFromServer();
+    }
+
+    // עכשיו לוקחים מידע מהמנוי (אחרי רענון מהשרת)
     const info = window.subscriptionManager.getSubscriptionInfo();
     if (!info || !info.storage || !info.storage.formatted) {
       widget.style.visibility = "visible";
@@ -102,8 +109,8 @@ async function updateStorageWidget() {
     }
 
     const percent = Math.round(info.storage.percentage || 0);
-    const used = info.storage.formatted.used;   // למשל "1.95MB"
-    const limit = info.storage.formatted.limit; // למשל "200MB"
+    const used   = info.storage.formatted.used;   // למשל "1.95MB"
+    const limit  = info.storage.formatted.limit;  // למשל "200MB"
 
     // אחוז בצד שמאל
     if (percentEl) {
@@ -114,7 +121,7 @@ async function updateStorageWidget() {
     if (barFill) {
       barFill.style.width = Math.min(percent, 100) + "%";
 
-      // צבע לפי אחוז (לא חובה, רק בונוס)
+      // צבע לפי אחוז
       if (percent > 80) {
         barFill.style.backgroundColor = "#ef4444"; // אדום
       } else if (percent > 60) {
@@ -136,6 +143,7 @@ async function updateStorageWidget() {
     widget.style.visibility = "visible";
   }
 }
+
 
 // שיהיה גם גלובלי כמו קודם
 window.updateStorageWidget = updateStorageWidget;
