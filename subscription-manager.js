@@ -699,95 +699,93 @@ async canJoinSharedFolder(sharedFolderId) {
    */
 // 📦 רענון שימוש באחסון *רק* על מסמכים שהמשתמש הבעלים שלהם
 // 📦 רענון שימוש באחסון – מסמכים בבעלותי + מסמכים שמשותפים איתי
-async refreshUsageFromFirestore(forceRefresh = false) {
-  // אם יש cache תקף ולא מבקשים refresh - השתמש בו
-  if (
-    !forceRefresh &&
-    this._usageCache &&
-    (Date.now() - this._cacheTimestamp) < this._cacheLifetime
-  ) {
-    console.log('📦 Using cached usage data');
+// ריענון שימוש אמיתי מפיירסטור – כולל קבצים משותפים
+async refreshUsageFromFirestore(force = false) {
+  if (!this.db || !this.fs || !this.currentUser) return;
+
+  const now = Date.now();
+
+  // cache קטן כדי לא לחשב כל שנייה
+  if (!force && this._usageCache && (now - (this._cacheTimestamp || 0) < 30_000)) {
     return this._usageCache;
   }
 
-  if (!this.db || !this.fs || !this.userEmail) {
-    console.warn('⚠️ Cannot refresh: missing Firebase or userEmail');
-    return null;
+  const docsRef = this.fs.collection(this.db, "documents");
+
+  // 🔹 כל הקבצים שאני הבעלים שלהם
+  const qOwned = this.fs.query(
+    docsRef,
+    this.fs.where("owner", "==", this.currentUser)
+  );
+
+  // 🔹 כל הקבצים שמשותפים איתי
+  const qShared = this.fs.query(
+    docsRef,
+    this.fs.where("sharedWith", "array-contains", this.currentUser)
+  );
+
+  const [ownedSnap, sharedSnap] = await Promise.all([
+    this.fs.getDocs(qOwned),
+    this.fs.getDocs(qShared),
+  ]);
+
+  // מאחדים את התוצאות לפי id כדי שלא נספור פעמיים
+  const byId = new Map();
+  ownedSnap.forEach((docSnap) => {
+    byId.set(docSnap.id, docSnap.data() || {});
+  });
+  sharedSnap.forEach((docSnap) => {
+    byId.set(docSnap.id, docSnap.data() || {});
+  });
+
+  let totalBytes = 0;
+  let docsCount = 0;
+
+  for (const data of byId.values()) {
+    // מדלגים על מה שבסל מחזור / נמחק
+    if (data._trashed || data.deletedAt || data.trashed) continue;
+
+    const size =
+      Number(data.fileSize) ||
+      Number(data.size) ||
+      Number(data.file_size) ||
+      0;
+
+    if (!size || !Number.isFinite(size)) continue;
+
+    totalBytes += size;
+    docsCount += 1;
   }
 
-  try {
-    console.log('🔄 Refreshing usage from Firestore (OWNED + SHARED)...');
-    const docsRef = this.fs.collection(this.db, "documents");
+  const plan = this.getCurrentPlan();
+  const totalStorage = this.getTotalStorage();
 
-    // מסמכים שאני הבעלים שלהם
-    const ownedQuery = this.fs.query(
-      docsRef,
-      this.fs.where("owner", "==", this.userEmail)
-    );
+  // 🔒 חיתוך לפי מגבלת התוכנית – אצלך זה 200MB
+  const clampedUsed =
+    !Number.isFinite(totalStorage) || totalStorage === Infinity
+      ? totalBytes
+      : Math.min(totalBytes, totalStorage);
 
-    // מסמכים שמשותפים איתי (sharedWith = מערך מיילים)
-    const sharedQuery = this.fs.query(
-      docsRef,
-      this.fs.where("sharedWith", "array-contains", this.userEmail)
-    );
+  const clampedDocs =
+    plan.maxDocuments === Infinity
+      ? docsCount
+      : Math.min(docsCount, plan.maxDocuments);
 
-    const [ownedSnap, sharedSnap] = await Promise.all([
-      this.fs.getDocs(ownedQuery),
-      this.fs.getDocs(sharedQuery),
-    ]);
+  // שומרים במנוי
+  this.userSubscription.usedStorage = clampedUsed;
+  this.userSubscription.documentCount = clampedDocs;
+  await this.saveSubscription();
 
-    let totalBytes = 0;
-    let totalDocs = 0;
+  // cache פנימי
+  this._usageCache = {
+    usedStorage: clampedUsed,
+    documentCount: clampedDocs,
+  };
+  this._cacheTimestamp = now;
 
-    // שלא נספור את אותו מסמך פעמיים
-    const seenIds = new Set();
-
-    const handleDoc = (doc) => {
-      const id = doc.id;
-      if (seenIds.has(id)) return;
-      seenIds.add(id);
-
-      const data = doc.data() || {};
-
-      // דלג על מסמכים שנמצאים בסל מחזור / מחוקים
-      if (data._trashed || data.deletedAt || data.trashed) return;
-
-      const size =
-        Number(data.fileSize) ||
-        Number(data.size) ||
-        Number(data.file_size) ||
-        0;
-
-      if (size > 0 && Number.isFinite(size)) {
-        totalBytes += size;
-        totalDocs += 1;
-      }
-    };
-
-    ownedSnap.forEach(handleDoc);
-    sharedSnap.forEach(handleDoc);
-
-    // שמור ב-cache
-    this._usageCache = { bytes: totalBytes, documents: totalDocs };
-    this._cacheTimestamp = Date.now();
-
-    // עדכן גם במנוי (זה מה שהמגבלות משתמשות בו)
-    if (this.userSubscription) {
-      this.userSubscription.usedStorage = totalBytes;
-      this.userSubscription.documentCount = totalDocs;
-      await this.saveSubscription();
-    }
-
-    console.log(
-      `✅ Usage refreshed (OWNED+SHARED): ${this.formatBytes(totalBytes)} from ${totalDocs} documents`
-    );
-
-    return this._usageCache;
-  } catch (error) {
-    console.error('❌ Error refreshing usage:', error);
-    return null;
-  }
+  return this._usageCache;
 }
+
 
 
   // 🔄 עדכון אחסון (מהיר - רק cache)
