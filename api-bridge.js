@@ -786,6 +786,7 @@ function computeStorageUsage() {
 // ===============================
 // 📦 WIDGET אחסון – חישוב ועדכון
 // ===============================
+// 🧮 וידג'ט האחסון – לוקח את כל הנתונים אך ורק מ-SubscriptionManager
 async function updateStorageUsageWidget() {
   console.log("🔄 updateStorageUsageWidget called");
   
@@ -813,29 +814,37 @@ async function updateStorageUsageWidget() {
   // 🧠 מקור אמת יחיד: SubscriptionManager
   if (window.subscriptionManager) {
     try {
-      // רענון אמיתי מפיירסטור כדי לוודא שהמספר הוא האחרון (OWNED+SHARED)
-      await window.subscriptionManager.refreshUsageFromFirestore(true);
+      // רענון אמיתי מ-Firestore כדי לוודא ש-count הוא האחרון (OWNED+SHARED)
+      if (typeof window.subscriptionManager.refreshUsageFromFirestore === "function") {
+        console.log("🔄 Refreshing usage from Firestore before drawing widget...");
+        await window.subscriptionManager.refreshUsageFromFirestore(true);
+      }
 
       const info = window.subscriptionManager.getSubscriptionInfo();
 
+      // אחסון
       const used   = Number(info.storage?.used);
       const limit  = Number(info.storage?.limit);
       const pct    = Number(info.storage?.percentage);
-      const dCount = Number(info.documents?.count);
-      const dLimit = info.documents?.limit;
 
       if (Number.isFinite(used)  && used  >= 0) usedBytes  = used;
       if (Number.isFinite(limit) && limit >  0) totalBytes = limit;
       if (Number.isFinite(pct)   && pct   >= 0) usedPct    = pct;
-      if (Number.isFinite(dCount) && dCount >= 0) docsCount = dCount;
-      if (dLimit !== undefined) maxDocs = dLimit;
+
+      // מסמכים
+      const dCount = info.documents?.count;
+      const dLimit = info.documents?.limit;
+
+      // 👉 כאן אנחנו לוקחים בדיוק את מה שהראית בצילום: {count: 10, limit: 200}
+      docsCount = typeof dCount === "number" ? dCount : Number(dCount) || 0;
+      maxDocs   = dLimit !== undefined ? dLimit : null;
 
       console.log("📊 From SubscriptionManager:", {
         usedBytes,
         totalBytes,
         usedPct,
         docsCount,
-        maxDocs,
+        maxDocs
       });
     } catch (err) {
       console.warn("⚠️ Failed to read from SubscriptionManager:", err);
@@ -861,7 +870,7 @@ async function updateStorageUsageWidget() {
     return;
   }
 
-  // אם לא קיבלנו אחוז – נחשב לבד
+  // אם לא קיבלנו אחוז – נחשב לפי used / total
   if (!Number.isFinite(usedPct) || usedPct < 0) {
     usedPct = totalGB > 0 ? (usedGB / totalGB) * 100 : 0;
   }
@@ -921,7 +930,7 @@ async function updateStorageUsageWidget() {
     docsCount,
     maxDocs,
     textValue,
-    docsText,
+    docsText
   });
 }
 
