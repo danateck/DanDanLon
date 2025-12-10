@@ -161,7 +161,9 @@ window.checkAddInvitationLimits = function(folder, newEmail) {
   const plan = window.subscriptionManager.getCurrentPlan();
   
   // ספור משתמשים קיימים
-  const currentMembers = folder.members ? folder.members.length : 1;
+ // המשתתפים הם רק מי שחוץ מהבעלים → ברירת מחדל: 0
+const currentMembers = Array.isArray(folder.members) ? folder.members.length : 0;
+
   const pendingInvites = folder.pendingInvites ? folder.pendingInvites.filter(inv => inv.status === 'pending').length : 0;
   const totalUsers = currentMembers + pendingInvites;
   
