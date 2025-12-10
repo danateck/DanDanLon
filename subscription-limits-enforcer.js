@@ -159,28 +159,52 @@ window.checkAddInvitationLimits = function(folder, newEmail) {
   }
   
   const plan = window.subscriptionManager.getCurrentPlan();
-  
-  // ספור משתמשים קיימים
- // המשתתפים הם רק מי שחוץ מהבעלים → ברירת מחדל: 0
-const currentMembers = Array.isArray(folder.members) ? folder.members.length : 0;
 
-  const pendingInvites = folder.pendingInvites ? folder.pendingInvites.filter(inv => inv.status === 'pending').length : 0;
+  // מי המשתמש הנוכחי?
+  const currentEmail =
+    window.subscriptionManager.userEmail ||
+    window.subscriptionManager.currentUser ||
+    null;
+
+  // מי הבעלים של התיקייה?
+  const folderOwner =
+    folder && (folder.owner || folder.ownerEmail || folder.ownerId || folder.createdBy);
+
+  const isOwner =
+    currentEmail &&
+    folderOwner &&
+    String(currentEmail).toLowerCase() === String(folderOwner).toLowerCase();
+
+  // 💡 אם המשתמש הנוכחי *לא* הבעלים של התיקייה (כלומר הוא רק מוזמן אליה),
+  // לא מגבילים לפי maxSharedUsers — הבדיקה הזו נועדה רק לבעלים שמזמין אחרים.
+  if (!isOwner) {
+    return { allowed: true };
+  }
+  
+  // ספור משתמשים קיימים (מלבד הבעלים עצמם – members זה רק שותפים)
+  const currentMembers = Array.isArray(folder.members) ? folder.members.length : 0;
+  const pendingInvites = Array.isArray(folder.pendingInvites)
+    ? folder.pendingInvites.filter(inv => inv.status === 'pending').length
+    : 0;
+
   const totalUsers = currentMembers + pendingInvites;
   
   if (plan.maxSharedUsers !== Infinity && totalUsers >= plan.maxSharedUsers) {
     return {
       allowed: false,
-      reason: `⚠️ הגעת למכסת המשתפים!\n\n` +
-              `משתמשים פעילים: ${currentMembers}\n` +
-              `הזמנות ממתינות: ${pendingInvites}\n` +
-              `מקסימום בתוכנית ${plan.nameHe}: ${plan.maxSharedUsers} משתפים\n\n` +
-              `💎 שדרג את התוכנית להוספת משתפים נוספים`,
+      reason:
+        `⚠️ הגעת למכסת המשתפים!\n\n` +
+        `משתמשים פעילים: ${currentMembers}\n` +
+        `הזמנות ממתינות: ${pendingInvites}\n` +
+        `מקסימום בתוכנית ${plan.nameHe}: ${plan.maxSharedUsers} משתפים\n\n` +
+        `💎 שדרג את התוכנית להוספת משתפים נוספים`,
       showUpgrade: true
     };
   }
   
   return { allowed: true };
 };
+
 
 // ========================================
 // פונקציה להצגת הודעת שגיאה + אופציה לשדרוג
