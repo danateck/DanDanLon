@@ -826,15 +826,11 @@ function updateStorageUsageWidget() {
   // 🔧 אם יש SubscriptionManager – לוקחים ממנו רק את מגבלת האחסון
   if (window.subscriptionManager) {
     try {
-      const info = window.subscriptionManager.getSubscriptionInfo();
+            const info = window.subscriptionManager.getSubscriptionInfo();
       const limit = Number(info.storage?.limit);
-      const pct   = Number(info.storage?.percentage);
 
       if (Number.isFinite(limit) && limit > 0) {
         totalBytes = limit;
-      }
-      if (Number.isFinite(pct) && pct >= 0) {
-        usedPct = pct;
       }
 
       const plan = window.subscriptionManager.getCurrentPlan();
@@ -842,11 +838,12 @@ function updateStorageUsageWidget() {
         maxDocs = plan.maxDocuments;
       }
 
-      // את האחסון בשימוש ניקח גם מה-SubscriptionManager אם יש:
+      // את האחסון בשימוש ניקח מה-SubscriptionManager אם יש:
       const used = Number(info.storage?.used);
       if (Number.isFinite(used) && used >= 0) {
         usedBytes = used;
       }
+
     } catch (err) {
       console.warn("⚠️ Could not read plan from SubscriptionManager:", err);
     }
@@ -884,9 +881,8 @@ function updateStorageUsageWidget() {
   }
 
   // אם לא קיבלנו אחוז – נחשב לבד
-  if (!Number.isFinite(usedPct) || usedPct < 0) {
-    usedPct = totalGB > 0 ? (usedGB / totalGB) * 100 : 0;
-  }
+  // תמיד מחשבים את האחוז מהבייטים בפועל – מתעלמים מאחוז שמגיע מהשרת
+  usedPct = totalGB > 0 ? (usedGB / totalGB) * 100 : 0;
   if (usedPct > 100) usedPct = 100;
 
   // 💾 טקסט האחסון

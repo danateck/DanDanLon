@@ -10030,6 +10030,30 @@ if (!window.openSharedFolder) {
         docs.push(doc.data());
       });
       
+
+            // 🔹 סינון לפי מגבלת אחסון: למשתמשת חינמית לא מציגים קבצים גדולים מדי
+      if (window.subscriptionManager) {
+        try {
+          const info = window.subscriptionManager.getSubscriptionInfo();
+          const limitBytes = Number(info.storage?.limit);
+
+          // יש מגבלה סופית (למשל 200MB)
+          if (Number.isFinite(limitBytes) && limitBytes > 0 && limitBytes !== Infinity) {
+            docs = docs.filter(doc => {
+              let size = Number(doc.fileSize ?? doc.file_size ?? doc.size);
+              if (!Number.isFinite(size) || size <= 0) {
+                size = 300 * 1024; // דיפולט קטן
+              }
+
+              // לפי מה שאמרת: קובץ של 200MB ומעלה *לא* נכנס אצל חינמית
+              return size < limitBytes;
+            });
+          }
+        } catch (err) {
+          console.warn("⚠️ failed to filter docs by quota", err);
+        }
+      }
+
       // 🔍 סינון לפי חיפוש
       const searchTerm = (window.currentSearchTerm || "").trim();
       if (searchTerm) {
