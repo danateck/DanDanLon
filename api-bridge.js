@@ -806,11 +806,15 @@ function updateStorageUsageWidget() {
 
   // 🔹 כל המסמכים שהמשתמשת רואה (OWNED + SHARED), בלי סל מחזור
   const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
-  const visibleDocs = docs.filter(d =>
+  let visibleDocs = docs.filter(d =>
     d &&
     !d._trashed &&            // לא בסל מחזור
     d.hasFile !== false       // לוודא שזה מסמך אמיתי
   );
+
+   if (typeof window.filterDocsByStorageQuota === "function") {
+    visibleDocs = window.filterDocsByStorageQuota(visibleDocs);
+  }
   const docsCount = visibleDocs.length;   // 👈 זה יהיה ה-11 שלך
 
   // ברירת מחדל – חינם
@@ -848,8 +852,8 @@ function updateStorageUsageWidget() {
     }
   }
 
-  // אם לא קיבלנו usedBytes מ-SubscriptionManager – נסכם ידנית מהמסמכים
-  if (!Number.isFinite(usedBytes) || usedBytes <= 0) {
+  // אם לא קיבלנו usedBytes מ-SubscriptionManager – או שהוא לא הגיוני – נסכם ידנית מהמסמכים
+  if (!Number.isFinite(usedBytes) || usedBytes <= 0 || usedBytes > totalBytes) {
     usedBytes = 0;
     for (const d of visibleDocs) {
       let size = Number(d.fileSize ?? d.file_size ?? d.size);
@@ -1029,3 +1033,52 @@ function isOverStorageQuota() {
     return false;
   }
 }
+
+
+
+
+// מסנן מערך מסמכים כך שסך הגודל שלהם לא יעבור את מגבלת האחסון של התוכנית
+window.filterDocsByStorageQuota = function (docs) {
+  if (!Array.isArray(docs)) return [];
+  if (!window.subscriptionManager) return docs;
+
+  try {
+    const info  = window.subscriptionManager.getSubscriptionInfo();
+    const limit = Number(info.storage?.limit);
+
+    // אם אין מגבלה (פרימיום וכו') – לא מסננים כלום
+    if (!Number.isFinite(limit) || limit === Infinity || limit <= 0) {
+      return docs;
+    }
+
+    let used = 0;
+    const result = [];
+
+    for (const d of docs) {
+      if (!d) continue;
+
+      // לוקחים גודל קובץ ממספר שדות אפשריים
+      let size = Number(d.fileSize ?? d.file_size ?? d.size);
+      if (!Number.isFinite(size) || size <= 0) {
+        size = 300 * 1024; // 300KB ברירת מחדל
+      }
+
+      // אם הקובץ עוד נכנס במכסה – משאירים אותו
+      if (used + size <= limit) {
+        result.push(d);
+        used += size;
+      } else {
+        console.log("🚫 מסתירה קובץ שחורג מהמכסה:", d.title || d.fileName, {
+          size,
+          used,
+          limit
+        });
+      }
+    }
+
+    return result;
+  } catch (err) {
+    console.warn("⚠️ filterDocsByStorageQuota failed:", err);
+    return docs;
+  }
+};

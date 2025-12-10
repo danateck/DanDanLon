@@ -4491,16 +4491,25 @@ window.renderSubfoldersBar = function(categoryName) {
 };
 
 
-  function renderDocsList(docs, mode = "normal") {
-    const sortedDocs = sortDocs(docs);
-    docsList.innerHTML = "";
-    sortedDocs.forEach(doc => {
-      const card = buildDocCard(doc, mode);
-      docsList.appendChild(card);
-    });
-    homeView.classList.add("hidden");
-    categoryView.classList.remove("hidden");
+function renderDocsList(docs, mode = "normal") {
+  let list = Array.isArray(docs) ? docs.slice() : [];
+
+  // 🧹 סינון לפי מכסת האחסון של המשתמשת (רלוונטי במיוחד לאחסון משותף)
+  if (typeof window.filterDocsByStorageQuota === "function") {
+    list = window.filterDocsByStorageQuota(list);
   }
+
+  const sortedDocs = sortDocs(list);
+  docsList.innerHTML = "";
+  sortedDocs.forEach(doc => {
+    const card = buildDocCard(doc, mode);
+    docsList.appendChild(card);
+  });
+
+  homeView.classList.add("hidden");
+  categoryView.classList.remove("hidden");
+}
+
   // === HELPER: אסוף מסמכים מכל המשתמשים לתיקייה משותפת מסוימת ===
 function collectSharedFolderDocs(allUsersData, folderId) {
   const list = [];
