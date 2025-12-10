@@ -474,7 +474,24 @@ async function markDocTrashed(docId, trashed) {
   }
 }
 
-if (typeof window.recalculateUserStorage === "function") {
+// ✅ אל תחשבי אחסון מחדש – תסמכי על SubscriptionManager
+if (window.subscriptionManager &&
+    typeof window.subscriptionManager.refreshFromServer === "function") {
+  try {
+    // מושך מהשרת את המצב האמיתי (200/200, 13 מסמכים)
+    await window.subscriptionManager.refreshFromServer();
+  } catch (e) {
+    console.warn("⚠️ לא הצלחתי לרענן מנוי אחרי מחיקה:", e);
+  }
+
+  if (typeof window.updateStorageWidget === "function") {
+    window.updateStorageWidget();
+  }
+  if (typeof window.updateStorageUsageWidget === "function") {
+    window.updateStorageUsageWidget();
+  }
+} else if (typeof window.recalculateUserStorage === "function") {
+  // fallback ישן – רק אם אין בכלל SubscriptionManager
   await window.recalculateUserStorage();
 } else if (typeof window.updateStorageUsageWidget === "function") {
   window.updateStorageUsageWidget();
