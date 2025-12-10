@@ -501,17 +501,23 @@ export class SubscriptionManager {
     return basePlan;
   }
 
+// במקום לסמוך על מספרים חלקיים מבחוץ – תמיד נרענן את האמת מפיירסטור
 async setAbsoluteUsage(bytes, docsCount) {
-  if (!this.userSubscription) return;
+  try {
+    console.log(
+      "🔄 setAbsoluteUsage נקראה – מתעלם מהערכים שהועברו ומרענן שימוש מלא מ-Firestore"
+    );
+    // מאפסים cache כדי שהרענון יהיה אמיתי
+    this._usageCache = null;
+    this._cacheTimestamp = 0;
 
-  const safeBytes = Number(bytes);
-  const safeDocs = Number(docsCount);
-
-  this.userSubscription.usedStorage = Number.isFinite(safeBytes) && safeBytes > 0 ? safeBytes : 0;
-  this.userSubscription.documentCount = Number.isFinite(safeDocs) && safeDocs > 0 ? safeDocs : 0;
-
-  await this.saveSubscription();
+    // זה יחזיר usedStorage + documentCount אמיתיים (כולל משותפים)
+    await this.refreshUsageFromFirestore(true);
+  } catch (err) {
+    console.error("❌ setAbsoluteUsage refresh failed:", err);
+  }
 }
+
 
 
 
