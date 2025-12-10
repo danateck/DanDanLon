@@ -5236,18 +5236,47 @@ pendingBox.addEventListener("click", async (ev) => {
   const accId = t.getAttribute?.("data-accept");
   const rejId = t.getAttribute?.("data-reject");
   if (!accId && !rejId) return;
+
   const myEmail = (allUsersData[userNow].email || userNow).toLowerCase();
+
+  // ✅ לוחצים על "אשר"
   if (accId) {
-    const folderId = t.getAttribute("data-folder");
+    const folderId   = t.getAttribute("data-folder");
     const folderName = t.getAttribute("data-fname");
     const ownerEmail = t.getAttribute("data-owner");
+
+    // 🧠 בדיקה לפני הצטרפות: האם מותר לי להצטרף לתיקייה הזו מבחינת אחסון?
+    if (
+      window.subscriptionManager &&
+      typeof window.subscriptionManager.canJoinSharedFolder === "function"
+    ) {
+      try {
+        const check = await window.subscriptionManager.canJoinSharedFolder(folderId);
+
+        if (!check.allowed) {
+          alert(
+            (check.reason || "לא ניתן להצטרף לתיקייה הזו בתוכנית הנוכחית שלך.") +
+            "\n\n💎 אפשר למחוק קבצים קיימים אצלך או לשדרג מנוי כדי להצטרף לתיקייה הזאת."
+          );
+          return; // ⛔️ לא ממשיכים להצטרף
+        }
+      } catch (err) {
+        console.error("❌ שגיאה בבדיקת canJoinSharedFolder:", err);
+        alert("אירעה שגיאה בבדיקת מגבלת האחסון. נסי שוב מאוחר יותר.");
+        return;
+      }
+    }
+
+    // 🟢 אם הגענו לכאן – עברנו את הבדיקה ואפשר להמשיך כמו קודם
     showLoading("מצטרף לתיקייה...");
+
     // הוספה לתיקייה המשותפת
     const added = await addMemberToSharedFolder(folderId, myEmail, folderName, ownerEmail);
     if (added) {
       // עדכון סטטוס ההזמנה
       await updateInviteStatus(accId, "accepted");
-      // עדכון מקומי
+
+      // עדכון מקומי – המשתמש המצטרף
       if (!allUsersData[userNow].sharedFolders) {
         allUsersData[userNow].sharedFolders = {};
       }
@@ -5257,23 +5286,32 @@ pendingBox.addEventListener("click", async (ev) => {
         members: [ownerEmail, myEmail]
       };
       saveAllUsersDataToStorage(allUsersData);
+
+      // עדכון מקומי – אצל הבעלים
       {
-  const acceptedEmail = myEmail;
-  const folderId   = t.getAttribute("data-folder");
-  const ownerEmail = (t.getAttribute("data-owner") || "").toLowerCase();
-  const ownerName = findUsernameByEmail(allUsersData, ownerEmail) || ownerEmail;
-  ensureUserSharedFields(allUsersData, ownerName);
-  const ownerSF = allUsersData[ownerName].sharedFolders || {};
-  if (!ownerSF[folderId]) ownerSF[folderId] = { name: t.getAttribute("data-fname") || "תיקייה משותפת", owner: ownerEmail, members: [] };
-  const arr = ownerSF[folderId].members || (ownerSF[folderId].members = []);
-  if (!arr.includes(acceptedEmail)) arr.push(acceptedEmail);
-  allUsersData[ownerName].sharedFolders = ownerSF;
-  saveAllUsersDataToStorage(allUsersData);
-  if (categoryTitle.textContent === (ownerSF[folderId].name || "תיקייה משותפת")) {
-    openSharedView();
-  }
-}
-      // 🔥 רענן את רשימת התיקיות המשותפות מ-Firestore
+        const acceptedEmail = myEmail;
+        const folderId   = t.getAttribute("data-folder");
+        const ownerEmail = (t.getAttribute("data-owner") || "").toLowerCase();
+        const ownerName = findUsernameByEmail(allUsersData, ownerEmail) || ownerEmail;
+        ensureUserSharedFields(allUsersData, ownerName);
+        const ownerSF = allUsersData[ownerName].sharedFolders || {};
+        if (!ownerSF[folderId]) {
+          ownerSF[folderId] = {
+            name: t.getAttribute("data-fname") || "תיקייה משותפת",
+            owner: ownerEmail,
+            members: []
+          };
+        }
+        const arr = ownerSF[folderId].members || (ownerSF[folderId].members = []);
+        if (!arr.includes(acceptedEmail)) arr.push(acceptedEmail);
+        allUsersData[ownerName].sharedFolders = ownerSF;
+        saveAllUsersDataToStorage(allUsersData);
+        if (categoryTitle.textContent === (ownerSF[folderId].name || "תיקייה משותפת")) {
+          openSharedView();
+        }
+      }
+
+      // 🔥 רענון את רשימת התיקיות המשותפות מ-Firestore
       console.log("🔄 Reloading shared folders after accepting invite...");
       if (typeof loadSharedFolders === "function") {
         try {
@@ -5282,7 +5320,7 @@ pendingBox.addEventListener("click", async (ev) => {
             window.mySharedFolders = folders;
             saveSharedFoldersToCache(folders);
             console.log("✅ Shared folders reloaded:", folders.length);
-            // רענן את ה-UI אם אנחנו בתצוגת תיקיות משותפות
+            // רענון UI אם אנחנו כבר בתצוגת אחסון משותף
             if (categoryTitle.textContent === "אחסון משותף") {
               openSharedView();
             }
@@ -5291,13 +5329,17 @@ pendingBox.addEventListener("click", async (ev) => {
           console.warn("⚠️ Could not reload folders:", err);
         }
       }
+
       showNotification("הצטרפת לתיקייה המשותפת ✔️");
     } else {
       showNotification("שגיאה בהצטרפות, נסי שוב", true);
     }
+
     hideLoading();
     await renderPending();
   }
+
+  // ❌ "סרב"
   if (rejId) {
     showLoading("דוחה הזמנה...");
     await updateInviteStatus(rejId, "rejected");
@@ -5306,6 +5348,7 @@ pendingBox.addEventListener("click", async (ev) => {
     await renderPending();
   }
 });
+
 // קריאה ראשונית
 renderPending();
   homeView.classList.add("hidden");
@@ -8534,7 +8577,7 @@ async function shareProfile(profileId) {
     }
   }
 
-  
+
 
   try {
     // 1️⃣ יצירת בקשה ב-Firestore

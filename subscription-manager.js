@@ -514,6 +514,85 @@ async setAbsoluteUsage(bytes, docsCount) {
 }
 
 
+
+
+// בדיקה אם מותר למשתמש הנוכחי להצטרף לתיקייה משותפת לפי מגבלת האחסון שלו
+async canJoinSharedFolder(sharedFolderId) {
+  const plan = this.getCurrentPlan();
+  const totalStorage = this.getTotalStorage();
+
+  // אם אין מגבלת אחסון (פרימיום וכו') – תמיד מותר
+  if (!Number.isFinite(totalStorage) || totalStorage === Infinity) {
+    return { allowed: true };
+  }
+
+  if (!this.db || !this.fs || !this.userEmail) {
+    return {
+      allowed: false,
+      reason: "שגיאת מערכת: חסר חיבור למסד נתונים או משתמש לא מזוהה"
+    };
+  }
+
+  // ודאי שהשימוש הנוכחי מעודכן
+  await this.refreshUsageFromFirestore(true);
+
+  const currentUsed = Number(this.userSubscription?.usedStorage) || 0;
+
+  const docsRef = this.fs.collection(this.db, "documents");
+  const q = this.fs.query(
+    docsRef,
+    this.fs.where("sharedFolders", "array-contains", sharedFolderId)
+  );
+
+  const snap = await this.fs.getDocs(q);
+
+  if (snap.empty) {
+    // תיקייה ריקה – אין בעיה
+    return { allowed: true, folderBytes: 0, projectedBytes: currentUsed };
+  }
+
+  let folderBytes = 0;
+
+  snap.forEach((docSnap) => {
+    const data = docSnap.data() || {};
+
+    if (data._trashed || data.deletedAt || data.trashed) return;
+
+    const size =
+      Number(data.fileSize) ||
+      Number(data.size) ||
+      Number(data.file_size) ||
+      0;
+
+    if (size > 0 && Number.isFinite(size)) {
+      folderBytes += size;
+    }
+  });
+
+  const projected = currentUsed + folderBytes;
+
+  if (projected > totalStorage) {
+    return {
+      allowed: false,
+      folderBytes,
+      projectedBytes: projected,
+      reason:
+        `לא ניתן להצטרף לתיקייה הזו בתוכנית הנוכחית שלך.\n\n` +
+        `גודל התיקייה: ${this.formatBytes(folderBytes)}\n` +
+        `הקבצים שכבר יש לך: ${this.formatBytes(currentUsed)}\n` +
+        `מגבלת האחסון בתוכנית ${plan.nameHe}: ${this.formatBytes(totalStorage)}`
+    };
+  }
+
+  return {
+    allowed: true,
+    folderBytes,
+    projectedBytes: projected
+  };
+}
+
+
+
   // בדיקה אם פעולה מותרת
   async canPerformAction(action, data = {}) {
     const plan = this.getCurrentPlan();
@@ -610,6 +689,7 @@ async setAbsoluteUsage(bytes, docsCount) {
    * רענון מהיר מ-Firestore (עם cache)
    */
 // 📦 רענון שימוש באחסון *רק* על מסמכים שהמשתמש הבעלים שלהם
+// 📦 רענון שימוש באחסון – מסמכים בבעלותי + מסמכים שמשותפים איתי
 async refreshUsageFromFirestore(forceRefresh = false) {
   // אם יש cache תקף ולא מבקשים refresh - השתמש בו
   if (
@@ -627,21 +707,37 @@ async refreshUsageFromFirestore(forceRefresh = false) {
   }
 
   try {
-    console.log('🔄 Refreshing usage from Firestore (OWNED ONLY)...');
+    console.log('🔄 Refreshing usage from Firestore (OWNED + SHARED)...');
     const docsRef = this.fs.collection(this.db, "documents");
 
-    // ✅ רק מסמכים שאני הבעלים שלהם
+    // מסמכים שאני הבעלים שלהם
     const ownedQuery = this.fs.query(
       docsRef,
       this.fs.where("owner", "==", this.userEmail)
     );
 
-    const ownedSnap = await this.fs.getDocs(ownedQuery);
+    // מסמכים שמשותפים איתי (sharedWith = מערך מיילים)
+    const sharedQuery = this.fs.query(
+      docsRef,
+      this.fs.where("sharedWith", "array-contains", this.userEmail)
+    );
+
+    const [ownedSnap, sharedSnap] = await Promise.all([
+      this.fs.getDocs(ownedQuery),
+      this.fs.getDocs(sharedQuery),
+    ]);
 
     let totalBytes = 0;
     let totalDocs = 0;
 
-    ownedSnap.forEach((doc) => {
+    // שלא נספור את אותו מסמך פעמיים
+    const seenIds = new Set();
+
+    const handleDoc = (doc) => {
+      const id = doc.id;
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+
       const data = doc.data() || {};
 
       // דלג על מסמכים שנמצאים בסל מחזור / מחוקים
@@ -657,9 +753,12 @@ async refreshUsageFromFirestore(forceRefresh = false) {
         totalBytes += size;
         totalDocs += 1;
       }
-    });
+    };
 
-    // שמור ב-cache (אם תרצי בעתיד – אפשר להוסיף גם shared)
+    ownedSnap.forEach(handleDoc);
+    sharedSnap.forEach(handleDoc);
+
+    // שמור ב-cache
     this._usageCache = { bytes: totalBytes, documents: totalDocs };
     this._cacheTimestamp = Date.now();
 
@@ -671,7 +770,7 @@ async refreshUsageFromFirestore(forceRefresh = false) {
     }
 
     console.log(
-      `✅ Usage refreshed (OWNED): ${this.formatBytes(totalBytes)} from ${totalDocs} documents`
+      `✅ Usage refreshed (OWNED+SHARED): ${this.formatBytes(totalBytes)} from ${totalDocs} documents`
     );
 
     return this._usageCache;
