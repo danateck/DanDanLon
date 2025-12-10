@@ -787,7 +787,7 @@ function computeStorageUsage() {
 // 📦 WIDGET אחסון – חישוב ועדכון
 // ===============================
 // 🧮 וידג'ט האחסון – לוקח את כל הנתונים אך ורק מ-SubscriptionManager
-async function updateStorageUsageWidget() {
+function updateStorageUsageWidget() {
   console.log("🔄 updateStorageUsageWidget called");
   
   const barFill   = document.getElementById("storageUsageBarFill");
@@ -804,57 +804,66 @@ async function updateStorageUsageWidget() {
   const MB  = 1024 * 1024;
   const LRM = "\u200E";
 
+  // 🔹 כל המסמכים שהמשתמשת רואה (OWNED + SHARED), בלי סל מחזור
+  const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
+  const visibleDocs = docs.filter(d =>
+    d &&
+    !d._trashed &&            // לא בסל מחזור
+    d.hasFile !== false       // לוודא שזה מסמך אמיתי
+  );
+  const docsCount = visibleDocs.length;   // 👈 זה יהיה ה-11 שלך
+
   // ברירת מחדל – חינם
   let usedBytes  = 0;
   let totalBytes = 200 * MB;
   let usedPct    = 0;
-  let docsCount  = 0;
   let maxDocs    = null;
 
-  // 🧠 מקור אמת יחיד: SubscriptionManager
+  // 🔧 אם יש SubscriptionManager – לוקחים ממנו רק את מגבלת האחסון
   if (window.subscriptionManager) {
     try {
-      // רענון אמיתי מ-Firestore כדי לוודא ש-count הוא האחרון (OWNED+SHARED)
-      if (typeof window.subscriptionManager.refreshUsageFromFirestore === "function") {
-        console.log("🔄 Refreshing usage from Firestore before drawing widget...");
-        await window.subscriptionManager.refreshUsageFromFirestore(true);
+      const info = window.subscriptionManager.getSubscriptionInfo();
+      const limit = Number(info.storage?.limit);
+      const pct   = Number(info.storage?.percentage);
+
+      if (Number.isFinite(limit) && limit > 0) {
+        totalBytes = limit;
+      }
+      if (Number.isFinite(pct) && pct >= 0) {
+        usedPct = pct;
       }
 
-      const info = window.subscriptionManager.getSubscriptionInfo();
+      const plan = window.subscriptionManager.getCurrentPlan();
+      if (plan && typeof plan.maxDocuments === "number") {
+        maxDocs = plan.maxDocuments;
+      }
 
-      // אחסון
-      const used   = Number(info.storage?.used);
-      const limit  = Number(info.storage?.limit);
-      const pct    = Number(info.storage?.percentage);
-
-      if (Number.isFinite(used)  && used  >= 0) usedBytes  = used;
-      if (Number.isFinite(limit) && limit >  0) totalBytes = limit;
-      if (Number.isFinite(pct)   && pct   >= 0) usedPct    = pct;
-
-      // מסמכים
-      const dCount = info.documents?.count;
-      const dLimit = info.documents?.limit;
-
-      // 👉 כאן אנחנו לוקחים בדיוק את מה שהראית בצילום: {count: 10, limit: 200}
-      docsCount = typeof dCount === "number" ? dCount : Number(dCount) || 0;
-      maxDocs   = dLimit !== undefined ? dLimit : null;
-
-      console.log("📊 From SubscriptionManager:", {
-        usedBytes,
-        totalBytes,
-        usedPct,
-        docsCount,
-        maxDocs
-      });
+      // את האחסון בשימוש ניקח גם מה-SubscriptionManager אם יש:
+      const used = Number(info.storage?.used);
+      if (Number.isFinite(used) && used >= 0) {
+        usedBytes = used;
+      }
     } catch (err) {
-      console.warn("⚠️ Failed to read from SubscriptionManager:", err);
+      console.warn("⚠️ Could not read plan from SubscriptionManager:", err);
+    }
+  }
+
+  // אם לא קיבלנו usedBytes מ-SubscriptionManager – נסכם ידנית מהמסמכים
+  if (!Number.isFinite(usedBytes) || usedBytes <= 0) {
+    usedBytes = 0;
+    for (const d of visibleDocs) {
+      let size = Number(d.fileSize ?? d.file_size ?? d.size);
+      if (!Number.isFinite(size) || size <= 0) {
+        size = 300 * 1024; // דיפולט קטן
+      }
+      usedBytes += size;
     }
   }
 
   const totalGB = totalBytes === Infinity ? Infinity : totalBytes / GB;
   const usedGB  = usedBytes / GB;
 
-  // 🔧 טיפול בפרימיום ללא הגבלה
+  // 🔧 תוכנית ללא הגבלה
   if (totalBytes === Infinity) {
     percentEl.textContent = "0%";
     barFill.style.setProperty("width", "0%", "important");
@@ -870,13 +879,13 @@ async function updateStorageUsageWidget() {
     return;
   }
 
-  // אם לא קיבלנו אחוז – נחשב לפי used / total
+  // אם לא קיבלנו אחוז – נחשב לבד
   if (!Number.isFinite(usedPct) || usedPct < 0) {
     usedPct = totalGB > 0 ? (usedGB / totalGB) * 100 : 0;
   }
   if (usedPct > 100) usedPct = 100;
 
-  // 💾 טקסט של האחסון
+  // 💾 טקסט האחסון
   let textValue;
   if (totalGB < 1) {
     const usedMB  = usedBytes / MB;
@@ -893,7 +902,7 @@ async function updateStorageUsageWidget() {
     textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
   }
 
-  // 🧮 טקסט למסמכים – תמיד מה-SubscriptionManager
+  // 🧮 טקסט המסמכים – לפי מה שהמשתמשת באמת רואה על המסך
   let docsText;
   if (typeof maxDocs === "number" && maxDocs !== Infinity) {
     docsText = `${docsCount}/${maxDocs} מסמכים`;
@@ -923,12 +932,14 @@ async function updateStorageUsageWidget() {
   void barFill.offsetHeight;
   barFill.style.display = "block";
 
-  console.log("💾 Storage widget updated (from SubscriptionManager):", {
-    usedBytes,
-    totalBytes,
-    usedPct,
+  console.log("💾 Storage widget updated (visible docs):", {
+    totalDocs: docs.length,
+    visibleDocs: visibleDocs.length,
     docsCount,
     maxDocs,
+    usedBytes,
+    usedGB: usedGB.toFixed(3),
+    usedPct: usedPct.toFixed(2),
     textValue,
     docsText
   });
