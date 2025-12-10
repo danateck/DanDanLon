@@ -846,32 +846,21 @@ function updateStorageUsageWidget() {
   );
 
   // 🧠 כאן הקסם: מקור אמת = subscriptionManager, ואם אין – נחשב לפי myDocs
+  // 🧠 כאן הקסם: אם יש subscriptionManager – הוא מקור האמת המלא
   let usedBytes = 0;
   let docsCount = 0;
 
   if (window.subscriptionManager) {
-    try {
-      const info = window.subscriptionManager.getSubscriptionInfo();
-      const used = Number(info.storage.used);
-      const subDocs = Number(info.documents.count);
+    const info = window.subscriptionManager.getSubscriptionInfo();
 
-      usedBytes = Number.isFinite(used) && used >= 0 ? used : 0;
-docsCount = Number.isFinite(subDocs) && subDocs >= 0 ? subDocs : 0;
-    } catch (err) {
-      console.warn("⚠️ Could not read usage from subscriptionManager, falling back to myDocs:", err);
-      usedBytes = 0;
-      for (const d of myDocs) {
-        let size = Number(d.fileSize ?? d.file_size ?? d.size);
-        if (!Number.isFinite(size) || size <= 0) {
-          size = 300 * 1024;
-        }
-        usedBytes += size;
-      }
-      docsCount = myDocs.length;
-    }
+    const used = Number(info.storage.used);
+    const subDocs = Number(info.documents.count);
+
+    usedBytes = Number.isFinite(used) && used >= 0 ? used : 0;
+    docsCount = Number.isFinite(subDocs) && subDocs >= 0 ? subDocs : 0;
+
   } else {
-    // fallback כשאין subscriptionManager בכלל
-    usedBytes = 0;
+    // fallback נדיר אם אין subscriptionManager בכלל
     for (const d of myDocs) {
       let size = Number(d.fileSize ?? d.file_size ?? d.size);
       if (!Number.isFinite(size) || size <= 0) {
@@ -881,6 +870,7 @@ docsCount = Number.isFinite(subDocs) && subDocs >= 0 ? subDocs : 0;
     }
     docsCount = myDocs.length;
   }
+
 
   const usedGB = usedBytes / GB;
   const freeGB = Math.max(0, TOTAL_GB - usedGB);
