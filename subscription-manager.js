@@ -502,21 +502,24 @@ export class SubscriptionManager {
   }
 
 // במקום לסמוך על מספרים חלקיים מבחוץ – תמיד נרענן את האמת מפיירסטור
+// במקום לסמוך על ערכים "חלקיים" מבחוץ – תמיד נרענן מהאמת ב-Firestore
 async setAbsoluteUsage(bytes, docsCount) {
   try {
     console.log(
       "🔄 setAbsoluteUsage נקראה – מתעלם מהערכים שהועברו ומרענן שימוש מלא מ-Firestore"
     );
+
     // מאפסים cache כדי שהרענון יהיה אמיתי
     this._usageCache = null;
     this._cacheTimestamp = 0;
 
-    // זה יחזיר usedStorage + documentCount אמיתיים (כולל משותפים)
+    // רענון מלא – סופר בעלות + משותפים לפי refreshUsageFromFirestore
     await this.refreshUsageFromFirestore(true);
   } catch (err) {
     console.error("❌ setAbsoluteUsage refresh failed:", err);
   }
 }
+
 
 
 
