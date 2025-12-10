@@ -1005,3 +1005,27 @@ window.recalculateUserStorage = async function() {
     console.error("⚠️ recalculateUserStorage failed:", err);
   }
 };
+
+
+
+// בדיקה אם המשתמש חורג ממכסת האחסון של התוכנית שלו
+function isOverStorageQuota() {
+  if (!window.subscriptionManager) return false;
+
+  try {
+    const info  = window.subscriptionManager.getSubscriptionInfo();
+    const used  = Number(info.storage?.used);
+    const limit = Number(info.storage?.limit);
+
+    // אם אין מגבלה (פרימיום+) → אין חסימה
+    if (!Number.isFinite(limit) || limit === Infinity) return false;
+    if (!Number.isFinite(used)) return false;
+
+    const over = used > limit;
+    console.log("📦 isOverStorageQuota:", { used, limit, over });
+    return over;
+  } catch (err) {
+    console.warn("⚠️ isOverStorageQuota failed:", err);
+    return false;
+  }
+}

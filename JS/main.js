@@ -3037,6 +3037,23 @@ async function markDocTrashed(id, trashed) {
 console.log("✅ buildDocCard and helpers defined");
 // ===== END buildDocCard and helpers =====
 window.renderHome = function() {
+  const grid = document.getElementById("docsGrid") 
+            || document.getElementById("categoryDocs") 
+            || document.getElementById("docsList");
+
+  if (isOverStorageQuota()) {
+    if (grid) {
+      grid.innerHTML = `
+        <div style="padding:1rem;text-align:center;line-height:1.6;opacity:.9;">
+          <b>הגעת למכסת האחסון של התוכנית שלך.</b><br>
+          לא ניתן לצפות במסמכים כל עוד סך הקבצים שלך והקבצים המשותפים איתך חורג מהמכסה.<br>
+          מחקי קבצים ישנים או שדרגי תוכנית כדי לראות את המסמכים שוב.
+        </div>
+      `;
+    }
+    return; // לא מציירת כרטיסים בכלל
+  }
+  
   console.log("🎨 renderHome called");
   const homeView = document.getElementById("homeView");
   const categoryView = document.getElementById("categoryView");
@@ -3265,6 +3282,21 @@ window.openRecycleView = function () {
 };
 // 4. SHARED VIEW
 window.openSharedView = function() {
+
+   if (isOverStorageQuota()) {
+    alert(
+      "הגעת למכסת האחסון שלך.\n" +
+      "לא ניתן לצפות בתיקיות משותפות כי סך הקבצים שלך והקבצים המשותפים איתך חורג מהמכסה."
+    );
+
+    // אם יש לך פונקציה שפותחת את דף הבית, אפשר לחזור אליו:
+    if (typeof openHomeView === "function") {
+      openHomeView();
+    }
+    return; // לא מציגים את המסמכים בכלל
+  }
+
+
   const searchInput = document.getElementById("categorySearch");
   if (searchInput) {
     // באחסון משותף לא רוצים חיפוש במסמכים
