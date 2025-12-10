@@ -858,36 +858,64 @@ async refreshUsageFromFirestore(forceRefresh = false) {
 
     let docs = Number(sub.documentCount);
     if (!Number.isFinite(docs) || docs < 0) docs = 0;
+const totalStorage = this.getTotalStorage();
 
-    const totalStorage = this.getTotalStorage();
+// 🧮 חישובי תצוגה
+const realUsed = storage; // כמה באמת בשימוש (כולל חריגה)
+const safeLimit = Number.isFinite(totalStorage) && totalStorage > 0 ? totalStorage : Infinity;
 
-    return {
-      plan: plan,
-      status: sub.status || 'active',
-      storage: {
-        used: storage,
-        limit: totalStorage,
-        percentage: totalStorage === Infinity ? 0 : Math.min(100, (storage / totalStorage) * 100),
-        formatted: {
-          used: this.formatBytes(storage),
-          limit: this.formatBytes(totalStorage)
-        }
-      },
-      documents: {
-        count: docs,
-        limit: plan.maxDocuments,
-        percentage:
-          !plan.maxDocuments || plan.maxDocuments === Infinity
-            ? 0
-            : Math.min(100, (docs / plan.maxDocuments) * 100)
-      },
-      dates: {
-        start: sub.startDate || null,
-        end: sub.endDate || null,
-        cancelled: sub.cancelledDate || null,
-        graceEnd: sub.graceEndDate || null
-      }
-    };
+// מה נציג בפועל ב־UI (לא נעבור את הגבול)
+const displayUsed =
+  safeLimit === Infinity
+    ? realUsed
+    : Math.min(realUsed, safeLimit);
+
+// כמה הוא מעבר למגבלה (אם בכלל)
+const overBytes =
+  safeLimit === Infinity
+    ? 0
+    : Math.max(0, realUsed - safeLimit);
+
+return {
+  plan: plan,
+  status: sub.status || 'active',
+  storage: {
+    // ערכים אמיתיים ללוגיקה
+    used: realUsed,
+    limit: totalStorage,
+
+    // כמה הוא מעל המגבלה
+    overBytes,
+    overFormatted: this.formatBytes(overBytes),
+
+    percentage:
+      !Number.isFinite(safeLimit) || safeLimit <= 0
+        ? 0
+        : Math.min(100, (realUsed / safeLimit) * 100),
+
+    formatted: {
+      // בתצוגה – לא נכתוב "300 מתוך 200" אלא "200 מתוך 200"
+      used: this.formatBytes(displayUsed),
+      limit: this.formatBytes(totalStorage),
+      over: overBytes > 0 ? this.formatBytes(overBytes) : null
+    }
+  },
+  documents: {
+    count: docs,
+    limit: plan.maxDocuments,
+    percentage:
+      !plan.maxDocuments || plan.maxDocuments === Infinity
+        ? 0
+        : Math.min(100, (docs / plan.maxDocuments) * 100)
+  },
+  dates: {
+    start: sub.startDate || null,
+    end: sub.endDate || null,
+    cancelled: sub.cancelledDate || null,
+    graceEnd: sub.graceEndDate || null
+  }
+};
+
   }
 
 
