@@ -264,6 +264,37 @@ window.checkOCRLimits = function() {
 // פונקציות עזר לבדיקות מהירות
 // ========================================
 
+
+// האם המשתמש חרג ממכסת האחסון (OWNED + SHARED)
+window.isOverStorageQuota = function() {
+  if (!window.subscriptionManager) {
+    return false; // אם אין מערכת מנויים – לא חוסמים
+  }
+
+  try {
+    const info = window.subscriptionManager.getSubscriptionInfo();
+    const plan = info.plan || window.subscriptionManager.getCurrentPlan();
+
+    // אם אין מידע מסודר – לא חוסמים
+    if (!plan || !info || !info.storage) {
+      return false;
+    }
+
+    // תוכנית עם אחסון ללא הגבלה
+    if (plan.storage === Infinity) {
+      return false;
+    }
+
+    // כאן יש לנו שימוש כולל (OWNED + SHARED) לעומת מגבלת התוכנית
+    return info.storage.used > plan.storage;
+  } catch (e) {
+    console.warn("⚠️ isOverStorageQuota failed:", e);
+    return false; // במקרה של שגיאה – לא נתקע את המשתמש
+  }
+};
+
+
+
 // האם מותר להעלות קובץ?
 window.canUploadFile = async function(file) {
   const result = await window.checkUploadLimits(file);
