@@ -786,120 +786,92 @@ function computeStorageUsage() {
 // ===============================
 // 📦 WIDGET אחסון – חישוב ועדכון
 // ===============================
-function updateStorageUsageWidget() {
+async function updateStorageUsageWidget() {
   console.log("🔄 updateStorageUsageWidget called");
   
   const barFill   = document.getElementById("storageUsageBarFill");
   const textEl    = document.getElementById("storageUsageText");
   const percentEl = document.getElementById("storageUsagePercent");
-  const docsEl    = document.getElementById("storageDocsText"); // 🆕 שורה חדשה למסמכים
+  const docsEl    = document.getElementById("storageDocsText");
 
   if (!barFill || !textEl || !percentEl) {
-    console.log("⚠️ Old storage widget not found (probably using new subscription system)");
-    return; // לא שגיאה - פשוט לא קיים
+    console.log("⚠️ Storage widget elements not found");
+    return;
   }
 
-  const GB = 1024 * 1024 * 1024;
-  const MB = 1024 * 1024;
-  
-  // 🔧 קבלת מכסת אחסון מה-subscriptionManager אם קיים
-  let TOTAL_BYTES = 200 * MB; // ברירת מחדל: 200MB (תוכנית Free)
-  let maxDocs = null;         // מגבלת מסמכים (אם קיימת)
+  const GB  = 1024 * 1024 * 1024;
+  const MB  = 1024 * 1024;
+  const LRM = "\u200E";
 
+  // ברירת מחדל – חינם
+  let usedBytes  = 0;
+  let totalBytes = 200 * MB;
+  let usedPct    = 0;
+  let docsCount  = 0;
+  let maxDocs    = null;
+
+  // 🧠 מקור אמת יחיד: SubscriptionManager
   if (window.subscriptionManager) {
     try {
-      const plan = window.subscriptionManager.getCurrentPlan();
-      TOTAL_BYTES = plan.storage;      // בבייטים
-      maxDocs     = plan.maxDocuments; // מגבלת מסמכים (יכול להיות Infinity)
-      console.log(`💎 Using storage limit from ${plan.nameHe}: ${(TOTAL_BYTES / MB).toFixed(0)}MB`);
-    } catch (error) {
-      console.warn('⚠️ Could not get plan from subscriptionManager:', error);
+      // רענון אמיתי מפיירסטור כדי לוודא שהמספר הוא האחרון (OWNED+SHARED)
+      await window.subscriptionManager.refreshUsageFromFirestore(true);
+
+      const info = window.subscriptionManager.getSubscriptionInfo();
+
+      const used   = Number(info.storage?.used);
+      const limit  = Number(info.storage?.limit);
+      const pct    = Number(info.storage?.percentage);
+      const dCount = Number(info.documents?.count);
+      const dLimit = info.documents?.limit;
+
+      if (Number.isFinite(used)  && used  >= 0) usedBytes  = used;
+      if (Number.isFinite(limit) && limit >  0) totalBytes = limit;
+      if (Number.isFinite(pct)   && pct   >= 0) usedPct    = pct;
+      if (Number.isFinite(dCount) && dCount >= 0) docsCount = dCount;
+      if (dLimit !== undefined) maxDocs = dLimit;
+
+      console.log("📊 From SubscriptionManager:", {
+        usedBytes,
+        totalBytes,
+        usedPct,
+        docsCount,
+        maxDocs,
+      });
+    } catch (err) {
+      console.warn("⚠️ Failed to read from SubscriptionManager:", err);
     }
   }
-  
-  const TOTAL_GB = TOTAL_BYTES / GB;
 
-  const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
+  const totalGB = totalBytes === Infinity ? Infinity : totalBytes / GB;
+  const usedGB  = usedBytes / GB;
 
-  const me = (typeof getCurrentUserEmail === "function")
-    ? getCurrentUserEmail()
-    : null;
-
-  // אין משתמש – מציגים הכל פנוי
-  if (!me) {
-    barFill.style.setProperty('width', '0%', 'important');
+  // 🔧 טיפול בפרימיום ללא הגבלה
+  if (totalBytes === Infinity) {
     percentEl.textContent = "0%";
-    textEl.textContent    = `אחסון פנוי: ${TOTAL_GB.toFixed(1)}GB מתוך ${TOTAL_GB.toFixed(1)}GB`;
-    if (docsEl) docsEl.textContent = `0 מסמכים`;
-    console.log("💾 Storage widget: no user");
-    return;
-  }
+    barFill.style.setProperty("width", "0%", "important");
 
-  const meNorm = me.toLowerCase();
-
-  // מסמכים ששייכים למשתמשת, לא בסל מחזור (למקרה שאין subscriptionManager)
-  const myDocs = docs.filter(d =>
-    d &&
-    d.owner &&
-    d.owner.toLowerCase() === meNorm &&
-    !d._trashed
-  );
-
-  // 🧠 כאן הקסם: מקור אמת = subscriptionManager, ואם אין – נחשב לפי myDocs
-  // 🧠 כאן הקסם: אם יש subscriptionManager – הוא מקור האמת המלא
-  let usedBytes = 0;
-  let docsCount = 0;
-
-  if (window.subscriptionManager) {
-    const info = window.subscriptionManager.getSubscriptionInfo();
-
-    const used = Number(info.storage.used);
-    const subDocs = Number(info.documents.count);
-
-    usedBytes = Number.isFinite(used) && used >= 0 ? used : 0;
-    docsCount = Number.isFinite(subDocs) && subDocs >= 0 ? subDocs : 0;
-
-  } else {
-    // fallback נדיר אם אין subscriptionManager בכלל
-    for (const d of myDocs) {
-      let size = Number(d.fileSize ?? d.file_size ?? d.size);
-      if (!Number.isFinite(size) || size <= 0) {
-        size = 300 * 1024;
-      }
-      usedBytes += size;
-    }
-    docsCount = myDocs.length;
-  }
-
-
-  const usedGB = usedBytes / GB;
-  const freeGB = Math.max(0, TOTAL_GB - usedGB);
-
-  // 🔧 טיפול מיוחד ל-Infinity (Premium+)
-  if (TOTAL_BYTES === Infinity) {
-    barFill.style.setProperty('width', '0%', 'important');
-    percentEl.textContent = "0%";
     const usedMB = usedBytes / MB;
-    const usedDisplay = usedMB < 1024 
-      ? `${usedMB.toFixed(1)}MB`
-      : `${usedGB.toFixed(2)}GB`;
+    const usedDisplay =
+      usedMB < 1024 ? `${usedMB.toFixed(1)}MB` : `${usedGB.toFixed(2)}GB`;
+
     textEl.textContent = `אחסון: ${usedDisplay} (ללא הגבלה ∞)`;
     if (docsEl) docsEl.textContent = `${docsCount} מסמכים`;
-    console.log("💎 Storage widget: Unlimited (Premium+)");
+
+    console.log("💎 Storage widget: Unlimited plan");
     return;
   }
 
-  let usedPct = TOTAL_GB > 0 ? (usedGB / TOTAL_GB) * 100 : 0;
-  if (!Number.isFinite(usedPct) || usedPct < 0) usedPct = 0;
+  // אם לא קיבלנו אחוז – נחשב לבד
+  if (!Number.isFinite(usedPct) || usedPct < 0) {
+    usedPct = totalGB > 0 ? (usedGB / totalGB) * 100 : 0;
+  }
   if (usedPct > 100) usedPct = 100;
 
-  // 💾 הטקסט של האחסון – כמו שהיה, רק עם usedBytes החדשים
-  const LRM = '\u200E'; // Left-to-Right Mark
-
+  // 💾 טקסט של האחסון
   let textValue;
-  if (TOTAL_GB < 1) {
+  if (totalGB < 1) {
     const usedMB  = usedBytes / MB;
-    const totalMB = TOTAL_BYTES / MB;
+    const totalMB = totalBytes / MB;
 
     const usedStr  = `${LRM}${usedMB.toFixed(1)} MB${LRM}`;
     const totalStr = `${LRM}${totalMB.toFixed(0)} MB${LRM}`;
@@ -907,12 +879,12 @@ function updateStorageUsageWidget() {
     textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
   } else {
     const usedStr  = `${LRM}${usedGB.toFixed(2)} GB${LRM}`;
-    const totalStr = `${LRM}${TOTAL_GB.toFixed(1)} GB${LRM}`;
+    const totalStr = `${LRM}${totalGB.toFixed(1)} GB${LRM}`;
 
     textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
   }
 
-  // 🧮 טקסט למסמכים לפי docsCount + maxDocs
+  // 🧮 טקסט למסמכים – תמיד מה-SubscriptionManager
   let docsText;
   if (typeof maxDocs === "number" && maxDocs !== Infinity) {
     docsText = `${docsCount}/${maxDocs} מסמכים`;
@@ -920,40 +892,39 @@ function updateStorageUsageWidget() {
     docsText = `${docsCount} מסמכים`;
   }
 
-  // 🔧 הגדרה מאולצת - מוודא שזה יעבוד!
+  // 🎨 עדכון ה-UI
   const widthValue   = usedPct.toFixed(1) + "%";
   const percentValue = Math.round(usedPct) + "%";
-  
-  barFill.style.setProperty('width', widthValue, 'important');
-  barFill.setAttribute('style', `width: ${widthValue} !important`);
+
+  barFill.style.setProperty("width", widthValue, "important");
+  barFill.setAttribute("style", `width: ${widthValue} !important`);
   barFill.dataset.width = widthValue;
-  
+
   percentEl.textContent   = percentValue;
   percentEl.dataset.value = percentValue;
-  
-  textEl.textContent   = textValue;
-  textEl.dataset.text  = textValue;
+
+  textEl.textContent  = textValue;
+  textEl.dataset.text = textValue;
 
   if (docsEl) {
-    docsEl.textContent   = docsText;
-    docsEl.dataset.text  = docsText;
+    docsEl.textContent  = docsText;
+    docsEl.dataset.text = docsText;
   }
-  
-  void barFill.offsetHeight; // Trigger reflow
-  barFill.style.display = 'block';
 
-  console.log("💾 Storage widget updated:", {
-    totalDocs: docs.length,
-    myDocs: myDocs.length,
+  void barFill.offsetHeight;
+  barFill.style.display = "block";
+
+  console.log("💾 Storage widget updated (from SubscriptionManager):", {
     usedBytes,
-    usedGB: usedGB.toFixed(3),
-    usedPct: usedPct.toFixed(2),
-    setWidth: widthValue,
-    setPercent: percentValue,
-    setText: textValue,
-    docsText
+    totalBytes,
+    usedPct,
+    docsCount,
+    maxDocs,
+    textValue,
+    docsText,
   });
 }
+
 
 
 // שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
