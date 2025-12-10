@@ -150,6 +150,59 @@ window.checkCreateSharedFolderLimits = function(invitedEmails = []) {
   return { allowed: true };
 };
 
+
+// 📦 סינון מסמכים לפי מגבלת האחסון של התוכנית
+window.filterDocsByStorageQuota = function(docs) {
+  if (!Array.isArray(docs) || !window.subscriptionManager) {
+    return docs;
+  }
+
+  try {
+    const info = window.subscriptionManager.getSubscriptionInfo();
+    const plan = info.plan || window.subscriptionManager.getCurrentPlan();
+
+    // אם אין מגבלה (פרימיום / פרימיום+) – לא מסננים כלום
+    if (!plan || !Number.isFinite(plan.storage) || plan.storage === Infinity) {
+      return docs;
+    }
+
+    const limitBytes = plan.storage;
+    let used = 0;
+    const result = [];
+
+    // חשוב: מדלגים על מסמכים שנמצאים בסל מחזור / בלי קובץ
+    for (const d of docs) {
+      if (!d || d._trashed || d.hasFile === false) continue;
+
+      let size = Number(d.fileSize ?? d.file_size ?? d.size);
+      if (!Number.isFinite(size) || size <= 0) {
+        size = 300 * 1024; // ברירת מחדל קטנה
+      }
+
+      // אם אחרי הוספת הקובץ הזה נחצה את המגבלה – לא נכניס אותו
+      if (used + size > limitBytes) {
+        continue;
+      }
+
+      used += size;
+      result.push(d);
+    }
+
+    console.log("📦 filterDocsByStorageQuota:", {
+      limitMB: (limitBytes / (1024 * 1024)).toFixed(1),
+      kept: result.length,
+      skipped: docs.length - result.length
+    });
+
+    return result;
+  } catch (e) {
+    console.warn("⚠️ filterDocsByStorageQuota failed:", e);
+    return docs;
+  }
+};
+
+
+
 // ========================================
 // בדיקה לפני הוספת הזמנה לתיקייה קיימת
 // ========================================
@@ -256,6 +309,7 @@ window.checkOCRLimits = function() {
       showUpgrade: true
     };
   }
+  
   
   return { allowed: true };
 };
