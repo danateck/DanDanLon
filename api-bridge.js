@@ -856,7 +856,7 @@ function updateStorageUsageWidget() {
       const subDocs = Number(info.documents.count);
 
       usedBytes = Number.isFinite(used) && used >= 0 ? used : 0;
-      docsCount = Number.isFinite(subDocs) && subDocs >= 0 ? subDocs : myDocs.length;
+docsCount = Number.isFinite(subDocs) && subDocs >= 0 ? subDocs : 0;
     } catch (err) {
       console.warn("⚠️ Could not read usage from subscriptionManager, falling back to myDocs:", err);
       usedBytes = 0;
