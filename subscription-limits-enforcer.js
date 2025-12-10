@@ -395,3 +395,87 @@ window.canUseOCR = function() {
 };
 
 console.log('✅ מערכת אכיפת מגבלות טעונה');
+
+
+
+
+
+// ========================================
+// 📦 סינון מסמכים לפי מגבלת אחסון של התוכנית
+// ========================================
+window.filterDocsByStorageQuota = function (docs) {
+  if (!Array.isArray(docs)) return [];
+
+  if (!window.subscriptionManager) return docs;
+
+  try {
+    const info = window.subscriptionManager.getSubscriptionInfo();
+    const limit = Number(info.storage.limit);
+
+    // אם אין מגבלה (פרימיום / פרימיום+) – לא מסננים כלום
+    if (!Number.isFinite(limit) || limit <= 0 || limit === Infinity) {
+      return docs;
+    }
+
+    const MB = 1024 * 1024;
+    console.log(
+      "📦 filterDocsByStorageQuota → limit",
+      (limit / MB).toFixed(1),
+      "MB, docs:",
+      docs.length
+    );
+
+    // מדלגים על מסמכים שנמצאים בסל מחזור / מחוקים
+    const candidates = docs.filter(
+      (d) => d && !d._trashed && !d.deletedAt
+    );
+
+    // מסדרים לפי תאריך (ישן → חדש)
+    candidates.sort((a, b) => {
+      const ta =
+        a.uploadedAt ||
+        a.uploadDate ||
+        a.createdAt ||
+        a.lastModified ||
+        0;
+      const tb =
+        b.uploadedAt ||
+        b.uploadDate ||
+        b.createdAt ||
+        b.lastModified ||
+        0;
+      return Number(ta) - Number(tb);
+    });
+
+    const visible = [];
+    let used = 0;
+
+    for (const doc of candidates) {
+      let size = Number(doc.fileSize ?? doc.size ?? doc.file_size);
+      if (!Number.isFinite(size) || size <= 0) size = 0;
+
+      // אם אחרי המסמך הזה נחרוג ממכסה → לא מוסיפים אותו
+      if (used + size > limit) {
+        continue;
+      }
+
+      visible.push(doc);
+      used += size;
+    }
+
+    console.log("📊 filterDocsByStorageQuota result:", {
+      in: docs.length,
+      visible: visible.length,
+      usedBytes: used,
+    });
+
+    return visible;
+  } catch (err) {
+    console.warn(
+      "⚠️ filterDocsByStorageQuota failed, returning original docs:",
+      err
+    );
+    return docs;
+  }
+};
+

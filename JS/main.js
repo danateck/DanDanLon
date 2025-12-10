@@ -283,9 +283,16 @@ window.bootFromCloud = async function() {
     if (typeof showLoading === "function") {
       showLoading("טוען מסמכים מהענן...");
     }
-    const docs = await loadDocuments();
-     console.log("📦 Loaded", docs.length, "documents from Firestore");
-    window.allDocsData = docs || [];
+    let docs = await loadDocuments();
+console.log("📦 Loaded", docs.length, "documents from Firestore");
+
+// ⚡ מסנן לפי מכסת האחסון של התוכנית
+if (typeof window.filterDocsByStorageQuota === "function") {
+  docs = window.filterDocsByStorageQuota(docs || []);
+}
+
+window.allDocsData = docs || [];
+
 
     // 🧮 סינון המסמכים לפי מגבלת האחסון של התוכנית הנוכחית
     if (typeof window.filterDocsByStorageQuota === "function") {
@@ -427,12 +434,20 @@ function watchMyDocs() {
   const qShared = window.fs.query(col, window.fs.where("sharedWith", "array-contains", me));
   const applySnap = (snap) => {
     // Merge into global allDocsData (owned + shared)
-    const byId = new Map((allDocsData || []).map(d => [d.id, d]));
+ const byId = new Map((allDocsData || []).map(d => [d.id, d]));
     snap.forEach(doc => {
-      const data = { id: doc.id, ...doc.data() };
-      byId.set(doc.id, data);
-    });
-    allDocsData = Array.from(byId.values());
+    const data = { id: doc.id, ...doc.data() };
+    byId.set(doc.id, data);
+  });
+
+  let merged = Array.from(byId.values());
+
+  // ⚡ מסנן לפי מכסת האחסון
+  if (typeof window.filterDocsByStorageQuota === "function") {
+    merged = window.filterDocsByStorageQuota(merged);
+  }
+
+  allDocsData = merged;
     // Make sure your app-level cache also updated:
     if (typeof setUserDocs === "function" && typeof allUsersData !== "undefined" && typeof userNow !== "undefined") {
       setUserDocs(userNow, allDocsData, allUsersData);
@@ -475,11 +490,16 @@ async function bootFromCloud() {
   try {
     if (typeof showLoading === "function") showLoading("טוען מסמכים מהענן...");
     // Load documents from Firestore
-    const docs = await loadDocuments();
-    console.log("📦 Loaded", docs.length, "documents from Firestore for", me);
-    // IMPORTANT: Replace allDocsData completely with cloud data
-    // This ensures each user sees only their documents
-    allDocsData = docs || [];
+    let docs = await loadDocuments();
+console.log("📦 Loaded", docs.length, "documents from Firestore for", me);
+
+// ⚡ מסנן לפי מכסת האחסון של התוכנית
+if (typeof window.filterDocsByStorageQuota === "function") {
+  docs = window.filterDocsByStorageQuota(docs || []);
+}
+
+allDocsData = docs || [];
+
     // Update the user's local cache
     if (typeof setUserDocs === "function" && typeof allUsersData !== "undefined" && typeof userNow !== "undefined") {
       setUserDocs(userNow, allDocsData, allUsersData);
