@@ -4090,24 +4090,37 @@ window.allDocsData = getUserDocs(userNow, allUsersData);
     folderGrid.appendChild(folder);
   }
 if (fileInput) {
- fileInput.addEventListener("change", async () => {
-  let file = fileInput.files[0];
-    // 🤖 כאן נאחסן את תוצאת ה-AI (אם יש)
-  let aiClassification = null;
+  fileInput.addEventListener("change", async () => {
+    let file = fileInput.files[0];
 
-  // 🔒 בדיקת מגבלות מנוי
-  if (window.checkUploadLimits) {
-    const limitCheck = await window.checkUploadLimits(file);
-    if (!limitCheck.allowed) {
-      window.showLimitError(limitCheck);
-      fileInput.value = "";
+    // ⚙️ זיהוי מסלול המנוי הנוכחי (חינם / רגיל / מתקדם / מקצועי / פרימיום / פרימיום+)
+    let currentPlanId = "free";
+    if (window.subscriptionManager && typeof window.subscriptionManager.getSubscriptionInfo === "function") {
+      try {
+        const info = window.subscriptionManager.getSubscriptionInfo();
+        currentPlanId = (info.plan?.id || "free").toLowerCase();
+      } catch (e) {
+        console.warn("⚠️ בעיה בקריאת המנוי, מניחים free", e);
+      }
+    }
+
+    // 🔒 בדיקת מגבלות מנוי
+    if (window.checkUploadLimits) {
+      const limitCheck = await window.checkUploadLimits(file);
+      if (!limitCheck.allowed) {
+        window.showLimitError(limitCheck);
+        fileInput.value = "";
+        return;
+      }
+    }
+
+    if (!file) {
+      showNotification("❌ לא נבחר קובץ", true);
       return;
     }
-  }
-  if (!file) {
-    showNotification("❌ לא נבחר קובץ", true);
-    return;
-  }
+
+    // ... (מכאן ממשיכים כמו שהיה אצלך – שיפור תמונה, בדיקת כפילות וכו')
+
 
   // 🤖 פה נשמור את תוצאת ה-AI אם יש
   let aiResult = null;
@@ -4171,100 +4184,70 @@ console.log("📁 After context override:", {
   subfolder: guessedSubCategory,
 });
 
-
-// 🤖 אם המשתמש במסלול פרימיום/פרימיום+ – נשתמש ב-AI לשיוך מדויק
- currentPlanId = "free";
-try {
-  if (window.subscriptionManager && typeof window.subscriptionManager.getSubscriptionInfo === "function") {
-    const info = window.subscriptionManager.getSubscriptionInfo();
-    if (info && info.plan && info.plan.id) {
-      currentPlanId = info.plan.id;
-    }
-  }
-} catch (e) {
-  console.warn("⚠️ getSubscriptionInfo failed (AI):", e);
-}
-
-if (currentPlanId === "premium" || currentPlanId === "premium_plus") {
-  try {
-    if (typeof window.classifyDocumentWithAI === "function") {
-      const payload = {
-        title: fileName,
-        categoryHint: guessedCategory || null,
-        subCategoryHint: guessedSubCategory || null,
-        // אפשר להוסיף בהמשך גם textSample אמיתי
-        textSample: ""
-      };
-      aiClassification = await window.classifyDocumentWithAI(payload);
-      console.log("🤖 AI classification (client):", aiClassification);
-
-      if (aiClassification) {
-        if (aiClassification.category) {
-          guessedCategory = aiClassification.category;
-        }
-        if (aiClassification.subCategory) {
-          guessedSubCategory = aiClassification.subCategory;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("⚠️ AI classification failed on client:", e);
-  }
-}
-
-
 // אם לא זוהה - השתמש ב"אחר" אוטומטית (ללא חלון בחירה)
 if (!guessedCategory || guessedCategory === "אחר") {
   guessedCategory = "אחר";
   guessedSubCategory = null;
 }
 
-console.log("📁 Final:", { category: guessedCategory, subfolder: guessedSubCategory });
+console.log("📁 Final לפני התאמה למסלול:", {
+  category: guessedCategory,
+  subfolder: guessedSubCategory,
+});
 
+/* 🎚️ התאמת ההתנהגות לפי מסלול */
 
+if (currentPlanId === "free") {
+  // 🆓 מסלול חינם:
+  // - המערכת מנחשת תיקייה ראשית
+  // - לא מקבעת תת-תיקייה
+  // - פותחת חלון בחירה, שהמשתמשת תבחר תיקייה ותת-תיקייה לבד
 
+  guessedSubCategory = null; // לא קובעים תת-תיקייה אוטומטית
 
-    // 🤖 אם המסלול הוא פרימיום – נבקש סיווג מ-AI אמיתי
-   currentPlanId = "free";
+  if (window.chooseFolderForUpload) {
     try {
-      if (window.subscriptionManager && typeof window.subscriptionManager.getSubscriptionInfo === "function") {
-        const info = window.subscriptionManager.getSubscriptionInfo();
-        if (info && info.plan && info.plan.id) {
-          currentPlanId = info.plan.id;
-        }
+      const chosen = await window.chooseFolderForUpload();
+      if (chosen && chosen.category) {
+        guessedCategory    = chosen.category;
+        guessedSubCategory = chosen.subfolder || null;
       }
     } catch (e) {
-      console.warn("⚠️ getSubscriptionInfo failed (AI):", e);
+      console.warn("⚠️ בחירת תיקייה ידנית נכשלה", e);
     }
+  }
 
-    if ((currentPlanId === "premium" || currentPlanId === "premium_plus") &&
-        typeof window.classifyDocumentWithAI === "function") {
-      try {
-        const fileName = file.name.trim();
-        // לעת עתה נעביר רק את שם הקובץ – אפשר להרחיב לטקסט מלא בהמשך
-        aiResult = await window.classifyDocumentWithAI({
-          title: fileName,
-          textSample: "",
-          planId: currentPlanId
-        });
+} else if (currentPlanId === "standard") {
+  // 📁 מסלול רגיל:
+  // משתמש בכל המנגנון האוטומטי (שם קובץ + הקשר + תתי-תיקיות)
+  // זה ה"80%" – אין חלון כפוי, אלא אם את פותחת ידנית.
 
-        console.log("🤖 AI result:", aiResult);
+} else if (currentPlanId === "advanced" || currentPlanId === "pro") {
+  // 🚀 מתקדם / מקצועי:
+  // כרגע אותו דבר כמו רגיל, אבל כל מה שכבר בנית:
+  // detectCategoryAndSubfolder + OCR לתמונות/‏PDF
+  // נותן דיוק גבוה מאוד גם לתיקייה וגם לתת-תיקייה.
 
-        if (aiResult && aiResult.category && aiResult.category !== "לא_בטוח") {
-          guessedCategory = aiResult.category;
-          guessedSubCategory = aiResult.subCategory || null;
-        }
-      } catch (e) {
-        console.warn("⚠️ classifyDocumentWithAI failed:", e);
-      }
-    }
+} else if (currentPlanId === "premium" || currentPlanId === "premium_plus") {
+  // 👑 פרימיום / פרימיום+:
+  // כרגע אותו דבר כמו מתקדם/מקצועי.
+  // כאן אפשר בשלב הבא לחבר "AI אמיתי" מהשרת (ChatGPT),
+  // בלי לשבור לך את ההעלאה אם אין מפתח API.
+  //
+  // דוגמה (כשנוסיף בעתיד):
+  // if (window.requestPremiumAiClassification) { ... }
+}
 
+console.log("📁 Final אחרי התאמה למסלול:", {
+  category: guessedCategory,
+  subfolder: guessedSubCategory,
+});
 
+// פרטי אחריות אם צריך
+let warrantyStart = null;
+let warrantyExpiresAt = null;
+let autoDeleteAfter = null;
 
-    // פרטי אחריות אם צריך
-    let warrantyStart = null;
-    let warrantyExpiresAt = null;
-    let autoDeleteAfter = null;
 
     if (guessedCategory === "אחריות") {
       let extracted = {
