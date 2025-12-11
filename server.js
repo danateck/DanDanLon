@@ -153,6 +153,37 @@ function getUserFromRequest(req) {
 }
 
 
+// ===== Helpers לאחסון =====
+
+// כמה אחסון משתמש כבר משתמש (גם הבעלים וגם קבצים משותפים אליו)
+async function getUserStorageUsageBytes(email) {
+  const user = (email || '').toString().trim().toLowerCase();
+  if (!user) return 0;
+
+  const result = await pool.query(
+    `
+    SELECT 
+      COALESCE(SUM(file_size), 0) AS used_bytes
+    FROM documents
+    WHERE (owner = $1 OR shared_with ? $1)
+      AND NOT (deleted_for ? $1)
+    `,
+    [user]
+  );
+
+  const row = result.rows[0] || { used_bytes: 0 };
+  return Number(row.used_bytes) || 0;
+}
+
+// מגבלת אחסון למשתמש
+// כרגע: 200MB לכולם. אם תרצי תכניות שונות – נשנה רק כאן.
+function getUserStorageLimitBytes(email) {
+  const BASE_MB = 200;
+  return BASE_MB * 1024 * 1024;
+}
+
+
+
 // ===== Helper: max storage per user (בינתיים קבוע לכולם) =====
 async function getUserStorageLimitBytes(email) {
   // כרגע: 200MB לכולם (כמו מסלול חינמי)
@@ -550,8 +581,7 @@ async function getUserStorageBytes(email) {
 
 
 
-// 4️⃣ PUT /api/docs/:id - Update document
-// 4️⃣ PUT /api/docs/:id - Update document + בדיקת מקום בשיתוף
+// 4️⃣ PUT /api/docs/:id - עדכון מסמך + בדיקת מקום בשיתוף
 app.put('/api/docs/:id', async (req, res) => {
   try {
     const userEmailRaw = getUserFromRequest(req);
@@ -563,13 +593,13 @@ app.put('/api/docs/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body || {};
 
-    // נטען את המסמך כדי לבדוק בעלות + גודל קובץ
+    // טוענים את המסמך כדי לבדוק בעלות + גודל קובץ + shared_with קיים
     const checkResult = await pool.query(
-      'SELECT owner, file_size, shared_with FROM documents WHERE id = $1',
+      `SELECT owner, file_size, shared_with FROM documents WHERE id = $1`,
       [id]
     );
 
-    if (checkResult.rows.length === 0) {
+    if (!checkResult.rows.length) {
       return res.status(404).json({ error: 'Not found' });
     }
 
@@ -580,33 +610,35 @@ app.put('/api/docs/:id', async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const fileSize = Number(doc.file_size) || 0;
-
-    // ---------------- בדיקת shared_with (שיתוף) ----------------
+    const fileSize = Number(doc.file_size || 0);
     let skippedRecipients = [];
 
+    // ───── לוגיקת שיתוף: updates.shared_with ─────
     if (updates.shared_with !== undefined) {
-      // נפרש את shared_with כ-Object מיילים → true/false
       let newSharedObj = {};
 
       const incoming = updates.shared_with;
 
+      // incoming יכול להגיע כמערך מיילים
       if (Array.isArray(incoming)) {
-        // במקרה שנשלח כמערך מיילים
         incoming.forEach(e => {
           const email = (e || '').toString().trim().toLowerCase();
           if (email && email.includes('@')) {
             newSharedObj[email] = true;
           }
         });
-      } else if (typeof incoming === 'object' && incoming !== null) {
+      }
+      // או כאובייקט {email: true}
+      else if (typeof incoming === 'object' && incoming !== null) {
         Object.keys(incoming).forEach(k => {
           const email = (k || '').toString().trim().toLowerCase();
           if (email && email.includes('@') && incoming[k]) {
             newSharedObj[email] = true;
           }
         });
-      } else if (typeof incoming === 'string') {
+      }
+      // או כמחרוזת JSON
+      else if (typeof incoming === 'string') {
         try {
           const parsed = JSON.parse(incoming);
           if (Array.isArray(parsed)) {
@@ -625,13 +657,14 @@ app.put('/api/docs/:id', async (req, res) => {
             });
           }
         } catch (e) {
-          console.warn('⚠️ Could not parse shared_with incoming string:', incoming);
+          console.warn('⚠️ Could not parse incoming shared_with string:', incoming);
         }
       }
 
-      // shared_with הקודם (כדי לזהות למי חדש מוסיפים)
+      // shared_with קודם – כדי לדעת מי כבר היה משותף
       let prevShared = {};
       const sw = doc.shared_with;
+
       if (sw) {
         if (Array.isArray(sw)) {
           sw.forEach(e => {
@@ -667,39 +700,38 @@ app.put('/api/docs/:id', async (req, res) => {
         }
       }
 
-      // עכשיו נבדוק לכל מקבל חדש האם יש לו מקום
+      // הנמענים הסופיים שנשמור במסד
       const finalShared = { ...prevShared };
 
+      // נעבור על כל המועמדים החדשים
       const candidates = Object.keys(newSharedObj);
 
       for (const targetEmail of candidates) {
-        // אם כבר היה משותף בעבר – לא נבדוק שוב
+        // אם כבר היה משותף – לא נבדוק שוב
         if (prevShared[targetEmail]) {
           finalShared[targetEmail] = true;
           continue;
         }
 
-        const usedBytes = await getUserStorageBytes(targetEmail);
+        const usedBytes = await getUserStorageUsageBytes(targetEmail);
         const limitBytes = getUserStorageLimitBytes(targetEmail);
 
         if (usedBytes + fileSize > limitBytes) {
-          // אין מקום → לא נוסיף אותו לשיתוף
+          // ❌ אין מספיק מקום → לא נוסיף אותו לשיתוף
           skippedRecipients.push(targetEmail);
           console.log(
-            `⛔ Share blocked for ${targetEmail}: ` +
-            `${usedBytes} + ${fileSize} > ${limitBytes}`
+            `⛔ Share blocked for ${targetEmail}: ${usedBytes} + ${fileSize} > ${limitBytes}`
           );
         } else {
-          // יש מקום → נוסיף לשיתוף
+          // ✅ יש מספיק מקום → נוסיף למשתתפים
           finalShared[targetEmail] = true;
         }
       }
 
-      // נכניס לפועל את shared_with החדש
       updates.shared_with = finalShared;
     }
 
-    // ---------------- בניית UPDATE רגיל ----------------
+    // ───── המשך: עדכון השדות הרגיל ─────
     const allowedFields = [
       'title',
       'category',
@@ -728,7 +760,7 @@ app.put('/api/docs/:id', async (req, res) => {
       }
     });
 
-    if (fields.length === 0) {
+    if (!fields.length) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
@@ -752,16 +784,13 @@ app.put('/api/docs/:id', async (req, res) => {
     );
 
     console.log(`✅ Updated: ${id}`);
-    res.json({
-      success: true,
-      id,
-      skippedRecipients, // כאן תראי מי נחסם בגלל חוסר מקום
-    });
+    res.json({ success: true, id, skippedRecipients });
   } catch (error) {
     console.error('❌ Update error:', error);
     res.status(500).json({ error: 'Update failed' });
   }
 });
+
 
 
 
@@ -1088,7 +1117,7 @@ app.get('/api/storage-stats', async (req, res) => {
     const userEmail = userEmailRaw.trim().toLowerCase();
 
     // רק קבצים שהמשתמש הוא הבעלים שלהם
-        const result = await pool.query(
+         const result = await pool.query(
       `
       SELECT 
         COALESCE(SUM(file_size), 0) AS used_bytes,
