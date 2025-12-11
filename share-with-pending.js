@@ -1,5 +1,6 @@
 // ========================================
 // 🔗 פונקציה לשיתוף מסמכים עם בדיקת מגבלות אחסון
+// מותאם למערכת NestyFile עם api-bridge.js
 // ========================================
 
 /**
@@ -10,13 +11,16 @@
  */
 async function shareDocumentWithUser(docId, targetEmail) {
   try {
-    const currentUser = getCurrentUserEmail();
+    // קבלת המשתמש הנוכחי
+    const currentUser = window.getCurrentUserEmail ? window.getCurrentUserEmail() : 
+                       window.getCurrentUser ? window.getCurrentUser() : null;
+    
     if (!currentUser) {
       throw new Error('אתה לא מחובר למערכת');
     }
 
-    if (!window.db || !window.firestore) {
-      throw new Error('Firestore לא מאותחל');
+    if (!window.db || !window.fs) {
+      throw new Error('Firebase לא מאותחל');
     }
 
     targetEmail = targetEmail.trim().toLowerCase();
@@ -25,9 +29,11 @@ async function shareDocumentWithUser(docId, targetEmail) {
       throw new Error('לא ניתן לשתף עם עצמך');
     }
 
-    // 1️⃣ טעינת המסמך
-    const docRef = window.firestore.doc(window.db, 'documents', docId);
-    const docSnapshot = await window.firestore.getDoc(docRef);
+    console.log(`🔗 משתף מסמך ${docId} עם ${targetEmail}`);
+
+    // 1️⃣ טעינת המסמך מ-Firestore
+    const docRef = window.fs.doc(window.db, 'documents', docId);
+    const docSnapshot = await window.fs.getDoc(docRef);
 
     if (!docSnapshot.exists()) {
       throw new Error('המסמך לא נמצא');
@@ -40,12 +46,12 @@ async function shareDocumentWithUser(docId, targetEmail) {
       throw new Error('רק הבעלים יכול לשתף את המסמך');
     }
 
-    const fileSize = Number(docData.fileSize || 0);
+    const fileSize = Number(docData.fileSize || docData.file_size || 0);
 
     // 2️⃣ בדיקה אם המסמך כבר משותף עם המשתמש
     let sharedWith = docData.sharedWith || [];
     if (!Array.isArray(sharedWith)) {
-      sharedWith = Object.keys(sharedWith);
+      sharedWith = typeof sharedWith === 'object' ? Object.keys(sharedWith) : [];
     }
 
     if (sharedWith.includes(targetEmail)) {
@@ -84,7 +90,7 @@ async function shareDocumentWithUser(docId, targetEmail) {
     // 5️⃣ יש מקום - שיתוף בפועל
     sharedWith.push(targetEmail);
     
-    await window.firestore.updateDoc(docRef, {
+    await window.fs.updateDoc(docRef, {
       sharedWith: sharedWith
     });
 
@@ -106,30 +112,30 @@ async function shareDocumentWithUser(docId, targetEmail) {
  */
 async function calculateUserStorage(userEmail) {
   try {
-    if (!window.db || !window.firestore) {
+    if (!window.db || !window.fs) {
       return 0;
     }
 
     userEmail = userEmail.toLowerCase();
 
     // שאילתה לכל המסמכים של המשתמש
-    const docsRef = window.firestore.collection(window.db, 'documents');
+    const docsRef = window.fs.collection(window.db, 'documents');
     
     // מסמכים שהמשתמש הוא הבעלים שלהם
-    const qOwned = window.firestore.query(
+    const qOwned = window.fs.query(
       docsRef,
-      window.firestore.where('owner', '==', userEmail)
+      window.fs.where('owner', '==', userEmail)
     );
 
     // מסמכים שמשותפים עם המשתמש
-    const qShared = window.firestore.query(
+    const qShared = window.fs.query(
       docsRef,
-      window.firestore.where('sharedWith', 'array-contains', userEmail)
+      window.fs.where('sharedWith', 'array-contains', userEmail)
     );
 
     const [ownedSnapshot, sharedSnapshot] = await Promise.all([
-      window.firestore.getDocs(qOwned),
-      window.firestore.getDocs(qShared)
+      window.fs.getDocs(qOwned),
+      window.fs.getDocs(qShared)
     ]);
 
     // איחוד התוצאות (בלי כפילויות)
@@ -138,9 +144,9 @@ async function calculateUserStorage(userEmail) {
 
     ownedSnapshot.forEach(doc => {
       const data = doc.data();
-      if (!data.trashed && !data._trashed && !docIds.has(doc.id)) {
+      if (!data._trashed && !data.trashed && !docIds.has(doc.id)) {
         docIds.add(doc.id);
-        const size = Number(data.fileSize || 0);
+        const size = Number(data.fileSize || data.file_size || 0);
         if (Number.isFinite(size)) {
           totalBytes += size;
         }
@@ -149,15 +155,16 @@ async function calculateUserStorage(userEmail) {
 
     sharedSnapshot.forEach(doc => {
       const data = doc.data();
-      if (!data.trashed && !data._trashed && !docIds.has(doc.id)) {
+      if (!data._trashed && !data.trashed && !docIds.has(doc.id)) {
         docIds.add(doc.id);
-        const size = Number(data.fileSize || 0);
+        const size = Number(data.fileSize || data.file_size || 0);
         if (Number.isFinite(size)) {
           totalBytes += size;
         }
       }
     });
 
+    console.log(`📊 Calculated storage for ${userEmail}: ${formatBytes(totalBytes)}`);
     return totalBytes;
   } catch (error) {
     console.error('❌ Error calculating storage:', error);
@@ -170,14 +177,14 @@ async function calculateUserStorage(userEmail) {
  */
 async function getUserStorageLimit(userEmail) {
   try {
-    if (!window.db || !window.firestore) {
+    if (!window.db || !window.fs) {
       return 200 * 1024 * 1024; // ברירת מחדל - 200MB
     }
 
     userEmail = userEmail.toLowerCase();
 
-    const userRef = window.firestore.doc(window.db, 'users', userEmail);
-    const userSnapshot = await window.firestore.getDoc(userRef);
+    const userRef = window.fs.doc(window.db, 'users', userEmail);
+    const userSnapshot = await window.fs.getDoc(userRef);
 
     if (!userSnapshot.exists()) {
       return 200 * 1024 * 1024; // Free - 200MB
@@ -216,19 +223,19 @@ async function getUserStorageLimit(userEmail) {
  */
 async function addToPendingShares(docId, fromUser, toUser) {
   try {
-    if (!window.db || !window.firestore) {
-      throw new Error('Firestore לא מאותחל');
+    if (!window.db || !window.fs) {
+      throw new Error('Firebase לא מאותחל');
     }
 
     // בדיקה אם כבר קיים pending עבור הקובץ הזה
-    const pendingRef = window.firestore.collection(window.db, 'pendingShares');
-    const q = window.firestore.query(
+    const pendingRef = window.fs.collection(window.db, 'pendingShares');
+    const q = window.fs.query(
       pendingRef,
-      window.firestore.where('docId', '==', docId),
-      window.firestore.where('toUser', '==', toUser.toLowerCase())
+      window.fs.where('docId', '==', docId),
+      window.fs.where('toUser', '==', toUser.toLowerCase())
     );
 
-    const snapshot = await window.firestore.getDocs(q);
+    const snapshot = await window.fs.getDocs(q);
     
     if (!snapshot.empty) {
       console.log('⚠️ Pending share already exists');
@@ -236,11 +243,11 @@ async function addToPendingShares(docId, fromUser, toUser) {
     }
 
     // הוספה לטבלת pending
-    await window.firestore.addDoc(pendingRef, {
+    await window.fs.addDoc(pendingRef, {
       docId: docId,
       fromUser: fromUser.toLowerCase(),
       toUser: toUser.toLowerCase(),
-      createdAt: window.firestore.serverTimestamp()
+      createdAt: new Date().toISOString()
     });
 
     console.log('✅ Added to pending shares');
@@ -261,16 +268,8 @@ function formatBytes(bytes) {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-function getCurrentUserEmail() {
-  if (window.currentUser?.email) return window.currentUser.email;
-  if (window.userEmail) return window.userEmail;
-  if (localStorage.getItem('userEmail')) return localStorage.getItem('userEmail');
-  if (window.auth?.currentUser?.email) return window.auth.currentUser.email;
-  return null;
-}
-
 // ========================================
-// 📋 פונקציה נוספת: ניקוי pending shares ישנים
+// 📋 ניקוי pending shares ישנים
 // ========================================
 
 /**
@@ -278,24 +277,24 @@ function getCurrentUserEmail() {
  */
 async function cleanupOldPendingShares() {
   try {
-    if (!window.db || !window.firestore) {
+    if (!window.db || !window.fs) {
       return;
     }
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const pendingRef = window.firestore.collection(window.db, 'pendingShares');
-    const q = window.firestore.query(
-      pendingRef,
-      window.firestore.where('createdAt', '<', thirtyDaysAgo)
-    );
-
-    const snapshot = await window.firestore.getDocs(q);
+    const pendingRef = window.fs.collection(window.db, 'pendingShares');
+    const snapshot = await window.fs.getDocs(pendingRef);
     
     const deletePromises = [];
     snapshot.forEach(doc => {
-      deletePromises.push(window.firestore.deleteDoc(doc.ref));
+      const data = doc.data();
+      const createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
+      
+      if (createdAt < thirtyDaysAgo) {
+        deletePromises.push(window.fs.deleteDoc(doc.ref));
+      }
     });
 
     await Promise.all(deletePromises);
@@ -318,33 +317,4 @@ if (typeof window !== 'undefined') {
   window.cleanupOldPendingShares = cleanupOldPendingShares;
 }
 
-console.log('✅ Share with pending system loaded');
-
-// ========================================
-// 📝 דוגמאות שימוש
-// ========================================
-
-/*
-
-// דוגמה 1: שיתוף מסמך
-try {
-  const result = await shareDocumentWithUser('doc123', 'user@example.com');
-  
-  if (result.status === 'shared') {
-    alert('✅ המסמך שותף בהצלחה!');
-  } else if (result.status === 'pending') {
-    alert('⏳ המסמך נוסף לרשימת הממתינים של המשתמש');
-  }
-} catch (error) {
-  alert('❌ שגיאה: ' + error.message);
-}
-
-// דוגמה 2: בדיקת מקום פנוי
-const usage = await calculateUserStorage('user@example.com');
-const limit = await getUserStorageLimit('user@example.com');
-console.log(`שימוש: ${formatBytes(usage)} מתוך ${formatBytes(limit)}`);
-
-// דוגמה 3: ניקוי pending shares ישנים (להריץ פעם ביום)
-await cleanupOldPendingShares();
-
-*/
+console.log('✅ Share with pending system loaded (NestyFile version)');
