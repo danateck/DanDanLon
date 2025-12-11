@@ -4109,6 +4109,8 @@ if (fileInput) {
     return;
   }
 
+  // 🤖 פה נשמור את תוצאת ה-AI אם יש
+  let aiResult = null;
 
       // 🧽 אם זה צילום / תמונה – נשפר אותה שתיראה כמו סריקה
     if (file.type.startsWith("image/")) {
@@ -4219,6 +4221,43 @@ if (!guessedCategory || guessedCategory === "אחר") {
 
 console.log("📁 Final:", { category: guessedCategory, subfolder: guessedSubCategory });
 
+
+
+
+    // 🤖 אם המסלול הוא פרימיום – נבקש סיווג מ-AI אמיתי
+   currentPlanId = "free";
+    try {
+      if (window.subscriptionManager && typeof window.subscriptionManager.getSubscriptionInfo === "function") {
+        const info = window.subscriptionManager.getSubscriptionInfo();
+        if (info && info.plan && info.plan.id) {
+          currentPlanId = info.plan.id;
+        }
+      }
+    } catch (e) {
+      console.warn("⚠️ getSubscriptionInfo failed (AI):", e);
+    }
+
+    if ((currentPlanId === "premium" || currentPlanId === "premium_plus") &&
+        typeof window.classifyDocumentWithAI === "function") {
+      try {
+        const fileName = file.name.trim();
+        // לעת עתה נעביר רק את שם הקובץ – אפשר להרחיב לטקסט מלא בהמשך
+        aiResult = await window.classifyDocumentWithAI({
+          title: fileName,
+          textSample: "",
+          planId: currentPlanId
+        });
+
+        console.log("🤖 AI result:", aiResult);
+
+        if (aiResult && aiResult.category && aiResult.category !== "לא_בטוח") {
+          guessedCategory = aiResult.category;
+          guessedSubCategory = aiResult.subCategory || null;
+        }
+      } catch (e) {
+        console.warn("⚠️ classifyDocumentWithAI failed:", e);
+      }
+    }
 
 
 
@@ -4333,28 +4372,19 @@ const newDoc = {
   title: fileName,
   originalFileName: fileName,
 
-  // 🤖 קודם ננסה מה-AI, אחרת מהניחוש הרגיל
-  category: (aiClassification && aiClassification.category) || guessedCategory,
-  subCategory:
-    (aiClassification && aiClassification.subCategory) ||
-    guessedSubCategory ||
-    null,
+  // 🤖 נותנים עדיפות ל-AI אם יש תוצאה
+  category: aiResult?.category || guessedCategory,
+  subCategory: (aiResult?.subCategory || guessedSubCategory) || null,
 
   uploadedAt,
-  year: (aiClassification && aiClassification.year)
-    ? String(aiClassification.year)
-    : year,
-
-  org: (aiClassification && aiClassification.org) || "",
+  year: aiResult?.year ? String(aiResult.year) : year,
+  org: aiResult?.organization || "",
   recipient: [],
   sharedWith: [],
 
-  warrantyStart:
-    (aiClassification && aiClassification.warrantyStart) || warrantyStart,
-  warrantyExpiresAt:
-    (aiClassification && aiClassification.warrantyExpiresAt) || warrantyExpiresAt,
-  autoDeleteAfter:
-    (aiClassification && aiClassification.autoDeleteAfter) || autoDeleteAfter,
+  warrantyStart: aiResult?.purchaseDate || warrantyStart,
+  warrantyExpiresAt: aiResult?.warrantyUntil || warrantyExpiresAt,
+  autoDeleteAfter, // אפשר לחשב לפי warrantyExpiresAt אם תרצי
 
   mimeType: file.type,
   hasFile: true,
@@ -4372,23 +4402,16 @@ const newDoc = {
       if (window.uploadDocument) {
 await window.uploadDocument(file, {
   title: fileName,
-  category: (aiClassification && aiClassification.category) || guessedCategory,
-  subCategory:
-    (aiClassification && aiClassification.subCategory) ||
-    guessedSubCategory ||
-    null,
-  year: (aiClassification && aiClassification.year)
-    ? String(aiClassification.year)
-    : year,
-  org: (aiClassification && aiClassification.org) || "",
+  category: aiResult?.category || guessedCategory,
+  subCategory: (aiResult?.subCategory || guessedSubCategory) || null,
+  year: aiResult?.year ? String(aiResult.year) : year,
+  org: aiResult?.organization || "",
   recipient: newDoc.recipient || [],
-  warrantyStart:
-    (aiClassification && aiClassification.warrantyStart) || warrantyStart,
-  warrantyExpiresAt:
-    (aiClassification && aiClassification.warrantyExpiresAt) || warrantyExpiresAt,
-  autoDeleteAfter:
-    (aiClassification && aiClassification.autoDeleteAfter) || autoDeleteAfter,
+  warrantyStart: aiResult?.purchaseDate || warrantyStart,
+  warrantyExpiresAt: aiResult?.warrantyUntil || warrantyExpiresAt,
+  autoDeleteAfter,
 });
+
 
 }
  else {
@@ -10560,4 +10583,37 @@ async function handleDeleteForever(doc) {
   }
 }
 
+
+
+async function classifyDocumentWithAI({ title, textSample }) {
+  try {
+    const info = window.subscriptionManager?.getSubscriptionInfo();
+    const planId = info?.plan?.id || 'free';
+
+    const resp = await fetch(`${API_BASE}/api/ai/classify-document`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': auth.currentUser 
+          ? `Bearer ${await auth.currentUser.getIdToken()}`
+          : ''
+      },
+      body: JSON.stringify({ title, textSample, planId })
+    });
+
+    if (!resp.ok) {
+      console.warn('AI classify failed:', await resp.text());
+      return null;
+    }
+
+    const data = await resp.json();
+    if (!data.success) return null;
+
+    return data.result; 
+    // { category, subCategory, confidence, organization, year, ... }
+  } catch (err) {
+    console.error('AI classify error:', err);
+    return null;
+  }
+}
 

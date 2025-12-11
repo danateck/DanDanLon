@@ -64,12 +64,11 @@ async function getAuthHeaders() {
 // 🤖 AI Document Classification (Premium)
 // זמין כ-window.classifyDocumentWithAI
 // ════════════════════════════════════════
+// 🤖 קריאה ל-AI מה-Frontend (סיווג מסמך)
 window.classifyDocumentWithAI = async function (payload) {
   try {
     const headers = await getAuthHeaders();
     headers['Content-Type'] = 'application/json';
-
-    console.log("🤖 Sending AI classify payload:", payload);
 
     const res = await fetch(`${API_BASE}/api/ai/classify-document`, {
       method: 'POST',
@@ -78,18 +77,23 @@ window.classifyDocumentWithAI = async function (payload) {
     });
 
     if (!res.ok) {
-      console.warn("❌ AI classify failed:", res.status);
+      console.warn('❌ AI classify failed:', res.status);
       return null;
     }
 
     const data = await res.json();
-    console.log("🤖 AI classify result:", data);
-    return data;
+    if (!data || !data.success) {
+      console.warn('⚠️ AI classify: bad response', data);
+      return null;
+    }
+
+    return data.result; // { category, subCategory, organization, year, ... }
   } catch (err) {
-    console.warn("⚠️ AI classify error:", err);
+    console.error('❌ AI classify error:', err);
     return null;
   }
 };
+
 
 
 

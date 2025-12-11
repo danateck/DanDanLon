@@ -5,6 +5,17 @@ const multer = require('multer');
 const { Pool } = require('pg');
 require('dotenv').config();
 
+
+// 🔮 OpenAI - לקוח ל-AI אמיתי
+const { OpenAI } = require("openai");
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+
+
+
 const app = express();
 const PORT = process.env.PORT || 8787;
 
@@ -264,6 +275,126 @@ app.get('/health', (req, res) => {
   });
 });
 
+// 🔮 AI: סיווג מסמך לפי תוכן + מסלול מנוי
+// 🔮 AI: סיווג מסמך לפי תוכן + מסלול מנוי
+app.post('/api/ai/classify-document', async (req, res) => {
+  try {
+    const userEmail = getUserFromRequest(req);
+    if (!userEmail) {
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ error: 'ai_disabled' });
+    }
+
+    const { title, textSample, planId } = req.body || {};
+
+    if (!title && !textSample) {
+      return res.status(400).json({ error: 'missing_content' });
+    }
+
+    const prompt = `
+אתה מסווג מסמכים למערכת ארגון מסמכים.
+
+מסלולים:
+- free: רק category (תיקייה ראשית). אם לא בטוח – "לא_בטוח".
+- standard: category + subCategory (אם אפשר). אין שדות מתקדמים.
+- advanced / pro: category + subCategory + organization + year + belongsTo + purchaseDate + warrantyUntil.
+- premium: תתאמץ למקסימום דיוק, ותמלא הכל כמו advanced/pro.
+
+תיקיות אפשריות (לא חובה להשתמש בכולן): "רכב", "ביטוחים", "פנסיה", "בריאות", "משכנתא", "לימודים", "חשבוניות", "הכנסות", "הוצאות", "בנק", "עסק", "אחר".
+
+תחזיר *רק* JSON תקין במבנה:
+{
+  "category": string,          // שם תיקייה ראשית או "לא_בטוח"
+  "subCategory": string|null,  // תת תיקייה או null
+  "confidence": number,        // 0-100
+  "organization": string|null,
+  "year": number|null,
+  "belongsTo": string|null,
+  "purchaseDate": string|null, // YYYY-MM-DD או null
+  "warrantyUntil": string|null // YYYY-MM-DD או null
+}
+
+מסלול: ${planId || 'unknown'}
+כותרת הקובץ: ${title || ''}
+קטע תוכן (אם קיים): ${textSample || '(אין טקסט נוסף)'}
+`;
+
+    const aiResponse = await openai.responses.create({
+      model: "gpt-5.1-mini",
+      input: prompt,
+      text: { format: { type: "json_object" } }
+    });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(aiResponse.output_text);
+    } catch (err) {
+      console.error("❌ Failed to parse AI JSON:", err);
+      return res.status(500).json({ error: 'ai_parse_error' });
+    }
+
+    const baseResult = {
+      category: parsed.category || 'לא_בטוח',
+      subCategory: parsed.subCategory || null,
+      confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+      organization: parsed.organization || null,
+      year: typeof parsed.year === 'number' ? parsed.year : null,
+      belongsTo: parsed.belongsTo || null,
+      purchaseDate: parsed.purchaseDate || null,
+      warrantyUntil: parsed.warrantyUntil || null
+    };
+
+    let result = { ...baseResult };
+
+    switch (planId) {
+      case 'free':
+        result.subCategory = null;
+        result.organization = null;
+        result.year = null;
+        result.belongsTo = null;
+        result.purchaseDate = null;
+        result.warrantyUntil = null;
+        break;
+      case 'standard':
+        result.organization = null;
+        result.year = null;
+        result.belongsTo = null;
+        result.purchaseDate = null;
+        result.warrantyUntil = null;
+        break;
+      case 'advanced':
+      case 'pro':
+      case 'premium':
+        // מקבלים הכל
+        break;
+      default:
+        // לא ידוע – נלך על בסיסי
+        result.organization = null;
+        result.year = null;
+        result.belongsTo = null;
+        result.purchaseDate = null;
+        result.warrantyUntil = null;
+        break;
+    }
+
+    return res.json({
+      success: true,
+      planId,
+      result
+    });
+
+  } catch (error) {
+    console.error('❌ AI classify error:', error);
+    return res.status(500).json({ error: 'ai_failed' });
+  }
+});
+
+
+
+
 // Test auth endpoint
 app.get('/api/test-auth', (req, res) => {
   const user = getUserFromRequest(req);
@@ -402,89 +533,6 @@ if (file.size > MAX_DB_FILE_SIZE) {
 
 });
 
-// ════════════════════════════════════════
-// 🤖 AI Classification endpoint (Premium)
-// ════════════════════════════════════════
-app.post('/api/ai/classify-document', async (req, res) => {
-  try {
-    const userEmail = getUserFromRequest(req);
-    if (!userEmail) {
-      console.log('❌ AI classify unauthorized: no user');
-      return res.status(401).json({ error: 'Unauthenticated' });
-    }
-
-    const body = req.body || {};
-    const title = (body.title || '').toString();
-    const textSample = (body.textSample || '').toString();
-    const categoryHint = (body.categoryHint || '').toString();
-    const subCategoryHint = (body.subCategoryHint || '').toString();
-
-    console.log('🤖 AI classify request from', userEmail, {
-      title,
-      hasText: !!textSample,
-      categoryHint,
-      subCategoryHint
-    });
-
-    // ================================
-    // 🔴 כאן יחיה ה-AI האמיתי בעתיד
-    // כרגע: לוגיקה פשוטה עם מילים-מפתח
-    // ================================
-    const fullText = (title + ' ' + textSample).toLowerCase();
-    let category = categoryHint || 'אחר';
-    let subCategory = subCategoryHint || null;
-    let org = '';
-    let year = new Date().getFullYear().toString();
-    let warrantyStart = null;
-    let warrantyExpiresAt = null;
-    let autoDeleteAfter = null;
-
-    // 🎯 דוגמאות לכללים – תחליפי ב-AI אמיתי:
-    if (fullText.includes('בנק') || fullText.includes('חשבון') || fullText.includes('עובר ושב')) {
-      category = 'בנק';
-    }
-    if (fullText.includes('פנסיה') || fullText.includes('קרן השתלמות')) {
-      category = 'פנסיה וגמל';
-    }
-    if (fullText.includes('ביטוח') || fullText.includes('פוליסה')) {
-      category = 'ביטוחים';
-    }
-    if (fullText.includes('חוזה') || fullText.includes('שכירות')) {
-      category = 'חוזים';
-    }
-
-    // ארגון לדוגמה
-    if (fullText.includes('מכבי')) org = 'מכבי';
-    if (fullText.includes('כללית')) org = 'כללית';
-    if (fullText.includes('הראל')) org = 'הראל';
-    if (fullText.includes('מגדל')) org = 'מגדל';
-
-    // 🔁 כאן אפשר להוסיף זיהוי תאריכים אמיתי ולהגדיר warrantyStart / warrantyExpiresAt / autoDeleteAfter
-
-    console.log('🤖 AI classify decided:', {
-      category,
-      subCategory,
-      org,
-      year,
-      warrantyStart,
-      warrantyExpiresAt,
-      autoDeleteAfter
-    });
-
-    return res.json({
-      category,
-      subCategory,
-      org,
-      year,
-      warrantyStart,
-      warrantyExpiresAt,
-      autoDeleteAfter
-    });
-  } catch (err) {
-    console.error('❌ AI classify error:', err);
-    return res.status(500).json({ error: 'AI classify failed' });
-  }
-});
 
 
  
