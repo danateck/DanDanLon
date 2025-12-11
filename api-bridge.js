@@ -60,6 +60,39 @@ async function getAuthHeaders() {
   return headers;
 }
 
+// ════════════════════════════════════════
+// 🤖 AI Document Classification (Premium)
+// זמין כ-window.classifyDocumentWithAI
+// ════════════════════════════════════════
+window.classifyDocumentWithAI = async function (payload) {
+  try {
+    const headers = await getAuthHeaders();
+    headers['Content-Type'] = 'application/json';
+
+    console.log("🤖 Sending AI classify payload:", payload);
+
+    const res = await fetch(`${API_BASE}/api/ai/classify-document`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload || {})
+    });
+
+    if (!res.ok) {
+      console.warn("❌ AI classify failed:", res.status);
+      return null;
+    }
+
+    const data = await res.json();
+    console.log("🤖 AI classify result:", data);
+    return data;
+  } catch (err) {
+    console.warn("⚠️ AI classify error:", err);
+    return null;
+  }
+};
+
+
+
 // ═══ 1. Load Documents ═══
 
 async function loadDocuments() {
@@ -271,11 +304,31 @@ if (Array.isArray(window.allDocsData)) {
 }
 
 // ✅ פותח חלון בחירה אחרי העלאה
-setTimeout(() => {
-  if (typeof openFolderSelectionModal === "function") {
-    openFolderSelectionModal(doc.id);
-  }
-}, 200);
+  // ✅ פותח חלון בחירה אחרי העלאה
+  //    למסלול חינם בלבד – במסלולים בתשלום השיוך הוא אוטומטי יותר
+  setTimeout(() => {
+    try {
+      let planId = "free";
+      if (window.subscriptionManager && typeof window.subscriptionManager.getSubscriptionInfo === "function") {
+        const info = window.subscriptionManager.getSubscriptionInfo();
+        if (info && info.plan && info.plan.id) {
+          planId = info.plan.id;
+        }
+      }
+
+      // חינם → תמיד לפתוח חלון בחירת תיקייה/תת־תיקייה
+      if (planId === "free" && typeof openFolderSelectionModal === "function") {
+        openFolderSelectionModal(doc.id);
+      }
+    } catch (e) {
+      console.warn("⚠️ לא הצלחתי לבדוק תוכנית מנוי לחלון בחירת תיקייה:", e);
+      // אם יש תקלה – נתנהג כמו קודם (נפתח חלון ליתר בטחון)
+      if (typeof openFolderSelectionModal === "function") {
+        openFolderSelectionModal(doc.id);
+      }
+    }
+  }, 200);
+
 
 // ✅ עדכון מערכת מנויים (אם קיימת)
 if (window.subscriptionManager) {

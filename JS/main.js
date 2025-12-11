@@ -4092,6 +4092,9 @@ window.allDocsData = getUserDocs(userNow, allUsersData);
 if (fileInput) {
  fileInput.addEventListener("change", async () => {
   let file = fileInput.files[0];
+    // 🤖 כאן נאחסן את תוצאת ה-AI (אם יש)
+  let aiClassification = null;
+
   // 🔒 בדיקת מגבלות מנוי
   if (window.checkUploadLimits) {
     const limitCheck = await window.checkUploadLimits(file);
@@ -4166,6 +4169,46 @@ console.log("📁 After context override:", {
   subfolder: guessedSubCategory,
 });
 
+
+// 🤖 אם המשתמש במסלול פרימיום/פרימיום+ – נשתמש ב-AI לשיוך מדויק
+ currentPlanId = "free";
+try {
+  if (window.subscriptionManager && typeof window.subscriptionManager.getSubscriptionInfo === "function") {
+    const info = window.subscriptionManager.getSubscriptionInfo();
+    if (info && info.plan && info.plan.id) {
+      currentPlanId = info.plan.id;
+    }
+  }
+} catch (e) {
+  console.warn("⚠️ getSubscriptionInfo failed (AI):", e);
+}
+
+if (currentPlanId === "premium" || currentPlanId === "premium_plus") {
+  try {
+    if (typeof window.classifyDocumentWithAI === "function") {
+      const payload = {
+        title: fileName,
+        categoryHint: guessedCategory || null,
+        subCategoryHint: guessedSubCategory || null,
+        // אפשר להוסיף בהמשך גם textSample אמיתי
+        textSample: ""
+      };
+      aiClassification = await window.classifyDocumentWithAI(payload);
+      console.log("🤖 AI classification (client):", aiClassification);
+
+      if (aiClassification) {
+        if (aiClassification.category) {
+          guessedCategory = aiClassification.category;
+        }
+        if (aiClassification.subCategory) {
+          guessedSubCategory = aiClassification.subCategory;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("⚠️ AI classification failed on client:", e);
+  }
+}
 
 
 // אם לא זוהה - השתמש ב"אחר" אוטומטית (ללא חלון בחירה)
@@ -4260,26 +4303,59 @@ console.log("📁 Final:", { category: guessedCategory, subfolder: guessedSubCat
     // שמירת הקובץ עצמו ל-IndexedDB (לוגי)
     await saveFileToDB(newId, fileDataBase64);
 
+    // 💳 תיאום רמת השיוך לפי תוכנית המנוי
+    let currentPlanId = "free";
+    try {
+      if (window.subscriptionManager && typeof window.subscriptionManager.getSubscriptionInfo === "function") {
+        const info = window.subscriptionManager.getSubscriptionInfo();
+        if (info && info.plan && info.plan.id) {
+          currentPlanId = info.plan.id;
+        }
+      }
+    } catch (e) {
+      console.warn("⚠️ getSubscriptionInfo failed (classification):", e);
+    }
+
+    // במסלול חינם – לא מבצעים שיוך אוטומטי לתת־תיקייה
+    if (currentPlanId === "free") {
+      guessedSubCategory = null;
+    }
+
+
     // בניית אובייקט המסמך
     const now = new Date();
     const uploadedAt = now.toISOString().split("T")[0];
     const year = now.getFullYear().toString();
     const ownerEmail = normalizeEmail(getCurrentUserEmail() || "");
 
-    const newDoc = {
+const newDoc = {
   id: newId,
   title: fileName,
   originalFileName: fileName,
-  category: guessedCategory,           // הקטגוריה הראשית
-  subCategory: guessedSubCategory || null,    // תת-התיקייה!
+
+  // 🤖 קודם ננסה מה-AI, אחרת מהניחוש הרגיל
+  category: (aiClassification && aiClassification.category) || guessedCategory,
+  subCategory:
+    (aiClassification && aiClassification.subCategory) ||
+    guessedSubCategory ||
+    null,
+
   uploadedAt,
-  year,
-  org: "",
+  year: (aiClassification && aiClassification.year)
+    ? String(aiClassification.year)
+    : year,
+
+  org: (aiClassification && aiClassification.org) || "",
   recipient: [],
   sharedWith: [],
-  warrantyStart,
-  warrantyExpiresAt,
-  autoDeleteAfter,
+
+  warrantyStart:
+    (aiClassification && aiClassification.warrantyStart) || warrantyStart,
+  warrantyExpiresAt:
+    (aiClassification && aiClassification.warrantyExpiresAt) || warrantyExpiresAt,
+  autoDeleteAfter:
+    (aiClassification && aiClassification.autoDeleteAfter) || autoDeleteAfter,
+
   mimeType: file.type,
   hasFile: true,
   downloadURL: null,
@@ -4290,20 +4366,30 @@ console.log("📁 Final:", { category: guessedCategory, subfolder: guessedSubCat
 };
 
 
+
     // 📡 שמירה גם בשרת Render (PostgreSQL)
     try {
       if (window.uploadDocument) {
-  await window.uploadDocument(file, {
-    title: fileName,
-    category: guessedCategory,
-    subCategory: guessedSubCategory || null,   // 👈 חדש
-    year,
-    org: "",
-    recipient: newDoc.recipient || [],
-    warrantyStart,
-    warrantyExpiresAt,
-    autoDeleteAfter,
-  });
+await window.uploadDocument(file, {
+  title: fileName,
+  category: (aiClassification && aiClassification.category) || guessedCategory,
+  subCategory:
+    (aiClassification && aiClassification.subCategory) ||
+    guessedSubCategory ||
+    null,
+  year: (aiClassification && aiClassification.year)
+    ? String(aiClassification.year)
+    : year,
+  org: (aiClassification && aiClassification.org) || "",
+  recipient: newDoc.recipient || [],
+  warrantyStart:
+    (aiClassification && aiClassification.warrantyStart) || warrantyStart,
+  warrantyExpiresAt:
+    (aiClassification && aiClassification.warrantyExpiresAt) || warrantyExpiresAt,
+  autoDeleteAfter:
+    (aiClassification && aiClassification.autoDeleteAfter) || autoDeleteAfter,
+});
+
 }
  else {
         console.warn("⚠️ window.uploadDocument לא קיים");

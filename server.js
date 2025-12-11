@@ -402,6 +402,93 @@ if (file.size > MAX_DB_FILE_SIZE) {
 
 });
 
+// ════════════════════════════════════════
+// 🤖 AI Classification endpoint (Premium)
+// ════════════════════════════════════════
+app.post('/api/ai/classify-document', async (req, res) => {
+  try {
+    const userEmail = getUserFromRequest(req);
+    if (!userEmail) {
+      console.log('❌ AI classify unauthorized: no user');
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+
+    const body = req.body || {};
+    const title = (body.title || '').toString();
+    const textSample = (body.textSample || '').toString();
+    const categoryHint = (body.categoryHint || '').toString();
+    const subCategoryHint = (body.subCategoryHint || '').toString();
+
+    console.log('🤖 AI classify request from', userEmail, {
+      title,
+      hasText: !!textSample,
+      categoryHint,
+      subCategoryHint
+    });
+
+    // ================================
+    // 🔴 כאן יחיה ה-AI האמיתי בעתיד
+    // כרגע: לוגיקה פשוטה עם מילים-מפתח
+    // ================================
+    const fullText = (title + ' ' + textSample).toLowerCase();
+    let category = categoryHint || 'אחר';
+    let subCategory = subCategoryHint || null;
+    let org = '';
+    let year = new Date().getFullYear().toString();
+    let warrantyStart = null;
+    let warrantyExpiresAt = null;
+    let autoDeleteAfter = null;
+
+    // 🎯 דוגמאות לכללים – תחליפי ב-AI אמיתי:
+    if (fullText.includes('בנק') || fullText.includes('חשבון') || fullText.includes('עובר ושב')) {
+      category = 'בנק';
+    }
+    if (fullText.includes('פנסיה') || fullText.includes('קרן השתלמות')) {
+      category = 'פנסיה וגמל';
+    }
+    if (fullText.includes('ביטוח') || fullText.includes('פוליסה')) {
+      category = 'ביטוחים';
+    }
+    if (fullText.includes('חוזה') || fullText.includes('שכירות')) {
+      category = 'חוזים';
+    }
+
+    // ארגון לדוגמה
+    if (fullText.includes('מכבי')) org = 'מכבי';
+    if (fullText.includes('כללית')) org = 'כללית';
+    if (fullText.includes('הראל')) org = 'הראל';
+    if (fullText.includes('מגדל')) org = 'מגדל';
+
+    // 🔁 כאן אפשר להוסיף זיהוי תאריכים אמיתי ולהגדיר warrantyStart / warrantyExpiresAt / autoDeleteAfter
+
+    console.log('🤖 AI classify decided:', {
+      category,
+      subCategory,
+      org,
+      year,
+      warrantyStart,
+      warrantyExpiresAt,
+      autoDeleteAfter
+    });
+
+    return res.json({
+      category,
+      subCategory,
+      org,
+      year,
+      warrantyStart,
+      warrantyExpiresAt,
+      autoDeleteAfter
+    });
+  } catch (err) {
+    console.error('❌ AI classify error:', err);
+    return res.status(500).json({ error: 'AI classify failed' });
+  }
+});
+
+
+ 
+
 // 3️⃣ GET /api/docs/:id/download - Download file
 // 3️⃣ GET /api/docs/:id/download - Download file (FIXED)
 app.get('/api/docs/:id/download', async (req, res) => {
