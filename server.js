@@ -1,4 +1,4 @@
-// ===== server.js - Backend מתוקן עם logging טוב יותר =====
+// ===== server.js - Backend מתוקן עם מערכת pending files מלאה =====
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -59,9 +59,6 @@ app.post('/api/auth/send-2fa', async (req, res) => {
       [userEmail, code]
     );
 
-    // ❌ לא שולחים יותר מייל דרך Nodemailer / SMTP
-    // await mailer.sendMail({ ... });
-
     // ✅ שולחים את הקוד לפרונט שישלח אותו במייל דרך EmailJS
     res.json({ success: true, code });
   } catch (err) {
@@ -99,490 +96,230 @@ app.post("/api/auth/verify-2fa", async (req, res) => {
 });
 
 
+// ========================================
+// 🎯 מערכת מגבלות אחסון לפי דרגות
+// ========================================
+const STORAGE_LIMITS = {
+  free: 200 * 1024 * 1024,          // 200MB
+  standard: 2 * 1024 * 1024 * 1024, // 2GB
+  advanced: 10 * 1024 * 1024 * 1024, // 10GB
+  pro: 20 * 1024 * 1024 * 1024,     // 20GB
+  premium: 50 * 1024 * 1024 * 1024, // 50GB
+  premium_plus: 50 * 1024 * 1024 * 1024 // 50GB + dynamic
+};
 
-
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('❌ PostgreSQL error:', err.stack);
-  } else {
-    console.log('✅ PostgreSQL connected');
-    release();
-  }
-});
-
-
-
-
-// ===== Logging middleware =====
-app.use((req, res, next) => {
-  console.log(`📨 ${req.method} ${req.path}`);
-  console.log('📋 Headers:', {
-    'x-dev-email': req.headers['x-dev-email'],
-    'x-user-email': req.headers['x-user-email'],
-    'authorization': req.headers.authorization ? 'Bearer ...' : 'none'
-  });
-  next();
-});
-
-// ===== File Upload =====
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: {}  // ללא מגבלת גודל
-});
-
-// ===== Helper: Get user from request =====
-function getUserFromRequest(req) {
-  // Dev mode - email in header (priority!)
-  const devEmail = req.headers['x-dev-email'] || req.headers['x-user-email'];
-  if (devEmail) {
-    const email = devEmail.toLowerCase().trim();
-    console.log('✅ User from header:', email);
-    return email;
-  }
-  
-  // Firebase token (future)
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    console.log('⚠️ Firebase token found but not verified yet');
-    // TODO: Verify token
-  }
-  
-  console.log('❌ No user found in request');
-  return null;
-}
-
-
-// ===== Helpers לאחסון =====
-
-// כמה אחסון משתמש כבר משתמש (גם הבעלים וגם קבצים משותפים אליו)
-async function getUserStorageUsageBytes(email) {
-  const user = (email || '').toString().trim().toLowerCase();
-  if (!user) return 0;
-
-  const result = await pool.query(
-    `
-    SELECT 
-      COALESCE(SUM(file_size), 0) AS used_bytes
-    FROM documents
-    WHERE (owner = $1 OR shared_with ? $1)
-      AND NOT (deleted_for ? $1)
-    `,
-    [user]
-  );
-
-  const row = result.rows[0] || { used_bytes: 0 };
-  return Number(row.used_bytes) || 0;
-}
-
-// מגבלת אחסון למשתמש
-// כרגע: 200MB לכולם. אם תרצי תכניות שונות – נשנה רק כאן.
-function getUserStorageLimitBytes(email) {
-  const BASE_MB = 200;
-  return BASE_MB * 1024 * 1024;
-}
-
-
-
-// ===== Helper: max storage per user (בינתיים קבוע לכולם) =====
-async function getUserStorageLimitBytes(email) {
-  // כרגע: 200MB לכולם (כמו מסלול חינמי)
-  // אפשר אחר כך לעדכן לפי טבלת משתמשים/תוכניות
-  const FREE_LIMIT_MB = 200;
-  return FREE_LIMIT_MB * 1024 * 1024;
-}
-
-
-
-// ===== Create Tables =====
-async function initDB() {
+/**
+ * מחזיר את מגבלת האחסון של משתמש בבייטים
+ */
+async function getUserStorageLimitBytes(userEmail) {
   try {
+    const result = await pool.query(
+      `SELECT subscription FROM users WHERE email = $1`,
+      [userEmail]
+    );
+
+    if (!result.rows.length) {
+      return STORAGE_LIMITS.free; // ברירת מחדל
+    }
+
+    const sub = result.rows[0].subscription || {};
+    const planId = (sub.plan || 'free').toLowerCase();
+    
+    let baseLimit = STORAGE_LIMITS[planId] || STORAGE_LIMITS.free;
+    
+    // Premium+ עם GB נוספים
+    if (planId === 'premium_plus' && sub.extraStorageGB > 0) {
+      baseLimit += sub.extraStorageGB * 1024 * 1024 * 1024;
+    }
+    
+    return baseLimit;
+  } catch (err) {
+    console.error('❌ getUserStorageLimitBytes error:', err);
+    return STORAGE_LIMITS.free;
+  }
+}
+
+/**
+ * מחזיר את השימוש הנוכחי של משתמש (כולל קבצים משותפים אליו)
+ */
+async function getUserCurrentUsageBytes(userEmail) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT COALESCE(SUM(file_size), 0) AS used_bytes
+      FROM documents
+      WHERE (owner = $1 OR shared_with ? $1)
+        AND NOT (deleted_for ? $1)
+        AND trashed = false
+      `,
+      [userEmail]
+    );
+    
+    return Number(result.rows[0]?.used_bytes || 0);
+  } catch (err) {
+    console.error('❌ getUserCurrentUsageBytes error:', err);
+    return 0;
+  }
+}
+
+
+// ========================================
+// 🔧 עזרים
+// ========================================
+function getUserFromRequest(req) {
+  return req.headers['x-user-email'] || req.headers['x-dev-email'] || null;
+}
+
+// ========================================
+// 🗄️ הגדרת הטבלאות
+// ========================================
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS login_codes (
+        email TEXT PRIMARY KEY,
+        code TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        email TEXT PRIMARY KEY,
+        subscription JSONB DEFAULT '{"plan": "free", "status": "active"}'::jsonb,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS documents (
-        id VARCHAR(255) PRIMARY KEY,
-        owner VARCHAR(255) NOT NULL,
-        title VARCHAR(500),
-        file_name VARCHAR(500),
-        file_size BIGINT,
-        mime_type VARCHAR(100),
-        file_data BYTEA,
-        category VARCHAR(100),
-        sub_category VARCHAR(100),
-        year VARCHAR(10),
-        org VARCHAR(255),
+        id TEXT PRIMARY KEY,
+        owner TEXT NOT NULL,
+        file_name TEXT,
+        file_data TEXT,
+        mime_type TEXT,
+        file_size BIGINT DEFAULT 0,
+        category TEXT,
+        sub_category TEXT,
+        year INTEGER,
+        org TEXT,
         recipient JSONB,
-        shared_with JSONB,
-        deleted_for JSONB DEFAULT '{}',
-        warranty_start VARCHAR(50),
-        warranty_expires_at VARCHAR(50),
-        auto_delete_after VARCHAR(50),
-        uploaded_at BIGINT,
+        shared_with JSONB DEFAULT '{}'::jsonb,
+        deleted_for JSONB DEFAULT '{}'::jsonb,
+        trashed BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
         last_modified BIGINT,
-        last_modified_by VARCHAR(255),
-        deleted_at BIGINT,
-        deleted_by VARCHAR(255),
-        trashed BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      CREATE INDEX IF NOT EXISTS idx_owner ON documents(owner);
-      CREATE INDEX IF NOT EXISTS idx_shared ON documents USING GIN(shared_with);
-      CREATE INDEX IF NOT EXISTS idx_deleted_for ON documents USING GIN(deleted_for);
-      CREATE INDEX IF NOT EXISTS idx_trashed ON documents(trashed);
-
-      CREATE TABLE IF NOT EXISTS login_codes (
-        email VARCHAR(255) PRIMARY KEY,
-        code VARCHAR(6) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-       CREATE TABLE IF NOT EXISTS pending_shared_docs (
-        doc_id VARCHAR(255) NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-        from_user VARCHAR(255) NOT NULL,
-        to_user VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (doc_id, to_user)
-      );
-
+        last_modified_by TEXT
+      )
     `);
-    console.log('✅ Database initialized');
-  } catch (error) {
-    console.error('❌ Database init error:', error);
-  }
-}
-
-initDB().then(() => addMissingColumns());
-
-// ===== API ENDPOINTS =====
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: Date.now(),
-    database: pool ? 'connected' : 'disconnected'
-  });
-});
-
-// Test auth endpoint
-app.get('/api/test-auth', (req, res) => {
-  const user = getUserFromRequest(req);
-  res.json({
-    authenticated: !!user,
-    user: user,
-    headers: {
-      'x-dev-email': req.headers['x-dev-email'],
-      'authorization': req.headers.authorization ? 'present' : 'missing'
-    }
-  });
-});
-
-// 1️⃣ GET /api/docs - Load documents
-app.get('/api/docs', async (req, res) => {
-  try {
-    const userEmail = getUserFromRequest(req);
-    if (!userEmail) {
-      console.log('❌ Unauthorized: no user email');
-      return res.status(401).json({ error: 'Unauthenticated' });
-    }
-
-    console.log('📂 Loading docs for:', userEmail);
-
-    const result = await pool.query(`
-      SELECT 
-  id, owner, title, file_name, file_size, mime_type,
-  category, sub_category, year, org, recipient, shared_with,
-  warranty_start, warranty_expires_at, auto_delete_after,
-  uploaded_at, last_modified, last_modified_by,
-  deleted_at, deleted_by, trashed, deleted_for
-FROM documents
-WHERE (owner = $1 OR shared_with ? $1)
-  AND NOT (deleted_for ? $1)
-ORDER BY uploaded_at DESC
-
-    `, [userEmail]);
-
-    console.log(`✅ Found ${result.rows.length} documents`);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('❌ Load error:', error);
-    res.status(500).json({ error: 'Failed to load documents' });
-  }
-});
-
-// 2️⃣ POST /api/docs - Upload document
-app.post('/api/docs', upload.single('file'), async (req, res) => {
-  try {
-    const userEmail = getUserFromRequest(req);
-    if (!userEmail) {
-      console.log('❌ Upload unauthorized: no user');
-      return res.status(401).json({ error: 'Unauthenticated' });
-    }
-
-    const file = req.file;
-    if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    // 🔴 מגבלה ריאלית ל-DB (לא למנוי!) – כדי שלא יפיל את Postgres
-const MAX_DB_FILE_SIZE = 20 * 1024 * 1024; // 20MB לדוגמה
-
-if (file.size > MAX_DB_FILE_SIZE) {
-  console.warn(
-    `⚠️ File too big for DB: ${file.size} bytes (limit ${MAX_DB_FILE_SIZE})`
-  );
-  return res.status(413).json({
-    error: 'file_too_large_for_db',
-    message: 'הקובץ גדול מדי כדי להישמר במסד הנתונים בשרת הנוכחי'
-  });
-}
-
-
-
-    console.log('📤 Upload from:', userEmail);
-    console.log('📄 File:', file.originalname, file.size, 'bytes');
-
-    const id = require('crypto').randomUUID();
-    const now = Date.now();
-    
-    const {
-  title = file.originalname,
-  category = 'אחר',
-  subCategory = '',
-  year = new Date().getFullYear().toString(),
-  org = '',
-  recipient = '[]',
-  warrantyStart,
-  warrantyExpiresAt,
-  autoDeleteAfter
-} = req.body;
-
-
-    const recipientArray = JSON.parse(recipient || '[]');
-    const sharedWith = [];
 
     await pool.query(`
-      INSERT INTO documents (
-  id, owner, title, file_name, file_size, mime_type, file_data,
-  category, sub_category, year, org, recipient, shared_with,
-  warranty_start, warranty_expires_at, auto_delete_after,
-  uploaded_at, last_modified, last_modified_by, trashed
-) VALUES ($1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, $12, $13,
-          $14, $15, $16, $17, $18, $19, $20)
+      CREATE INDEX IF NOT EXISTS idx_owner ON documents(owner);
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_shared ON documents USING GIN(shared_with);
+    `);
 
-    `, [
-  id, userEmail, title, file.originalname, file.size, file.mimetype, file.buffer,
-  category, subCategory, year, org, JSON.stringify(recipientArray), JSON.stringify(sharedWith),
-  warrantyStart || null, warrantyExpiresAt || null, autoDeleteAfter || null,
-  now, now, userEmail, false
-]
-);
+    // טבלה לקבצים ממתינים לשיתוף
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pending_shared_docs (
+        id SERIAL PRIMARY KEY,
+        doc_id TEXT NOT NULL,
+        from_user TEXT NOT NULL,
+        to_user TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(doc_id, to_user)
+      )
+    `);
 
-    console.log(`✅ Uploaded: ${id}`);
-    
-    res.json({
-      id,
-      owner: userEmail,
-      title,
-      file_name: file.originalname,
-      file_size: file.size,
-      mime_type: file.mimetype,
-      uploaded_at: now
-    });
-  } catch (error) {
-  console.error('❌ Upload error:', error);
+    console.log('✅ All tables ready');
+  } catch (err) {
+    console.error('❌ Table init error:', err);
+  }
+})();
 
-  res.status(500).json({
-    error: 'Upload failed',
-    message: error?.message || String(error),
-    code: error?.code || null
-  });
-}
 
-});
-
-// 3️⃣ GET /api/docs/:id/download - Download file
-// 3️⃣ GET /api/docs/:id/download - Download file (FIXED)
-app.get('/api/docs/:id/download', async (req, res) => {
+// ========================================
+// 📄 API: POST /api/docs - העלאת מסמך חדש
+// ========================================
+app.post('/api/docs', async (req, res) => {
   try {
-    const userEmailRaw = getUserFromRequest(req);
-    if (!userEmailRaw) {
+    const ownerRaw = getUserFromRequest(req);
+    if (!ownerRaw) {
       return res.status(401).json({ error: 'Unauthenticated' });
     }
+    const owner = ownerRaw.trim().toLowerCase();
 
-    const requestingUser = userEmailRaw.trim().toLowerCase();
-    const { id } = req.params;
-    console.log('📥 Download request:', { id, user: requestingUser });
+    const {
+      id, fileName, fileData, mimeType, fileSize,
+      category, subCategory, year, org, recipient
+    } = req.body;
 
-    const result = await pool.query(`
-      SELECT file_data, file_name, mime_type, owner, shared_with, deleted_for
-      FROM documents
-      WHERE id = $1
-    `, [id]);
-
-    if (result.rows.length === 0) {
-      console.log('❌ Document not found:', id);
-      return res.status(404).json({ error: 'Not found' });
+    if (!id || !fileName || !fileData) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const doc = result.rows[0];
-
-    // ---------- פירוש shared_with בצורה גמישה ----------
-    let sharedWithEmails = [];
-    const sw = doc.shared_with;
-
-    if (sw) {
-      if (Array.isArray(sw)) {
-        // במקרה נדיר שזה נשמר כמערך מיילים
-        sharedWithEmails = sw
-          .map(e => (e || '').toString().trim().toLowerCase())
-          .filter(Boolean);
-      } else if (typeof sw === 'object') {
-        // JSONB אובייקט: { "user1@mail": true, "user2@mail": true }
-        sharedWithEmails = Object.keys(sw)
-          .filter(k => sw[k])
-          .map(k => k.trim().toLowerCase());
-      } else if (typeof sw === 'string') {
-        // מחרוזת – ננסה לפרש כ-JSON
-        try {
-          const parsed = JSON.parse(sw);
-          if (Array.isArray(parsed)) {
-            sharedWithEmails = parsed
-              .map(e => (e || '').toString().trim().toLowerCase())
-              .filter(Boolean);
-          } else if (parsed && typeof parsed === 'object') {
-            sharedWithEmails = Object.keys(parsed)
-              .filter(k => parsed[k])
-              .map(k => k.trim().toLowerCase());
-          }
-        } catch (e) {
-          console.warn('⚠️ Could not parse shared_with string JSON:', sw);
-        }
-      }
+    const size = Number(fileSize || 0);
+    
+    // בדיקת מגבלת אחסון
+    const currentUsage = await getUserCurrentUsageBytes(owner);
+    const storageLimit = await getUserStorageLimitBytes(owner);
+    
+    if (currentUsage + size > storageLimit) {
+      return res.status(403).json({ 
+        error: 'אין מספיק מקום באחסון. יש למחוק קבצים או לשדרג את המנוי.',
+        currentUsage,
+        storageLimit,
+        needed: size
+      });
     }
 
-    // ---------- פירוש deleted_for ----------
-    let deletedFor = {};
-    const df = doc.deleted_for;
-    if (df) {
-      if (typeof df === 'object') {
-        deletedFor = df;
-      } else if (typeof df === 'string') {
-        try {
-          const parsedDf = JSON.parse(df);
-          if (parsedDf && typeof parsedDf === 'object') {
-            deletedFor = parsedDf;
-          }
-        } catch (e) {
-          console.warn('⚠️ Could not parse deleted_for JSON string:', df);
-        }
-      }
-    }
+    const recipientArray = Array.isArray(recipient) ? recipient : [];
+    const sharedWith = [];
 
-    // ננרמל גם את המפתחות ל-lowercase לבדיקה
-    const normalizedDeletedFor = {};
-    Object.keys(deletedFor || {}).forEach(k => {
-      const key = (k || '').toString().trim().toLowerCase();
-      if (key) normalizedDeletedFor[key] = !!deletedFor[k];
-    });
-
-    // אם המשתמש הזה מחק לעצמו לצמיתות → אין לו גישה
-    if (normalizedDeletedFor[requestingUser]) {
-      console.log('❌ Access denied (deleted_for) for:', requestingUser);
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    // ---------- קביעת רשימת המשתתפים במסמך ----------
-    let ownerEmail = (doc.owner || '').toString().trim().toLowerCase();
-
-    const participantsSet = new Set();
-
-    // נוסיף owner רק אם זה לא "0" ולא ריק
-    if (ownerEmail && ownerEmail !== '0') {
-      participantsSet.add(ownerEmail);
-    }
-
-    // נוסיף כל Shared
-    sharedWithEmails.forEach(email => {
-      if (email) participantsSet.add(email);
-    });
-
-    const participants = Array.from(participantsSet);
-
-    console.log('🔐 Access check:', {
-      owner: ownerEmail,
-      user: requestingUser,
-      sharedWith: sharedWithEmails,
-      participants,
-      deletedFor: normalizedDeletedFor
-    });
-
-    // אם המשתמש בכלל לא מופיע ברשימת המשתתפים → אין הרשאה
-    if (!participants.includes(requestingUser)) {
-      console.log('❌ Access denied (not participant):', requestingUser);
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    // ---------- בדיקת קובץ ----------
-    if (!doc.file_data) {
-      return res.status(404).json({ error: 'No file data' });
-    }
-
-    console.log('✅ Sending file:', doc.file_name);
-    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(doc.file_name || 'document')}"`
+    await pool.query(
+      `
+      INSERT INTO documents (
+        id, owner, file_name, file_data, mime_type, file_size,
+        category, sub_category, year, org, recipient, shared_with,
+        created_at, last_modified, last_modified_by, trashed
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), $13, $14, false)
+      ON CONFLICT (id) DO UPDATE SET
+        file_name = EXCLUDED.file_name,
+        file_data = EXCLUDED.file_data,
+        mime_type = EXCLUDED.mime_type,
+        file_size = EXCLUDED.file_size,
+        category = EXCLUDED.category,
+        sub_category = EXCLUDED.sub_category,
+        year = EXCLUDED.year,
+        org = EXCLUDED.org,
+        recipient = EXCLUDED.recipient,
+        last_modified = EXCLUDED.last_modified,
+        last_modified_by = EXCLUDED.last_modified_by
+      `,
+      [
+        id, owner, fileName, fileData, mimeType, size,
+        category, subCategory, year, org, 
+        JSON.stringify(recipientArray), 
+        JSON.stringify(sharedWith),
+        Date.now(), owner
+      ]
     );
-    res.send(doc.file_data);
+
+    console.log(`✅ Document uploaded: ${id} by ${owner}`);
+    res.json({ success: true, id });
   } catch (error) {
-    console.error('❌ Download error:', error);
-    res.status(500).json({ error: 'Download failed' });
+    console.error('❌ POST /api/docs error:', error);
+    res.status(500).json({ error: 'Upload failed' });
   }
 });
 
 
-
-
-
-
-
-
-
-
-
-
-// ===== Helper: חישוב שימוש אחסון עבור משתמש =====
-async function getUserStorageBytes(email) {
-  const normalized = (email || "").toString().trim().toLowerCase();
-  if (!normalized) return 0;
-
-  const result = await pool.query(
-    `
-    SELECT 
-      COALESCE(SUM(file_size), 0) AS used_bytes
-    FROM documents
-    WHERE owner = $1
-      AND NOT (deleted_for ? $1)
-    `,
-    [normalized]
-  );
-
-  const row = result.rows[0] || { used_bytes: 0 };
-  return Number(row.used_bytes) || 0;
-}
-
-
-
-
-
-
-
-
-
-// 4️⃣ PUT /api/docs/:id - עדכון מסמך + בדיקת מקום בשיתוף
-app.put('/api/docs/:id', async (req, res) => {
+// ========================================
+// 📥 API: GET /api/docs - קבלת מסמכים
+// ========================================
+app.get('/api/docs', async (req, res) => {
   try {
     const userEmailRaw = getUserFromRequest(req);
     if (!userEmailRaw) {
@@ -590,211 +327,176 @@ app.put('/api/docs/:id', async (req, res) => {
     }
     const userEmail = userEmailRaw.trim().toLowerCase();
 
-    const { id } = req.params;
-    const updates = req.body || {};
-
-    // טוענים את המסמך כדי לבדוק בעלות + גודל קובץ + shared_with קיים
-    const checkResult = await pool.query(
-      `SELECT owner, file_size, shared_with FROM documents WHERE id = $1`,
-      [id]
+    const result = await pool.query(
+      `
+      SELECT id, file_name, mime_type, file_size, owner, shared_with, deleted_for,
+             category, sub_category, year, org, recipient, trashed,
+             created_at, last_modified, last_modified_by
+      FROM documents
+      WHERE (owner = $1 OR shared_with ? $1)
+        AND NOT (deleted_for ? $1)
+      ORDER BY created_at DESC
+      `,
+      [userEmail]
     );
 
-    if (!checkResult.rows.length) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
-    const doc = checkResult.rows[0];
-    const owner = (doc.owner || '').toString().trim().toLowerCase();
-
-    if (owner !== userEmail) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    const fileSize = Number(doc.file_size || 0);
-    let skippedRecipients = [];
-
-    // ───── לוגיקת שיתוף: updates.shared_with ─────
-    if (updates.shared_with !== undefined) {
-      let newSharedObj = {};
-
-      const incoming = updates.shared_with;
-
-      // incoming יכול להגיע כמערך מיילים
-      if (Array.isArray(incoming)) {
-        incoming.forEach(e => {
-          const email = (e || '').toString().trim().toLowerCase();
-          if (email && email.includes('@')) {
-            newSharedObj[email] = true;
-          }
-        });
-      }
-      // או כאובייקט {email: true}
-      else if (typeof incoming === 'object' && incoming !== null) {
-        Object.keys(incoming).forEach(k => {
-          const email = (k || '').toString().trim().toLowerCase();
-          if (email && email.includes('@') && incoming[k]) {
-            newSharedObj[email] = true;
-          }
-        });
-      }
-      // או כמחרוזת JSON
-      else if (typeof incoming === 'string') {
+    const docs = result.rows.map(doc => {
+      let sharedWithEmails = [];
+      const sw = doc.shared_with;
+      
+      if (Array.isArray(sw)) {
+        sharedWithEmails = sw.filter(e => e && typeof e === 'string');
+      } else if (sw && typeof sw === 'object') {
+        sharedWithEmails = Object.keys(sw).filter(k => sw[k]);
+      } else if (typeof sw === 'string') {
         try {
-          const parsed = JSON.parse(incoming);
+          const parsed = JSON.parse(sw);
           if (Array.isArray(parsed)) {
-            parsed.forEach(e => {
-              const email = (e || '').toString().trim().toLowerCase();
-              if (email && email.includes('@')) {
-                newSharedObj[email] = true;
-              }
-            });
+            sharedWithEmails = parsed.filter(e => e && typeof e === 'string');
           } else if (parsed && typeof parsed === 'object') {
-            Object.keys(parsed).forEach(k => {
-              const email = (k || '').toString().trim().toLowerCase();
-              if (email && email.includes('@') && parsed[k]) {
-                newSharedObj[email] = true;
-              }
-            });
+            sharedWithEmails = Object.keys(parsed).filter(k => parsed[k]);
           }
         } catch (e) {
-          console.warn('⚠️ Could not parse incoming shared_with string:', incoming);
+          console.warn('⚠️ Could not parse shared_with string JSON:', sw);
         }
       }
 
-      // shared_with קודם – כדי לדעת מי כבר היה משותף
-      let prevShared = {};
-      const sw = doc.shared_with;
-
-      if (sw) {
-        if (Array.isArray(sw)) {
-          sw.forEach(e => {
-            const email = (e || '').toString().trim().toLowerCase();
-            if (email && email.includes('@')) prevShared[email] = true;
-          });
-        } else if (typeof sw === 'object') {
-          Object.keys(sw).forEach(k => {
-            const email = (k || '').toString().trim().toLowerCase();
-            if (email && email.includes('@') && sw[k]) {
-              prevShared[email] = true;
-            }
-          });
-        } else if (typeof sw === 'string') {
-          try {
-            const parsed = JSON.parse(sw);
-            if (Array.isArray(parsed)) {
-              parsed.forEach(e => {
-                const email = (e || '').toString().trim().toLowerCase();
-                if (email && email.includes('@')) prevShared[email] = true;
-              });
-            } else if (parsed && typeof parsed === 'object') {
-              Object.keys(parsed).forEach(k => {
-                const email = (k || '').toString().trim().toLowerCase();
-                if (email && email.includes('@') && parsed[k]) {
-                  prevShared[email] = true;
-                }
-              });
-            }
-          } catch (e) {
-            console.warn('⚠️ Could not parse existing shared_with string:', sw);
-          }
+      let deletedForEmails = [];
+      if (doc.deleted_for) {
+        if (Array.isArray(doc.deleted_for)) {
+          deletedForEmails = doc.deleted_for;
+        } else if (typeof doc.deleted_for === 'object') {
+          deletedForEmails = Object.keys(doc.deleted_for).filter(k => doc.deleted_for[k]);
         }
       }
 
-      // הנמענים הסופיים שנשמור במסד
-      const finalShared = { ...prevShared };
+      const isOwner = (doc.owner.trim().toLowerCase() === userEmail);
+      const isShared = sharedWithEmails.includes(userEmail);
+      const isDeleted = deletedForEmails.includes(userEmail);
 
-      // נעבור על כל המועמדים החדשים
-      const candidates = Object.keys(newSharedObj);
+      if (isDeleted) return null;
 
-      for (const targetEmail of candidates) {
-        // אם כבר היה משותף – לא נבדוק שוב
-        if (prevShared[targetEmail]) {
-          finalShared[targetEmail] = true;
-          continue;
+      sharedWithEmails.forEach(email => {
+        if (!deletedForEmails.includes(email)) {
+          deletedForEmails.push(email);
         }
+      });
 
-        const usedBytes = await getUserStorageUsageBytes(targetEmail);
-        const limitBytes = getUserStorageLimitBytes(targetEmail);
+      return {
+        id: doc.id,
+        fileName: doc.file_name,
+        mimeType: doc.mime_type,
+        fileSize: doc.file_size,
+        owner: doc.owner,
+        category: doc.category,
+        subCategory: doc.sub_category,
+        year: doc.year,
+        org: doc.org,
+        recipient: doc.recipient,
+        sharedWith: sharedWithEmails,
+        trashed: doc.trashed || false,
+        createdAt: doc.created_at,
+        lastModified: doc.last_modified,
+        lastModifiedBy: doc.last_modified_by,
+        isOwner,
+        isShared
+      };
+    }).filter(Boolean);
 
-        if (usedBytes + fileSize > limitBytes) {
-          // ❌ אין מספיק מקום → לא נוסיף אותו לשיתוף
-          skippedRecipients.push(targetEmail);
-          console.log(
-            `⛔ Share blocked for ${targetEmail}: ${usedBytes} + ${fileSize} > ${limitBytes}`
-          );
-        } else {
-          // ✅ יש מספיק מקום → נוסיף למשתתפים
-          finalShared[targetEmail] = true;
-        }
-      }
-
-      updates.shared_with = finalShared;
-    }
-
-    // ───── המשך: עדכון השדות הרגיל ─────
-    const allowedFields = [
-      'title',
-      'category',
-      'year',
-      'org',
-      'recipient',
-      'shared_with',
-      'warranty_start',
-      'warranty_expires_at',
-      'auto_delete_after'
-    ];
-
-    const fields = [];
-    const values = [];
-    let paramIndex = 1;
-
-    allowedFields.forEach(field => {
-      if (updates[field] !== undefined) {
-        fields.push(`${field} = $${paramIndex}`);
-        const value =
-          typeof updates[field] === 'object'
-            ? JSON.stringify(updates[field])
-            : updates[field];
-        values.push(value);
-        paramIndex++;
-      }
-    });
-
-    if (!fields.length) {
-      return res.status(400).json({ error: 'No fields to update' });
-    }
-
-    fields.push(`last_modified = $${paramIndex}`);
-    values.push(Date.now());
-    paramIndex++;
-
-    fields.push(`last_modified_by = $${paramIndex}`);
-    values.push(userEmail);
-    paramIndex++;
-
-    values.push(id);
-
-    await pool.query(
-      `
-      UPDATE documents
-      SET ${fields.join(', ')}
-      WHERE id = $${paramIndex}
-      `,
-      values
-    );
-
-    console.log(`✅ Updated: ${id}`);
-    res.json({ success: true, id, skippedRecipients });
+    res.json({ documents: docs });
   } catch (error) {
-    console.error('❌ Update error:', error);
-    res.status(500).json({ error: 'Update failed' });
+    console.error('❌ GET /api/docs error:', error);
+    res.status(500).json({ error: 'Failed to fetch documents' });
   }
 });
 
 
+// ========================================
+// 📄 API: GET /api/docs/:id - קבלת מסמך מסוים
+// ========================================
+app.get('/api/docs/:id', async (req, res) => {
+  try {
+    const userEmailRaw = getUserFromRequest(req);
+    if (!userEmailRaw) {
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+    const userEmail = userEmailRaw.trim().toLowerCase();
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT file_data, file_name, mime_type, owner, shared_with, deleted_for
+      FROM documents
+      WHERE id = $1
+      `,
+      [id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const doc = result.rows[0];
+    let sharedWithEmails = [];
+    const sw = doc.shared_with;
+
+    if (Array.isArray(sw)) {
+      sharedWithEmails = sw.filter(e => e && typeof e === 'string');
+    } else if (sw && typeof sw === 'object') {
+      sharedWithEmails = Object.keys(sw).filter(k => sw[k]);
+    } else if (typeof sw === 'string') {
+      try {
+        const parsed = JSON.parse(sw);
+        if (Array.isArray(parsed)) {
+          sharedWithEmails = parsed.filter(e => e && typeof e === 'string');
+        } else if (parsed && typeof parsed === 'object') {
+          sharedWithEmails = Object.keys(parsed).filter(k => parsed[k]);
+        }
+      } catch (e) {
+        console.warn('⚠️ Could not parse shared_with:', sw);
+      }
+    }
+
+    const isOwner = (doc.owner.trim().toLowerCase() === userEmail);
+    const hasAccess = isOwner || sharedWithEmails.includes(userEmail);
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    let deletedForEmails = [];
+    if (doc.deleted_for) {
+      if (Array.isArray(doc.deleted_for)) {
+        deletedForEmails = doc.deleted_for;
+      } else if (typeof doc.deleted_for === 'object') {
+        deletedForEmails = Object.keys(doc.deleted_for).filter(k => doc.deleted_for[k]);
+      }
+    }
+
+    if (deletedForEmails.includes(userEmail)) {
+      return res.status(404).json({ error: 'Document deleted' });
+    }
+
+    res.json({
+      id,
+      fileName: doc.file_name,
+      fileData: doc.file_data,
+      mimeType: doc.mime_type,
+      owner: doc.owner,
+      sharedWith: sharedWithEmails,
+      isOwner,
+      isShared: !isOwner
+    });
+  } catch (error) {
+    console.error('❌ GET /api/docs/:id error:', error);
+    res.status(500).json({ error: 'Failed to fetch document' });
+  }
+});
 
 
-// 4.5️⃣ POST /api/docs/:id/share - שיתוף עם בדיקת מקום למקבל
+// ========================================
+// 🔗 API: POST /api/docs/:id/share - שיתוף מסמך
+// ========================================
 app.post('/api/docs/:id/share', async (req, res) => {
   try {
     const fromUserRaw = getUserFromRequest(req);
@@ -831,26 +533,12 @@ app.post('/api/docs/:id/share', async (req, res) => {
 
     const fileSize = Number(doc.file_size || 0);
 
-    // 2️⃣ מחשבים כמה אחסון היעד כבר משתמש (כולל קבצים משותפים אליו)
-    const usageResult = await pool.query(
-      `
-      SELECT 
-        COALESCE(SUM(file_size), 0) AS used_bytes,
-        COUNT(*) AS docs_count
-      FROM documents
-      WHERE (owner = $1 OR shared_with ? $1)
-        AND NOT (deleted_for ? $1)
-      `,
-      [toUser]
-    );
-
-    const usedBytes = Number(usageResult.rows[0]?.used_bytes || 0);
-
-    // 3️⃣ מגבלת אחסון של המקבל
+    // 2️⃣ מחשבים כמה אחסון היעד כבר משתמש
+    const usedBytes = await getUserCurrentUsageBytes(toUser);
     const maxBytes = await getUserStorageLimitBytes(toUser);
     const willBe = usedBytes + fileSize;
 
-    // 4️⃣ אין מספיק מקום → נכנס לטבלת pending_shared_docs ולא משותף בפועל
+    // 3️⃣ אין מספיק מקום → נכנס לטבלת pending_shared_docs ולא משותף בפועל
     if (willBe > maxBytes) {
       await pool.query(
         `
@@ -864,15 +552,13 @@ app.post('/api/docs/:id/share', async (req, res) => {
       return res.json({
         status: 'pending',
         reason: 'no_space',
-        message:
-          'אין למקבל מספיק מקום. הקובץ ממתין לשדרוג או פינוי מקום אצל המשתמש המקבל.'
+        message: `הקובץ ממתין לשיתוף. ${toUser} צריך לפנות מקום או לשדרג את המנוי.`
       });
     }
 
-    // 5️⃣ יש מספיק מקום → מוסיפים ל-shared_with
+    // 4️⃣ יש מספיק מקום → מוסיפים ל-shared_with
     let sharedWith = doc.shared_with || {};
 
-    // shared_with יכול להיות JSONB מסוג אובייקט או מערך – נתמוך בשניהם
     if (Array.isArray(sharedWith)) {
       if (!sharedWith.includes(toUser)) {
         sharedWith.push(toUser);
@@ -918,8 +604,169 @@ app.post('/api/docs/:id/share', async (req, res) => {
 });
 
 
+// ========================================
+// 📋 API: GET /api/pending-shares - קבלת קבצים ממתינים לשיתוף
+// ========================================
+app.get('/api/pending-shares', async (req, res) => {
+  try {
+    const userEmailRaw = getUserFromRequest(req);
+    if (!userEmailRaw) {
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+    const userEmail = userEmailRaw.trim().toLowerCase();
 
-// 5️⃣ PUT /api/docs/:id/trash - Move to/from trash
+    const result = await pool.query(
+      `
+      SELECT p.id, p.doc_id, p.from_user, p.created_at,
+             d.file_name, d.file_size
+      FROM pending_shared_docs p
+      JOIN documents d ON d.id = p.doc_id
+      WHERE p.to_user = $1
+      ORDER BY p.created_at DESC
+      `,
+      [userEmail]
+    );
+
+    const pending = result.rows.map(row => ({
+      pendingId: row.id,
+      docId: row.doc_id,
+      fromUser: row.from_user,
+      fileName: row.file_name,
+      fileSize: row.file_size,
+      createdAt: row.created_at
+    }));
+
+    res.json({ pending });
+  } catch (err) {
+    console.error('❌ GET /api/pending-shares error:', err);
+    res.status(500).json({ error: 'Failed to get pending shares' });
+  }
+});
+
+
+// ========================================
+// ✅ API: POST /api/accept-pending/:pendingId - קבלת קובץ ממתין
+// ========================================
+app.post('/api/accept-pending/:pendingId', async (req, res) => {
+  try {
+    const userEmailRaw = getUserFromRequest(req);
+    if (!userEmailRaw) {
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+    const userEmail = userEmailRaw.trim().toLowerCase();
+    const { pendingId } = req.params;
+
+    // 1️⃣ מוצא את הרשומה ה-pending
+    const pendingResult = await pool.query(
+      `
+      SELECT p.doc_id, p.from_user, d.file_size, d.shared_with
+      FROM pending_shared_docs p
+      JOIN documents d ON d.id = p.doc_id
+      WHERE p.id = $1 AND p.to_user = $2
+      `,
+      [pendingId, userEmail]
+    );
+
+    if (!pendingResult.rows.length) {
+      return res.status(404).json({ error: 'Pending share not found' });
+    }
+
+    const pending = pendingResult.rows[0];
+    const fileSize = Number(pending.file_size || 0);
+
+    // 2️⃣ בודק אם יש מקום עכשיו
+    const usedBytes = await getUserCurrentUsageBytes(userEmail);
+    const maxBytes = await getUserStorageLimitBytes(userEmail);
+
+    if (usedBytes + fileSize > maxBytes) {
+      return res.status(403).json({ 
+        error: 'עדיין אין מספיק מקום באחסון',
+        currentUsage: usedBytes,
+        storageLimit: maxBytes,
+        needed: fileSize
+      });
+    }
+
+    // 3️⃣ מוסיף ל-shared_with
+    let sharedWith = pending.shared_with || {};
+
+    if (Array.isArray(sharedWith)) {
+      if (!sharedWith.includes(userEmail)) {
+        sharedWith.push(userEmail);
+      }
+    } else if (typeof sharedWith === 'object' && sharedWith !== null) {
+      sharedWith[userEmail] = true;
+    } else {
+      sharedWith = { [userEmail]: true };
+    }
+
+    await pool.query(
+      `
+      UPDATE documents
+      SET shared_with = $1
+      WHERE id = $2
+      `,
+      [JSON.stringify(sharedWith), pending.doc_id]
+    );
+
+    // 4️⃣ מוחק מה-pending
+    await pool.query(
+      `DELETE FROM pending_shared_docs WHERE id = $1`,
+      [pendingId]
+    );
+
+    res.json({ 
+      success: true, 
+      docId: pending.doc_id,
+      message: 'הקובץ נוסף בהצלחה'
+    });
+  } catch (err) {
+    console.error('❌ POST /api/accept-pending error:', err);
+    res.status(500).json({ error: 'Failed to accept pending share' });
+  }
+});
+
+
+// ========================================
+// ❌ API: DELETE /api/pending-shares/:pendingId - דחיית קובץ ממתין
+// ========================================
+app.delete('/api/pending-shares/:pendingId', async (req, res) => {
+  try {
+    const userEmailRaw = getUserFromRequest(req);
+    if (!userEmailRaw) {
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+    const userEmail = userEmailRaw.trim().toLowerCase();
+    const { pendingId } = req.params;
+
+    const result = await pool.query(
+      `
+      DELETE FROM pending_shared_docs
+      WHERE id = $1 AND to_user = $2
+      RETURNING doc_id
+      `,
+      [pendingId, userEmail]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Pending share not found' });
+    }
+
+    res.json({ 
+      success: true,
+      docId: result.rows[0].doc_id,
+      message: 'הקובץ נדחה'
+    });
+  } catch (err) {
+    console.error('❌ DELETE /api/pending-shares error:', err);
+    res.status(500).json({ error: 'Failed to reject pending share' });
+  }
+});
+
+
+// ========================================
+// 🗑️ API: PUT /api/docs/:id/trash - העברה לסל מחזור
+// ========================================
 app.put('/api/docs/:id/trash', async (req, res) => {
   try {
     const userEmail = getUserFromRequest(req);
@@ -949,6 +796,10 @@ app.put('/api/docs/:id/trash', async (req, res) => {
   }
 });
 
+
+// ========================================
+// 🗑️ API: DELETE /api/docs/:id - מחיקת מסמך
+// ========================================
 app.delete('/api/docs/:id', async (req, res) => {
   try {
     const userEmailRaw = getUserFromRequest(req);
@@ -958,214 +809,100 @@ app.delete('/api/docs/:id', async (req, res) => {
     const userEmail = userEmailRaw.trim().toLowerCase();
     const { id } = req.params;
 
-    // נטען את המסמך מה-DB
-    const result = await pool.query(
-      `SELECT id, owner, shared_with, deleted_for
-       FROM documents
-       WHERE id = $1`,
+    const docResult = await pool.query(
+      `SELECT owner, shared_with FROM documents WHERE id = $1`,
       [id]
     );
 
-    if (!result.rows.length) {
+    if (!docResult.rows.length) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    const doc = result.rows[0];
+    const doc = docResult.rows[0];
+    const isOwner = (doc.owner.trim().toLowerCase() === userEmail);
 
-    // ---------- פירוש shared_with בצורה נכונה ----------
-    let sharedWithEmails = [];
-    const sw = doc.shared_with;
-
-    if (sw) {
-      if (Array.isArray(sw)) {
-        // JSONB שנשמר כמערך ['a@mail', 'b@mail']
-        sharedWithEmails = sw
-          .map(e => (e || '').toString().trim().toLowerCase())
-          .filter(e => e && e.includes('@'));
-      } else if (typeof sw === 'object') {
-        // JSONB שנשמר כאובייקט { "a@mail": true, "b@mail": true }
-        sharedWithEmails = Object.keys(sw)
-          .filter(k => sw[k])
-          .map(k => k.trim().toLowerCase())
-          .filter(e => e && e.includes('@'));
-      } else if (typeof sw === 'string') {
-        // במקרה שנשמר כמחרוזת JSON
-        try {
-          const parsed = JSON.parse(sw);
-          if (Array.isArray(parsed)) {
-            sharedWithEmails = parsed
-              .map(e => (e || '').toString().trim().toLowerCase())
-              .filter(e => e && e.includes('@'));
-          } else if (parsed && typeof parsed === 'object') {
-            sharedWithEmails = Object.keys(parsed)
-              .filter(k => parsed[k])
-              .map(k => k.trim().toLowerCase())
-              .filter(e => e && e.includes('@'));
-          }
-        } catch (e) {
-          console.warn('⚠️ Could not parse shared_with string JSON:', sw);
-        }
-      }
-    }
-
-    // ---------- פירוש deleted_for ----------
-    let deletedFor = {};
-    const df = doc.deleted_for;
-    if (df) {
-      if (typeof df === 'object') {
-        deletedFor = df;
-      } else if (typeof df === 'string') {
-        try {
-          const parsedDf = JSON.parse(df);
-          if (parsedDf && typeof parsedDf === 'object') {
-            deletedFor = parsedDf;
-          }
-        } catch (e) {
-          console.warn('⚠️ Could not parse deleted_for JSON string:', df);
-        }
-      }
-    }
-    if (!deletedFor || typeof deletedFor !== 'object') {
-      deletedFor = {};
-    }
-
-    // ---------- רשימת כל המשתתפים במסמך ----------
-    let ownerEmail = (doc.owner || '').toString().trim().toLowerCase();
-
-    const participantsSet = new Set();
-
-    // נוסיף owner רק אם זה מייל אמיתי
-    if (ownerEmail && ownerEmail !== '0' && ownerEmail.includes('@')) {
-      participantsSet.add(ownerEmail);
-    }
-
-    // נוסיף את כל המיילים התקינים מתוך shared_with
-    sharedWithEmails.forEach(email => {
-      if (email && email.includes('@')) {
-        participantsSet.add(email);
-      }
-    });
-
-    const participants = Array.from(participantsSet);
-
-    // אם המשתמש בכלל לא קשור למסמך – אין לו זכות למחוק
-    if (!participants.includes(userEmail)) {
-      return res.status(403).json({ error: 'Not allowed' });
-    }
-
-    // נסמן שהמשתמש הנוכחי מחק לצמיתות
-    const newDeletedFor = { ...deletedFor };
-    newDeletedFor[userEmail] = true;
-
-    // מי עדיין "חי" במסמך אחרי המחיקה הזאת? (לא מחוקים)
-    const remaining = participants.filter(email => !newDeletedFor[email]);
-
-    // ---------- אם אף אחד לא נשאר → מוחקים לגמרי ----------
-    if (remaining.length === 0) {
+    if (isOwner) {
+      // הבעלים מוחק → מוחק לגמרי
       await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
-      return res.json({
-        ok: true,
-        hardDeleted: true,
-        deletedForAll: true,
-      });
+      console.log(`✅ Document permanently deleted by owner: ${id}`);
+      res.json({ success: true, message: 'Document deleted permanently' });
+    } else {
+      // משתמש משותף מוחק → מסמן ב-deleted_for
+      const result = await pool.query(
+        `
+        SELECT deleted_for FROM documents WHERE id = $1
+        `,
+        [id]
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      let deletedFor = result.rows[0].deleted_for || {};
+      
+      if (Array.isArray(deletedFor)) {
+        if (!deletedFor.includes(userEmail)) {
+          deletedFor.push(userEmail);
+        }
+      } else if (typeof deletedFor === 'object') {
+        deletedFor[userEmail] = true;
+      } else {
+        deletedFor = { [userEmail]: true };
+      }
+
+      await pool.query(
+        `UPDATE documents SET deleted_for = $1 WHERE id = $2`,
+        [JSON.stringify(deletedFor), id]
+      );
+
+      console.log(`✅ Document marked deleted for: ${userEmail}`);
+      res.json({ success: true, message: 'Document removed from your view' });
     }
-
-    // ---------- יש עדיין משתמשים: קובעים בעלות חדשה ----------
-    const newOwnerEmail = remaining[0]; // תמיד מייל אמיתי (עבר דרך includes('@'))
-
-    const newSharedWith = {};
-    remaining.slice(1).forEach(email => {
-      newSharedWith[email] = true;
-    });
-
-    await pool.query(
-      `
-      UPDATE documents
-      SET owner = $1,
-          shared_with = $2,
-          deleted_for = $3
-      WHERE id = $4
-      `,
-      [newOwnerEmail, newSharedWith, newDeletedFor, id]
-    );
-
-    return res.json({
-      ok: true,
-      hardDeleted: false,
-      deletedForAll: false,
-      newOwner: newOwnerEmail,
-      deletedFor: userEmail,
-    });
-  } catch (err) {
-    console.error('Error deleting document:', err);
-    return res.status(500).json({ error: 'Server error' });
+  } catch (error) {
+    console.error('❌ DELETE /api/docs/:id error:', error);
+    res.status(500).json({ error: 'Delete failed' });
   }
 });
 
 
-
-
-
-// 📦 סטטיסטיקת אחסון לפי בעלות בלבד
-app.get('/api/storage-stats', async (req, res) => {
+// ========================================
+// 👤 API: GET /api/user/subscription - קבלת מידע על המנוי
+// ========================================
+app.get('/api/user/subscription', async (req, res) => {
   try {
     const userEmailRaw = getUserFromRequest(req);
     if (!userEmailRaw) {
       return res.status(401).json({ error: 'Unauthenticated' });
     }
-
     const userEmail = userEmailRaw.trim().toLowerCase();
 
-    // רק קבצים שהמשתמש הוא הבעלים שלהם
-         const result = await pool.query(
-      `
-      SELECT 
-        COALESCE(SUM(file_size), 0) AS used_bytes,
-        COUNT(*) AS docs_count
-      FROM documents
-      WHERE (owner = $1 OR shared_with ? $1)
-        AND NOT (deleted_for ? $1)
-      `,
+    const result = await pool.query(
+      `SELECT subscription FROM users WHERE email = $1`,
       [userEmail]
     );
 
-
-    const row = result.rows[0] || { used_bytes: 0, docs_count: 0 };
-
-    res.json({
-      usedBytes: Number(row.used_bytes) || 0,
-      docsCount: Number(row.docs_count) || 0,
-    });
-  } catch (err) {
-    console.error('❌ /api/storage-stats error:', err);
-    res.status(500).json({ error: 'Failed to load storage stats' });
-  }
-});
-
-
-
-
-// ===== Start server =====
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✅ Ready to accept requests`);
-});
-// ===== Add missing column if table already exists =====
-async function addMissingColumns() {
-  try {
-    await pool.query(`
-      ALTER TABLE documents 
-      ADD COLUMN IF NOT EXISTS deleted_for JSONB DEFAULT '{}';
-      
-      CREATE INDEX IF NOT EXISTS idx_deleted_for 
-      ON documents USING GIN(deleted_for);
-    `);
-    console.log('✅ Ensured deleted_for column exists');
-  } catch (error) {
-    // Ignore if already exists
-    if (!error.message.includes('already exists')) {
-      console.error('⚠️ Column check:', error.message);
+    if (!result.rows.length) {
+      // משתמש חדש - יוצר מנוי חינמי
+      await pool.query(
+        `INSERT INTO users (email, subscription) VALUES ($1, $2)`,
+        [userEmail, JSON.stringify({ plan: 'free', status: 'active' })]
+      );
+      return res.json({ plan: 'free', status: 'active' });
     }
+
+    const sub = result.rows[0].subscription || { plan: 'free', status: 'active' };
+    res.json(sub);
+  } catch (err) {
+    console.error('❌ GET /api/user/subscription error:', err);
+    res.status(500).json({ error: 'Failed to get subscription' });
   }
-}
+});
+
+
+// ========================================
+// 🚀 הפעלת השרת
+// ========================================
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
