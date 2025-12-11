@@ -32,32 +32,7 @@ export const SUBSCRIPTION_PLANS = {
     ]
   },
 
-  BASIC: {
-    id: 'basic',
-    name: 'Basic',
-    nameHe: 'בסיסי',
-    price: 5,
-    storage: 500 * 1024 * 1024, // 500MB
-    maxDocuments: 500,
-    maxFileSize: 10 * 1024 * 1024, // 10MB
-    maxSharedUsers: 2,
-    maxSharedFolders: 2,
-    maxSharedProfiles: 1,
-    maxProfileInvitesPerProfile: 2,
-    autoSuggestCategory: true,
-    ocrFeatures: false,
-    aiSearch: false,
-    fullFolderSharing: true,
-    features: [
-      '500MB נפח אחסון',
-      'עד 500 מסמכים',
-      'גודל קובץ עד 10MB',
-      'שיתוף עד 2 אנשים',
-      'שיתוף עד 2 תיקיות',
-      'שיתוף פרופיל אחד',
-      'הצעה אוטומטית לתיקייה'
-    ]
-  },
+
 
   STANDARD: {
     id: 'standard',

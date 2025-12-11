@@ -90,53 +90,8 @@ async function loadDocuments() {
       throw new Error(`API returned ${res.status}: ${text}`);
     }
     
-    
-    const data = await res.json();
-    console.log('📦 Server response type:', typeof data);
-    console.log('📦 Is array?', Array.isArray(data));
-    if (data) console.log('📦 Keys:', Object.keys(data).slice(0, 5));
-    
-    // 🔧 זיהוי חכם של פורמט התגובה
-    let list;
-    
-    if (Array.isArray(data)) {
-      // מקרה 1: מערך ישיר
-      list = data;
-      console.log('✅ Response is array');
-    } else if (data && typeof data === 'object') {
-      // מקרה 2: אובייקט עם שדות
-      if (Array.isArray(data.documents)) {
-        list = data.documents;
-        console.log('✅ Found data.documents');
-      } else if (Array.isArray(data.data)) {
-        list = data.data;
-        console.log('✅ Found data.data');
-      } else if (Array.isArray(data.docs)) {
-        list = data.docs;
-        console.log('✅ Found data.docs');
-      } else {
-        // מקרה 3: אובייקט עם מספרים כמפתחות
-        const values = Object.values(data);
-        if (values.length > 0 && values[0]?.id) {
-          list = values;
-          console.log('✅ Converted object to array');
-        } else {
-          console.error('❌ Cannot extract array from:', data);
-          throw new Error('Server response has no valid array');
-        }
-      }
-    } else {
-      console.error('❌ Invalid response:', data);
-      throw new Error('Invalid server response');
-    }
-    
-    if (!Array.isArray(list) || list.length === 0) {
-      console.warn('⚠️ Empty or invalid list');
-      return [];
-    }
-    
+    const list = await res.json();
     console.log(`✅ Loaded ${list.length} documents from Render`);
-    
     
     return list.map(d => ({
   id: d.id,
@@ -161,6 +116,7 @@ async function loadDocuments() {
   hasFile: true,
   downloadURL: `${API_BASE}/api/docs/${d.id}/download`
 }));
+
 
     
   } catch (error) {
