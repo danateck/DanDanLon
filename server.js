@@ -512,45 +512,218 @@ app.get('/api/docs/:id/download', async (req, res) => {
 });
 
 
+
+
+
+
+
+
+
+
+
+
+// ===== Helper: חישוב שימוש אחסון עבור משתמש =====
+async function getUserStorageBytes(email) {
+  const normalized = (email || "").toString().trim().toLowerCase();
+  if (!normalized) return 0;
+
+  const result = await pool.query(
+    `
+    SELECT 
+      COALESCE(SUM(file_size), 0) AS used_bytes
+    FROM documents
+    WHERE owner = $1
+      AND NOT (deleted_for ? $1)
+    `,
+    [normalized]
+  );
+
+  const row = result.rows[0] || { used_bytes: 0 };
+  return Number(row.used_bytes) || 0;
+}
+
+
+
+
+
+
+
+
+
 // 4️⃣ PUT /api/docs/:id - Update document
+// 4️⃣ PUT /api/docs/:id - Update document + בדיקת מקום בשיתוף
 app.put('/api/docs/:id', async (req, res) => {
   try {
-    const userEmail = getUserFromRequest(req);
-    if (!userEmail) {
+    const userEmailRaw = getUserFromRequest(req);
+    if (!userEmailRaw) {
       return res.status(401).json({ error: 'Unauthenticated' });
     }
+    const userEmail = userEmailRaw.trim().toLowerCase();
 
     const { id } = req.params;
-    const updates = req.body;
+    const updates = req.body || {};
 
-    const checkResult = await pool.query('SELECT owner FROM documents WHERE id = $1', [id]);
+    // נטען את המסמך כדי לבדוק בעלות + גודל קובץ
+    const checkResult = await pool.query(
+      'SELECT owner, file_size, shared_with FROM documents WHERE id = $1',
+      [id]
+    );
+
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: 'Not found' });
     }
-    if (checkResult.rows[0].owner !== userEmail) {
+
+    const doc = checkResult.rows[0];
+    const owner = (doc.owner || '').toString().trim().toLowerCase();
+
+    if (owner !== userEmail) {
       return res.status(403).json({ error: 'Access denied' });
     }
+
+    const fileSize = Number(doc.file_size) || 0;
+
+    // ---------------- בדיקת shared_with (שיתוף) ----------------
+    let skippedRecipients = [];
+
+    if (updates.shared_with !== undefined) {
+      // נפרש את shared_with כ-Object מיילים → true/false
+      let newSharedObj = {};
+
+      const incoming = updates.shared_with;
+
+      if (Array.isArray(incoming)) {
+        // במקרה שנשלח כמערך מיילים
+        incoming.forEach(e => {
+          const email = (e || '').toString().trim().toLowerCase();
+          if (email && email.includes('@')) {
+            newSharedObj[email] = true;
+          }
+        });
+      } else if (typeof incoming === 'object' && incoming !== null) {
+        Object.keys(incoming).forEach(k => {
+          const email = (k || '').toString().trim().toLowerCase();
+          if (email && email.includes('@') && incoming[k]) {
+            newSharedObj[email] = true;
+          }
+        });
+      } else if (typeof incoming === 'string') {
+        try {
+          const parsed = JSON.parse(incoming);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(e => {
+              const email = (e || '').toString().trim().toLowerCase();
+              if (email && email.includes('@')) {
+                newSharedObj[email] = true;
+              }
+            });
+          } else if (parsed && typeof parsed === 'object') {
+            Object.keys(parsed).forEach(k => {
+              const email = (k || '').toString().trim().toLowerCase();
+              if (email && email.includes('@') && parsed[k]) {
+                newSharedObj[email] = true;
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not parse shared_with incoming string:', incoming);
+        }
+      }
+
+      // shared_with הקודם (כדי לזהות למי חדש מוסיפים)
+      let prevShared = {};
+      const sw = doc.shared_with;
+      if (sw) {
+        if (Array.isArray(sw)) {
+          sw.forEach(e => {
+            const email = (e || '').toString().trim().toLowerCase();
+            if (email && email.includes('@')) prevShared[email] = true;
+          });
+        } else if (typeof sw === 'object') {
+          Object.keys(sw).forEach(k => {
+            const email = (k || '').toString().trim().toLowerCase();
+            if (email && email.includes('@') && sw[k]) {
+              prevShared[email] = true;
+            }
+          });
+        } else if (typeof sw === 'string') {
+          try {
+            const parsed = JSON.parse(sw);
+            if (Array.isArray(parsed)) {
+              parsed.forEach(e => {
+                const email = (e || '').toString().trim().toLowerCase();
+                if (email && email.includes('@')) prevShared[email] = true;
+              });
+            } else if (parsed && typeof parsed === 'object') {
+              Object.keys(parsed).forEach(k => {
+                const email = (k || '').toString().trim().toLowerCase();
+                if (email && email.includes('@') && parsed[k]) {
+                  prevShared[email] = true;
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('⚠️ Could not parse existing shared_with string:', sw);
+          }
+        }
+      }
+
+      // עכשיו נבדוק לכל מקבל חדש האם יש לו מקום
+      const finalShared = { ...prevShared };
+
+      const candidates = Object.keys(newSharedObj);
+
+      for (const targetEmail of candidates) {
+        // אם כבר היה משותף בעבר – לא נבדוק שוב
+        if (prevShared[targetEmail]) {
+          finalShared[targetEmail] = true;
+          continue;
+        }
+
+        const usedBytes = await getUserStorageBytes(targetEmail);
+        const limitBytes = getUserStorageLimitBytes(targetEmail);
+
+        if (usedBytes + fileSize > limitBytes) {
+          // אין מקום → לא נוסיף אותו לשיתוף
+          skippedRecipients.push(targetEmail);
+          console.log(
+            `⛔ Share blocked for ${targetEmail}: ` +
+            `${usedBytes} + ${fileSize} > ${limitBytes}`
+          );
+        } else {
+          // יש מקום → נוסיף לשיתוף
+          finalShared[targetEmail] = true;
+        }
+      }
+
+      // נכניס לפועל את shared_with החדש
+      updates.shared_with = finalShared;
+    }
+
+    // ---------------- בניית UPDATE רגיל ----------------
+    const allowedFields = [
+      'title',
+      'category',
+      'year',
+      'org',
+      'recipient',
+      'shared_with',
+      'warranty_start',
+      'warranty_expires_at',
+      'auto_delete_after'
+    ];
 
     const fields = [];
     const values = [];
     let paramIndex = 1;
 
-    const allowedFields = [
-  'title',
-  'category',
-  'year',
-  'org',
-  'recipient',
-  'shared_with',
-  'warranty_start',
-  'warranty_expires_at',
-  'auto_delete_after'
-];
-
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
         fields.push(`${field} = $${paramIndex}`);
-        values.push(typeof updates[field] === 'object' ? JSON.stringify(updates[field]) : updates[field]);
+        const value =
+          typeof updates[field] === 'object'
+            ? JSON.stringify(updates[field])
+            : updates[field];
+        values.push(value);
         paramIndex++;
       }
     });
@@ -569,19 +742,27 @@ app.put('/api/docs/:id', async (req, res) => {
 
     values.push(id);
 
-    await pool.query(`
+    await pool.query(
+      `
       UPDATE documents
       SET ${fields.join(', ')}
       WHERE id = $${paramIndex}
-    `, values);
+      `,
+      values
+    );
 
     console.log(`✅ Updated: ${id}`);
-    res.json({ success: true, id });
+    res.json({
+      success: true,
+      id,
+      skippedRecipients, // כאן תראי מי נחסם בגלל חוסר מקום
+    });
   } catch (error) {
     console.error('❌ Update error:', error);
     res.status(500).json({ error: 'Update failed' });
   }
 });
+
 
 
 // 4.5️⃣ POST /api/docs/:id/share - שיתוף עם בדיקת מקום למקבל
