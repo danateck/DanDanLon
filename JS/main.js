@@ -3281,19 +3281,21 @@ window.openRecycleView = async function () {
     return;
   }
 
-  // 1️⃣ לוודא שיש לנו את הרשימה העדכנית מהשרת / Firebase
-  let docs = window.allDocsData;
-  if (!Array.isArray(docs) && typeof window.loadDocuments === "function") {
+  categoryTitle.textContent = "סל מחזור";
+
+  // 1️⃣ תמיד מנסים להביא רשימה עדכנית מהשרת
+  let docs = [];
+  if (typeof window.loadDocuments === "function") {
     try {
       docs = await window.loadDocuments();
-      window.allDocsData = docs;
+      window.allDocsData = docs; // לשמור גם בזיכרון
     } catch (e) {
-      console.warn("⚠️ loadDocuments failed in openRecycleView:", e);
+      console.warn("⚠️ loadDocuments failed in openRecycleView, using cache:", e);
       docs = window.allDocsData || [];
     }
+  } else {
+    docs = window.allDocsData || [];
   }
-
-  categoryTitle.textContent = "סל מחזור";
 
   // 2️⃣ סינון רק מסמכים שנמצאים בסל מחזור
   const trashedDocs = (docs || []).filter(d => d && d._trashed === true);
@@ -3316,6 +3318,7 @@ window.openRecycleView = async function () {
 
   console.log("✅ Recycle view opened with", trashedDocs.length, "items");
 };
+
 
 // 4. SHARED VIEW
 window.openSharedView = function() {
@@ -9705,11 +9708,11 @@ console.log("🔧 טוען תיקונים מעודכנים...");
   const originalOpenRecycleView = window.openRecycleView;
   
   if (typeof originalOpenRecycleView === 'function') {
-    window.openRecycleView = function() {
-      // קריאה לפונקציה המקורית
-      const result = originalOpenRecycleView.apply(this, arguments);
+    window.openRecycleView = async function() {
+      // קריאה לפונקציה המקורית (האסינכרונית)
+      const result = await originalOpenRecycleView.apply(this, arguments);
       
-      // הצג את שורת החיפוש
+      // אחרי שהמסך נבנה – נטפל בשורת החיפוש
       setTimeout(() => {
         const searchInput = document.getElementById("categorySearch");
         if (searchInput) {
@@ -9720,7 +9723,6 @@ console.log("🔧 טוען תיקונים מעודכנים...");
           console.log("✅ שורת חיפוש הוצגה בסל מחזור");
         }
         
-        // הסתר תתי קטגוריות
         const subcategoriesBox = document.getElementById("subcategoriesBox");
         if (subcategoriesBox) {
           subcategoriesBox.style.display = "none";
@@ -9732,6 +9734,7 @@ console.log("🔧 טוען תיקונים מעודכנים...");
     console.log("✅ openRecycleView עודכן");
   }
 })();
+
 
 // ============================================
 // תיקון 3: הסרת חיפוש מפרופילים (עמוד ראשי)
