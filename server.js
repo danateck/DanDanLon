@@ -7,7 +7,8 @@ require('dotenv').config();
 
 
 // 🔮 OpenAI - לקוח ל-AI אמיתי
-const { OpenAI } = require("openai");
+// 🔮 OpenAI - לקוח ל-AI אמיתי
+const OpenAI = require("openai");
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -373,19 +374,31 @@ ${textSample || '(אין טקסט נוסף)'}
 `;
 
 
-    const aiResponse = await openai.responses.create({
-      model: "gpt-5.1-mini",
-      input: prompt,
-      text: { format: { type: "json_object" } }
+    // 🔥 קריאה ל-AI בפורמט JSON
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini", // אם אין לך, אפשר גם "gpt-4.1" / "gpt-4o-mini" / "gpt-5.1-mini"
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      response_format: { type: "json_object" },
     });
 
     let parsed;
     try {
-      parsed = JSON.parse(aiResponse.output_text);
+      const raw = completion.choices?.[0]?.message?.content;
+      if (!raw) {
+        console.error("❌ AI JSON empty content");
+        return res.status(500).json({ error: 'ai_empty' });
+      }
+      parsed = JSON.parse(raw);
     } catch (err) {
       console.error("❌ Failed to parse AI JSON:", err);
       return res.status(500).json({ error: 'ai_parse_error' });
     }
+
 
     const baseResult = {
       category: parsed.category || 'לא_בטוח',
@@ -438,7 +451,7 @@ ${textSample || '(אין טקסט נוסף)'}
     });
 
   } catch (error) {
-    console.error('❌ AI classify error:', error);
+console.error('❌ AI classify error:', error?.message, error);
     return res.status(500).json({ error: 'ai_failed' });
   }
 });
