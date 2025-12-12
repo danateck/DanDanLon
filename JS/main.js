@@ -3267,32 +3267,55 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
 
 // 3. RECYCLE VIEW – משתמש ב-buildDocCard
 // 3. RECYCLE VIEW – בלי renderDocsList
-window.openRecycleView = function () {
+window.openRecycleView = async function () {
   console.log("🗑️ Opening recycle view");
+
   const categoryTitle = document.getElementById("categoryTitle");
   const docsList = document.getElementById("docsList");
   const homeView = document.getElementById("homeView");
   const categoryView = document.getElementById("categoryView");
+
   if (!categoryTitle || !docsList) {
     console.error("❌ Recycle view elements not found");
     return;
   }
+
+  // 1️⃣ לוודא שיש לנו את הרשימה העדכנית מהשרת / Firebase
+  let docs = window.allDocsData;
+  if (!Array.isArray(docs) && typeof window.loadDocuments === "function") {
+    try {
+      docs = await window.loadDocuments();
+      window.allDocsData = docs;
+    } catch (e) {
+      console.warn("⚠️ loadDocuments failed in openRecycleView:", e);
+      docs = window.allDocsData || [];
+    }
+  }
+
   categoryTitle.textContent = "סל מחזור";
-  // לוקחים רק מסמכים שמסומנים כ־_trashed = true
-  const trashedDocs = (window.allDocsData || []).filter(d => d._trashed === true);
+
+  // 2️⃣ סינון רק מסמכים שנמצאים בסל מחזור
+  const trashedDocs = (docs || []).filter(d => d && d._trashed === true);
+
+  // 3️⃣ בניית הרשימה במסך
   docsList.innerHTML = "";
-  if (trashedDocs.length === 0) {
-    docsList.innerHTML = `<div style="padding:2rem;text-align:center;opacity:0.6;">סל המחזור ריק</div>`;
+  if (!trashedDocs.length) {
+    docsList.innerHTML =
+      `<div style="padding:2rem;text-align:center;opacity:0.6;">סל המחזור ריק</div>`;
   } else {
     trashedDocs.forEach(doc => {
       const card = buildDocCard(doc, "recycle");
       docsList.appendChild(card);
     });
   }
+
+  // 4️⃣ הצגת ה־view הנכון
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
-  console.log("✅ Recycle view opened with", trashedDocs.length, "documents");
+
+  console.log("✅ Recycle view opened with", trashedDocs.length, "items");
 };
+
 // 4. SHARED VIEW
 window.openSharedView = function() {
 
