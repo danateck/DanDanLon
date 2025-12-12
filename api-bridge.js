@@ -850,6 +850,14 @@ function computeStorageUsage() {
   return { usedBytes, percent, totalBytes: STORAGE_LIMIT_BYTES };
 }
 
+
+window._storageUpdateCache = {
+  lastUpdate: 0,
+  minInterval: 2000, // לפחות 2 שניות בין עדכונים
+  isUpdating: false
+};
+
+
 // ===============================
 // 📦 WIDGET אחסון – חישוב ועדכון
 // ===============================
@@ -873,6 +881,20 @@ function computeStorageUsage() {
 function updateStorageUsageWidget() {
   console.log("🔄 updateStorageUsageWidget called");
   
+  // 🚫 אם כבר מעדכנים - אל תעשה כלום!
+  if (window._storageUpdateCache.isUpdating) {
+    console.log("⏭️ Already updating, skipping...");
+    return;
+  }
+  
+  // 🚫 אם עדכנו לאחרונה - אל תעשה כלום!
+  const now = Date.now();
+  const timeSinceLastUpdate = now - window._storageUpdateCache.lastUpdate;
+  if (timeSinceLastUpdate < window._storageUpdateCache.minInterval) {
+    console.log(`⏭️ Updated ${timeSinceLastUpdate}ms ago, skipping...`);
+    return;
+  }
+  
   const barFill   = document.getElementById("storageUsageBarFill");
   const textEl    = document.getElementById("storageUsageText");
   const percentEl = document.getElementById("storageUsagePercent");
@@ -889,7 +911,10 @@ function updateStorageUsageWidget() {
 
   (async () => {
     try {
-      // המתן ל-SubscriptionManager
+      // סמן שאנחנו מעדכנים
+      window._storageUpdateCache.isUpdating = true;
+      
+      // המתן ל-SubscriptionManager (מקסימום 3 שניות)
       if (!window.subscriptionManager) {
         console.log("⏳ Waiting for SubscriptionManager...");
         
@@ -900,12 +925,17 @@ function updateStorageUsageWidget() {
         
         if (!window.subscriptionManager) {
           console.warn("⚠️ SubscriptionManager not available");
+          window._storageUpdateCache.isUpdating = false;
           return;
         }
       }
       
-      // רענן מהשרת
+      // 🔥 רענן מהשרת רק אם עבר מספיק זמן
+      console.log('🔄 Refreshing from server...');
       await window.subscriptionManager.refreshUsageFromFirestore(true);
+      
+      // עדכן את הזמן של העדכון האחרון
+      window._storageUpdateCache.lastUpdate = Date.now();
       
       const info = window.subscriptionManager.getSubscriptionInfo();
       const plan = window.subscriptionManager.getCurrentPlan();
@@ -927,6 +957,7 @@ function updateStorageUsageWidget() {
           : `${usedGB.toFixed(2)}GB`;
         textEl.textContent = `בשימוש: ${usedDisplay} | ${docsCount} מסמכים`;
         if (docsEl) docsEl.textContent = `${docsCount} מסמכים`;
+        window._storageUpdateCache.isUpdating = false;
         return;
       }
 
@@ -967,18 +998,36 @@ function updateStorageUsageWidget() {
         docsEl.textContent = docsText;
       }
 
-      console.log("✅ Widget updated:", usedPct.toFixed(1) + "%");
+      console.log("✅ Widget updated");
       
     } catch (err) {
       console.error('❌ Error:', err);
+    } finally {
+      // בכל מקרה - שחרר את הנעילה
+      window._storageUpdateCache.isUpdating = false;
     }
   })();
 }
 
-
-
-// שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
 window.updateStorageUsageWidget = updateStorageUsageWidget;
+
+// ================================================================
+// שלב 2: הוסף פונקציית עזר ב-main.js
+// ================================================================
+// השתמש בזה במקום לקרוא ישירות ל-updateStorageUsageWidget
+
+function safeUpdateStorage() {
+  if (window.updateStorageUsageWidget) {
+    // קרא לפונקציה עם delay קטן
+    setTimeout(() => {
+      window.updateStorageUsageWidget();
+    }, 300);
+  }
+}
+
+// הפוך לגלובלי
+window.safeUpdateStorage = safeUpdateStorage;
+
 
 // ================================================================
 // 📝 הוראות התקנה:

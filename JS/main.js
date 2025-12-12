@@ -3180,11 +3180,7 @@ window.renderHome = async function() {
     }
   
 
-    setTimeout(() => {
-    if (window.updateStorageUsageWidget) {
-      window.updateStorageUsageWidget();
-    }
-  }, 300);
+window.safeUpdateStorage();
 
 
   console.log("✅ renderHome complete");
@@ -3382,11 +3378,7 @@ window.openRecycleView = async function () {
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
 
-setTimeout(() => {
-    if (window.updateStorageUsageWidget) {
-      window.updateStorageUsageWidget();
-    }
-  }, 300);
+window.safeUpdateStorage();
 
   console.log("✅ Recycle view opened with", trashedDocs.length, "items");
 };
@@ -3518,11 +3510,7 @@ window.openSharedView = function() {
   }, 150);
 
 
-  setTimeout(() => {
-    if (window.updateStorageUsageWidget) {
-      window.updateStorageUsageWidget();
-    }
-  }, 300);
+window.safeUpdateStorage();
   console.log("✅ Shared view rendered");
 };
 // Export to window.App for backward compatibility
@@ -4975,12 +4963,7 @@ panel.innerHTML = `
       `;
       listWrap.appendChild(row);
     }
-
-setTimeout(() => {
-    if (window.updateStorageUsageWidget) {
-      window.updateStorageUsageWidget();
-    }
-  }, 300);
+window.safeUpdateStorage();;
 
     console.log("✅ Rendered", folders.length, "folders");
   }
@@ -9272,11 +9255,7 @@ window.openProfilesView = async function() {
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
 
-setTimeout(() => {
-    if (window.updateStorageUsageWidget) {
-      window.updateStorageUsageWidget();
-    }
-  }, 300);
+window.safeUpdateStorage();
 
 };
 
