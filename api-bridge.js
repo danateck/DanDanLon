@@ -879,134 +879,13 @@ window._storageUpdateCache = {
 // ================================================================
 
 function updateStorageUsageWidget() {
-  console.log("🔄 updateStorageUsageWidget called");
+  console.log("🔁 updateStorageUsageWidget → forwarding to updateStorageWidget");
   
-  // 🚫 אם כבר מעדכנים - אל תעשה כלום!
-  if (window._storageUpdateCache.isUpdating) {
-    console.log("⏭️ Already updating, skipping...");
-    return;
+  if (typeof window.updateStorageWidget === "function") {
+    window.updateStorageWidget();
+  } else {
+    console.warn("⚠️ updateStorageWidget is not available");
   }
-  
-  // 🚫 אם עדכנו לאחרונה - אל תעשה כלום!
-  const now = Date.now();
-  const timeSinceLastUpdate = now - window._storageUpdateCache.lastUpdate;
-  if (timeSinceLastUpdate < window._storageUpdateCache.minInterval) {
-    console.log(`⏭️ Updated ${timeSinceLastUpdate}ms ago, skipping...`);
-    return;
-  }
-  
-  const barFill   = document.getElementById("storageUsageBarFill");
-  const textEl    = document.getElementById("storageUsageText");
-  const percentEl = document.getElementById("storageUsagePercent");
-  const docsEl    = document.getElementById("storageDocsText");
-
-  if (!barFill || !textEl || !percentEl) {
-    console.log("⚠️ Storage widget elements not found");
-    return;
-  }
-
-  const GB  = 1024 * 1024 * 1024;
-  const MB  = 1024 * 1024;
-  const LRM = "\u200E";
-
-  (async () => {
-    try {
-      // סמן שאנחנו מעדכנים
-      window._storageUpdateCache.isUpdating = true;
-      
-      // המתן ל-SubscriptionManager (מקסימום 3 שניות)
-      if (!window.subscriptionManager) {
-        console.log("⏳ Waiting for SubscriptionManager...");
-        
-        for (let i = 0; i < 30; i++) {
-          if (window.subscriptionManager) break;
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        if (!window.subscriptionManager) {
-          console.warn("⚠️ SubscriptionManager not available");
-          window._storageUpdateCache.isUpdating = false;
-          return;
-        }
-      }
-      
-      // 🔥 רענן מהשרת רק אם עבר מספיק זמן
-      console.log('🔄 Refreshing from server...');
-      await window.subscriptionManager.refreshUsageFromFirestore(true);
-      
-      // עדכן את הזמן של העדכון האחרון
-      window._storageUpdateCache.lastUpdate = Date.now();
-      
-      const info = window.subscriptionManager.getSubscriptionInfo();
-      const plan = window.subscriptionManager.getCurrentPlan();
-    
-      const usedBytes = Number(info.storage?.used) || 0;
-      const totalBytes = Number(info.storage?.limit) || (200 * MB);
-      const usedPct = info.storage?.percentage || 0;
-      const docsCount = Number(info.documents?.count) || 0;
-      const maxDocs = plan.maxDocuments;
-
-      // תוכנית ללא הגבלה
-      if (totalBytes === Infinity) {
-        percentEl.textContent = "0%";
-        barFill.style.width = "0%";
-        const usedMB = usedBytes / MB;
-        const usedGB = usedBytes / GB;
-        const usedDisplay = usedMB < 1024 
-          ? `${usedMB.toFixed(1)}MB` 
-          : `${usedGB.toFixed(2)}GB`;
-        textEl.textContent = `בשימוש: ${usedDisplay} | ${docsCount} מסמכים`;
-        if (docsEl) docsEl.textContent = `${docsCount} מסמכים`;
-        window._storageUpdateCache.isUpdating = false;
-        return;
-      }
-
-      // חישוב תצוגה
-      const totalGB = totalBytes / GB;
-      const usedGB = usedBytes / GB;
-
-      let textValue;
-      if (totalGB < 1) {
-        const usedMB  = usedBytes / MB;
-        const totalMB = totalBytes / MB;
-        textValue = `בשימוש: ${LRM}${usedMB.toFixed(2)} MB${LRM} מתוך ${LRM}${totalMB.toFixed(0)} MB${LRM}`;
-      } else {
-        textValue = `בשימוש: ${LRM}${usedGB.toFixed(2)} GB${LRM} מתוך ${LRM}${totalGB.toFixed(1)} GB${LRM}`;
-      }
-
-      textValue += ` | ${docsCount} מסמכים`;
-
-      // עדכון UI
-      const widthValue = Math.min(100, usedPct).toFixed(1) + "%";
-      percentEl.textContent = Math.round(usedPct) + "%";
-      barFill.style.width = widthValue;
-      
-      if (usedPct > 90) {
-        barFill.style.backgroundColor = "#ef4444";
-      } else if (usedPct > 70) {
-        barFill.style.backgroundColor = "#f59e0b";
-      } else {
-        barFill.style.backgroundColor = "#10b981";
-      }
-
-      textEl.textContent = textValue;
-
-      if (docsEl) {
-        const docsText = (typeof maxDocs === "number" && maxDocs !== Infinity) 
-          ? `${docsCount}/${maxDocs} מסמכים`
-          : `${docsCount} מסמכים`;
-        docsEl.textContent = docsText;
-      }
-
-      console.log("✅ Widget updated");
-      
-    } catch (err) {
-      console.error('❌ Error:', err);
-    } finally {
-      // בכל מקרה - שחרר את הנעילה
-      window._storageUpdateCache.isUpdating = false;
-    }
-  })();
 }
 
 window.updateStorageUsageWidget = updateStorageUsageWidget;
