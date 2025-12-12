@@ -3061,10 +3061,12 @@ async function markDocTrashed(id, trashed) {
 // }
 console.log("✅ buildDocCard and helpers defined");
 // ===== END buildDocCard and helpers =====
-window.renderHome = async function() {
+window.renderHome = function() {
   const grid = document.getElementById("docsGrid") 
             || document.getElementById("categoryDocs") 
             || document.getElementById("docsList");
+
+
 
   console.log("🎨 renderHome called");
   const homeView = document.getElementById("homeView");
@@ -3074,10 +3076,8 @@ window.renderHome = async function() {
     console.error("❌ Home view elements not found");
     return;
   }
-
   folderGrid.innerHTML = "";
-
-  // איפוס חיפוש כשחוזרים למסך הבית
+    // איפוס חיפוש כשחוזרים למסך הבית
   window.currentSearchTerm = "";
   const categorySearch = document.getElementById("categorySearch");
   if (categorySearch) categorySearch.value = "";
@@ -3099,7 +3099,6 @@ window.renderHome = async function() {
     "נכסים",
     "אחר" 
   ];
-
   CATEGORIES.forEach(cat => {
     const folder = document.createElement("button");
     folder.className = "folder-card";
@@ -3114,28 +3113,16 @@ window.renderHome = async function() {
     });
     folderGrid.appendChild(folder);
   });
-
   homeView.classList.remove("hidden");
   if (categoryView) categoryView.classList.add("hidden");
-
-  // 💎 רענון מצב האחסון מהשרת לפני עדכון הווידג'ט
-  if (window.subscriptionManager &&
-      typeof window.subscriptionManager.refreshFromServer === "function") {
-    try {
-      await window.subscriptionManager.refreshFromServer();
-    } catch (err) {
-      console.warn("⚠️ שגיאה ברענון מצב האחסון מהשרת:", err);
-    }
-  }
-
+  
   // 💾 עדכון תצוגת האחסון בכל פעם שחוזרים למסך הבית
   if (typeof window.updateStorageUsageWidget === "function") {
     window.updateStorageUsageWidget();
   }
-
+  
   console.log("✅ renderHome complete");
 };
-
 // 2. CATEGORY VIEW
 // CATEGORY VIEW
 window.openCategoryView = function(categoryName, subfolderName = null) {
@@ -3275,36 +3262,6 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
   if (categoryView) categoryView.classList.remove("hidden");
 
   console.log("✅ Category view opened with", docsForThisCategory.length, "documents");
-
-    if (homeView) homeView.classList.add("hidden");
-  if (categoryView) categoryView.classList.remove("hidden");
-
-  // 📁 ריענון אחסון אחרי מעבר לקטגוריה
-  if (
-    window.subscriptionManager &&
-    typeof window.subscriptionManager.refreshFromServer === "function"
-  ) {
-    window.subscriptionManager.refreshFromServer()
-      .then(() => {
-        if (typeof window.updateStorageWidget === "function") {
-          window.updateStorageWidget();
-        }
-        if (typeof window.updateStorageUsageWidget === "function") {
-          window.updateStorageUsageWidget();
-        }
-      })
-      .catch(err => {
-        console.warn("⚠️ לא הצלחתי לרענן מנוי בקטגוריה:", err);
-        if (typeof window.updateStorageUsageWidget === "function") {
-          window.updateStorageUsageWidget();
-        }
-      });
-  } else if (typeof window.updateStorageUsageWidget === "function") {
-    window.updateStorageUsageWidget();
-  }
-
-
-
 };
 
 
@@ -3359,37 +3316,14 @@ window.openRecycleView = async function () {
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
 
-  // ♻️ ריענון אחסון אחרי מעבר לסל מחזור
-  if (
-    window.subscriptionManager &&
-    typeof window.subscriptionManager.refreshFromServer === "function"
-  ) {
-    window.subscriptionManager.refreshFromServer()
-      .then(() => {
-        if (typeof window.updateStorageWidget === "function") {
-          window.updateStorageWidget();
-        }
-        if (typeof window.updateStorageUsageWidget === "function") {
-          window.updateStorageUsageWidget();
-        }
-      })
-      .catch(err => {
-        console.warn("⚠️ לא הצלחתי לרענן מנוי בסל מחזור:", err);
-        if (typeof window.updateStorageUsageWidget === "function") {
-          window.updateStorageUsageWidget();
-        }
-      });
-  } else if (typeof window.updateStorageUsageWidget === "function") {
-    window.updateStorageUsageWidget();
-  }
-
   console.log("✅ Recycle view opened with", trashedDocs.length, "items");
 };
 
 
-
 // 4. SHARED VIEW
-window.openSharedView = async function() {
+window.openSharedView = function() {
+
+   
 
   const searchInput = document.getElementById("categorySearch");
   if (searchInput) {
@@ -3399,14 +3333,13 @@ window.openSharedView = async function() {
     const searchWrapper = searchInput.closest('.search-wrapper');
     if (searchWrapper) searchWrapper.style.display = "none";
   }
-
   console.log("🤝 Opening shared view");
   const categoryTitle = document.getElementById("categoryTitle");
-  const docsList      = document.getElementById("docsList");
-  const homeView      = document.getElementById("homeView");
-  const categoryView  = document.getElementById("categoryView");
+  const docsList = document.getElementById("docsList");
+  const homeView = document.getElementById("homeView");
+  const categoryView = document.getElementById("categoryView");
 
-  const searchBar = document.getElementById("categorySearch");
+   const searchBar = document.getElementById("categorySearch");
   if (searchBar) {
     searchBar.style.display = "none";
     const searchWrapper2 = searchBar.closest('.search-wrapper');
@@ -3430,12 +3363,10 @@ window.openSharedView = async function() {
     console.error("❌ Shared view elements not found");
     return;
   }
-
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
   docsList.classList.add("shared-mode");
-
   const wrap = document.createElement("div");
   wrap.className = "shared-container";
   wrap.innerHTML = `
@@ -3457,10 +3388,8 @@ window.openSharedView = async function() {
     </div>
   `;
   docsList.appendChild(wrap);
-
-  if (homeView)     homeView.classList.add("hidden");
+  if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
-
   // ✅ הוסף event listener לכפתור יצירת תיקייה
   setTimeout(() => {
     const createBtn = document.getElementById("sf_create_open");
@@ -3495,7 +3424,6 @@ window.openSharedView = async function() {
       console.error("❌ Create button not found");
     }
   }, 100);
-
   // הצג תיקיות קיימות
   setTimeout(() => {
     const listDiv = document.getElementById("sf_list");
@@ -3516,25 +3444,8 @@ window.openSharedView = async function() {
       console.log("📭 No folders to display");
     }
   }, 150);
-
-  // 💎 רענון מצב האחסון מהשרת כשנכנסים לאחסון משותף
-  if (window.subscriptionManager &&
-      typeof window.subscriptionManager.refreshFromServer === "function") {
-    try {
-      await window.subscriptionManager.refreshFromServer();
-    } catch (err) {
-      console.warn("⚠️ שגיאה ברענון מצב האחסון מהשרת (shared view):", err);
-    }
-  }
-
-  // 💾 עדכון הווידג'ט של האחסון
-  if (typeof window.updateStorageUsageWidget === "function") {
-    window.updateStorageUsageWidget();
-  }
-
   console.log("✅ Shared view rendered");
 };
-
 // Export to window.App for backward compatibility
 window.App = {
   renderHome: window.renderHome,
