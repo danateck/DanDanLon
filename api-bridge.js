@@ -859,6 +859,17 @@ function computeStorageUsage() {
 // החלף את הפונקציה ב-api-bridge.js (שורות 864-1020)
 // ═══════════════════════════════════════════════════════════════════
 
+// ================================================================
+// 🔧 תיקון לפונקציית updateStorageUsageWidget
+// ================================================================
+// 
+// הבעיה: הפונקציה לא רענת מהשרת לפני עדכון הווידג'ט
+// הפתרון: הוספת await refreshUsageFromFirestore(true) לפני כל תצוגה
+//
+// החליפו את הפונקציה updateStorageUsageWidget ב-api-bridge.js
+// (בסביבות שורות 862-1003) בפונקציה הזו:
+// ================================================================
+
 function updateStorageUsageWidget() {
   console.log("🔄 updateStorageUsageWidget called");
   
@@ -882,10 +893,16 @@ function updateStorageUsageWidget() {
     return;
   }
 
-  try {
-    // קבל מידע מעודכן מה-SubscriptionManager
-    const info = window.subscriptionManager.getSubscriptionInfo();
-    const plan = window.subscriptionManager.getCurrentPlan();
+  // 🔥 הפוך לפונקציה אסינכרונית עם ריענון מהשרת!
+  (async () => {
+    try {
+      // 🚀 תיקון מרכזי: רענן תמיד מהשרת לפני תצוגה!
+      console.log('🔄 Refreshing storage data from server...');
+      await window.subscriptionManager.refreshUsageFromFirestore(true);
+      
+      // עכשיו קבל מידע מעודכן מה-SubscriptionManager
+      const info = window.subscriptionManager.getSubscriptionInfo();
+      const plan = window.subscriptionManager.getCurrentPlan();
     
     // נתוני אחסון
     const usedBytes = Number(info.storage?.used) || 0;
@@ -994,12 +1011,23 @@ function updateStorageUsageWidget() {
   } catch (err) {
     console.error('❌ Error in updateStorageUsageWidget:', err);
   }
+  })(); // 🔥 סוגר את הפונקציה האסינכרונית המיידית
 }
-
-
 
 // שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
 window.updateStorageUsageWidget = updateStorageUsageWidget;
+
+// ================================================================
+// 📝 הוראות התקנה:
+// ================================================================
+// 1. פתחו את api-bridge.js
+// 2. מצאו את הפונקציה updateStorageUsageWidget (סביבות שורה 862)
+// 3. החליפו את כל הפונקציה (עד שורה 1003) בקוד למעלה
+// 4. שמרו את הקובץ
+// 5. רפרשו את הדף
+// 
+// ✅ עכשיו הווידג'ט ירענן תמיד מהשרת לפני תצוגה!
+// ================================================================
 
 
 
