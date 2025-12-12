@@ -4198,26 +4198,11 @@ console.log("📁 Final לפני התאמה למסלול:", {
 /* 🎚️ התאמת ההתנהגות לפי מסלול */
 
 if (currentPlanId === "free") {
-  // 🆓 מסלול חינם:
-  // - המערכת מנחשת תיקייה ראשית
-  // - לא מקבעת תת-תיקייה
-  // - פותחת חלון בחירה, שהמשתמשת תבחר תיקייה ותת-תיקייה לבד
-
-  guessedSubCategory = null; // לא קובעים תת-תיקייה אוטומטית
-
-  if (window.chooseFolderForUpload) {
-    try {
-      const chosen = await window.chooseFolderForUpload();
-      if (chosen && chosen.category) {
-        guessedCategory    = chosen.category;
-        guessedSubCategory = chosen.subfolder || null;
-      }
-    } catch (e) {
-      console.warn("⚠️ בחירת תיקייה ידנית נכשלה", e);
-    }
-  }
-
+  // במסלול חינם – רק מבטלים שיוך אוטומטי לתת-תיקייה.
+  // בחירת התיקייה/תת-תיקייה תיעשה בחלון השני (openFolderSelectionModal)
+  guessedSubCategory = null;
 } else if (currentPlanId === "standard") {
+
   // 📁 מסלול רגיל:
   // משתמש בכל המנגנון האוטומטי (שם קובץ + הקשר + תתי-תיקיות)
   // זה ה"80%" – אין חלון כפוי, אלא אם את פותחת ידנית.
@@ -4249,7 +4234,16 @@ let warrantyExpiresAt = null;
 let autoDeleteAfter = null;
 
 
-    if (guessedCategory === "אחריות") {
+    // נחשב שמדובר במסמך אחריות אם הקטגוריה או השם מרמזים על זה
+const lowerTitle = fileName.toLowerCase();
+const isWarrantyDoc =
+  guessedCategory === "תעודות אחריות" ||
+  (guessedSubCategory && guessedSubCategory.includes("אחריות")) ||
+  lowerTitle.includes("אחריות") ||
+  lowerTitle.includes("warranty");
+
+if (isWarrantyDoc) {
+
       let extracted = {
         warrantyStart: null,
         warrantyExpiresAt: null,
