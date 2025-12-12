@@ -1,5 +1,5 @@
 // ========================================
-// 🚀 אתחול מערכת מנויים - גרסה מלאה
+// 🚀 אתחול מערכת מנויים - גרסה מתוקנת
 // ========================================
 
 console.log('💎 טוען מערכת מנויים...');
@@ -44,6 +44,7 @@ async function initSubscriptions() {
           console.log('💎 מערכת מנויים פעילה!');
           console.log('📊 מנוי נוכחי:', subscriptionManager.getCurrentPlan().nameHe);
           
+          // ⬇️ תיקון: עדכן ווידג'ט תמיד עם המידע המעודכן
           updateStorageWidget();
 
           
@@ -77,12 +78,11 @@ async function initSubscriptions() {
 }
 
 // ========================================
-// וידג'ט אחסון משופר
+// 🎯 וידג'ט אחסון מאוחד - מקור אמת יחיד!
 // ========================================
 async function updateStorageWidget() {
   if (!window.subscriptionManager) return;
 
-  // זה הווידג'ט הבר שאת רוצה להשאיר
   const widget = document.getElementById("storageWidget");
   if (!widget) {
     console.warn("⚠️ לא נמצא storageWidget");
@@ -94,14 +94,11 @@ async function updateStorageWidget() {
   const textEl = document.getElementById("storageUsageText");
 
   try {
-    // ⬅️⬅️⬅️ הדבר החשוב החדש:
-    // לפני שמציגים – מושכים מהשרת את המצב האמיתי של האחסון
-    if (window.subscriptionManager &&
-        typeof window.subscriptionManager.refreshFromServer === "function") {
-      await window.subscriptionManager.refreshFromServer();
-    }
+    // 🔥 תיקון מרכזי: תמיד רענן מהשרת לפני תצוגה
+    console.log('🔄 מרענן נתוני אחסון מהשרת...');
+    await window.subscriptionManager.refreshUsageFromFirestore(true);
 
-    // עכשיו לוקחים מידע מהמנוי (אחרי רענון מהשרת)
+    // עכשיו קח את המידע המעודכן
     const info = window.subscriptionManager.getSubscriptionInfo();
     if (!info || !info.storage || !info.storage.formatted) {
       widget.style.visibility = "visible";
@@ -109,8 +106,8 @@ async function updateStorageWidget() {
     }
 
     const percent = Math.round(info.storage.percentage || 0);
-    const used   = info.storage.formatted.used;   // למשל "1.95MB"
-    const limit  = info.storage.formatted.limit;  // למשל "200MB"
+    const used   = info.storage.formatted.used;
+    const limit  = info.storage.formatted.limit;
 
     // אחוז בצד שמאל
     if (percentEl) {
@@ -131,13 +128,15 @@ async function updateStorageWidget() {
       }
     }
 
-    // טקסט מתחת לפס
+    // טקסט מתחת לפס - 🔥 תיקון: הצג את מספר המסמכים האמיתי
     if (textEl) {
-      textEl.textContent = `בשימוש: ${used} מתוך ${limit}`;
+      const docsCount = info.documents.count || 0;
+      textEl.textContent = `בשימוש: ${used} מתוך ${limit} | ${docsCount} מסמכים`;
     }
 
     // אחרי שהכול מוכן – מראים
     widget.style.visibility = "visible";
+    
   } catch (err) {
     console.error("❌ Error in updateStorageWidget:", err);
     widget.style.visibility = "visible";

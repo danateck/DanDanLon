@@ -1044,14 +1044,11 @@ async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
   // ✅ עדכן את מונה המסמכים והאחסון במערכת המנויים
   if (window.subscriptionManager) {
     try {
-      await window.subscriptionManager.updateDocumentCount(1);
-      await window.subscriptionManager.updateStorageUsage(file.size);
-      console.log('✅ עודכן מונה מסמכים ואחסון');
-      
-      // עדכן את הוידג'ט
+      await window.subscriptionManager.refreshUsageFromFirestore(true);
       if (window.updateStorageWidget) {
-        window.updateStorageWidget();
+        await window.updateStorageWidget();
       }
+      console.log('✅ עודכן מונה מסמכים ואחסון');
     } catch (error) {
       console.error('⚠️ לא הצלחתי לעדכן מערכת מנויים:', error);
     }
@@ -1134,8 +1131,10 @@ async function deleteDocumentPermanently(docId) {
   if (window.subscriptionManager && (wasOwner || data.deletedForAll)) {
     try {
       // הפחת מהמונים
-      await window.subscriptionManager.updateDocumentCount(-1);
-      await window.subscriptionManager.updateStorageUsage(-fileSize);
+      await window.subscriptionManager.refreshUsageFromFirestore(true);
+      if (window.updateStorageWidget) {
+        await window.updateStorageWidget();
+      }
       
       console.log('✅ עודכנו מונים אחרי מחיקה:', {
         documents: -1,
@@ -2909,12 +2908,16 @@ const doDelete = async () => {
 
         // כשכולם מחקו → להוריד מהאחסון / מסמכים
         if (deletedForAll || notInBackend) {
-          await window.subscriptionManager.updateStorageUsage(-bytes);
-          await window.subscriptionManager.updateDocumentCount(-1);
+          await window.subscriptionManager.refreshUsageFromFirestore(true);
+          if (window.updateStorageWidget) {
+            await window.updateStorageWidget();
+          }
         } else {
           // רק את מחקת לצמיתות → מבחינת החשבון שלך הוא כבר לא נספר
-          await window.subscriptionManager.updateStorageUsage(-bytes);
-          await window.subscriptionManager.updateDocumentCount(-1);
+          await window.subscriptionManager.refreshUsageFromFirestore(true);
+          if (window.updateStorageWidget) {
+            await window.updateStorageWidget();
+          }
         }
 
         if (typeof window.updateStorageWidget === "function") {
@@ -4470,12 +4473,9 @@ await window.uploadDocument(file, {
     // 📊 עדכון שימוש באחסון
     if (window.subscriptionManager) {
       try {
-        await window.subscriptionManager.updateStorageUsage(file.size);
-        await window.subscriptionManager.updateDocumentCount(1);
-        
-        // עדכן את הוידג'ט
+        await window.subscriptionManager.refreshUsageFromFirestore(true);
         if (window.updateStorageWidget) {
-          window.updateStorageWidget();
+          await window.updateStorageWidget();
         }
       } catch (e) {
         console.error('❌ שגיאה בעדכון שימוש:', e);
@@ -7459,10 +7459,9 @@ async function deleteDocForever(id) {
     // 📊 עדכון מונה מסמכים במנוי
     if (window.subscriptionManager) {
       try {
-        await window.subscriptionManager.updateDocumentCount(-1);
-
-        if (typeof window.updateStorageWidget === "function") {
-          window.updateStorageWidget();
+        await window.subscriptionManager.refreshUsageFromFirestore(true);
+        if (window.updateStorageWidget) {
+          await window.updateStorageWidget();
         }
       } catch (e) {
         console.error("❌ שגיאה בעדכון מונה:", e);
@@ -10541,10 +10540,9 @@ async function deleteDocForeverClient(doc) {
   // 🔹 4. עדכון אחסון
   if (window.subscriptionManager && fileSize) {
     try {
-      await window.subscriptionManager.updateStorageUsage(-fileSize);
-      await window.subscriptionManager.updateDocumentCount(-1);
-      if (typeof window.recalculateUserStorage === "function") {
-        await window.recalculateUserStorage();
+      await window.subscriptionManager.refreshUsageFromFirestore(true);
+      if (window.updateStorageWidget) {
+        await window.updateStorageWidget();
       }
     } catch (e) {
       console.warn("⚠️ בעיה בעדכון אחסון אחרי מחיקה:", e);
