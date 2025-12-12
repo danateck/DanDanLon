@@ -1,12 +1,62 @@
 function normalizeEmail(e) { return (e || "").trim().toLowerCase(); }
 
+
+// 🛟 לוודא שתמיד יש SubscriptionManager
+async function ensureSubscriptionManagerReady() {
+  // אם כבר קיים – לא עושים כלום
+  if (window.subscriptionManager) return;
+
+  try {
+    // חייבים פיירבייס ו-DB
+    if (!window.db || !window.fs) {
+      console.warn("⚠️ Firebase/DB not ready, cannot init SubscriptionManager");
+      return;
+    }
+
+    // מייל של המשתמשת הנוכחית
+    let email = "";
+    if (typeof getCurrentUserEmail === "function") {
+      email = (getCurrentUserEmail() || "").trim().toLowerCase();
+    } else if (window.auth?.currentUser?.email) {
+      email = window.auth.currentUser.email.trim().toLowerCase();
+    }
+
+    if (!email) {
+      console.warn("⚠️ No user email, cannot init SubscriptionManager");
+      return;
+    }
+
+    // טוען את המחלקה דינאמית
+    const mod = await import("./subscription-manager.js");
+    const ManagerClass = mod.SubscriptionManager || window.SubscriptionManager;
+    if (!ManagerClass) {
+      console.error("❌ SubscriptionManager class not found");
+      return;
+    }
+
+    const mgr = new ManagerClass(window.db, window.fs);
+    await mgr.initialize(email);
+    window.subscriptionManager = mgr;
+
+    console.log("✅ SubscriptionManager re-created by ensureSubscriptionManagerReady");
+  } catch (e) {
+    console.error("❌ ensureSubscriptionManagerReady failed:", e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 🔧 מערכת עדכון אחסון מאוחדת - תוקן!
+// ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
 // 🔧 מערכת עדכון אחסון מאוחדת - תוקן!
 // ═══════════════════════════════════════════════════════════════════
 window.updateAllStorageDisplays = async function() {
   console.log('📊 מעדכן תצוגות אחסון מהשרת...');
-  
-  // שלב 1: רענן מהשרת תמיד!
+
+  // 💡 לוודא שקיים SubscriptionManager
+  await ensureSubscriptionManagerReady();
+
+  // שלב 1: רענון מהשרת תמיד (אם יש מנוי)
   if (window.subscriptionManager) {
     try {
       await window.subscriptionManager.refreshUsageFromFirestore(true);
@@ -14,8 +64,10 @@ window.updateAllStorageDisplays = async function() {
     } catch (err) {
       console.error('❌ שגיאה ברענון מהשרת:', err);
     }
+  } else {
+    console.warn("⚠️ אין SubscriptionManager גם אחרי ensureSubscriptionManagerReady");
   }
-  
+
   // שלב 2: עדכן ווידג'ט ראשי (subscription-init.js)
   if (typeof window.updateStorageWidget === 'function') {
     try {
@@ -24,7 +76,7 @@ window.updateAllStorageDisplays = async function() {
       console.error('❌ שגיאה ב-updateStorageWidget:', err);
     }
   }
-  
+
   // שלב 3: עדכן ווידג'ט משני (api-bridge.js)
   if (typeof window.updateStorageUsageWidget === 'function') {
     try {
@@ -33,6 +85,7 @@ window.updateAllStorageDisplays = async function() {
       console.error('❌ שגיאה ב-updateStorageUsageWidget:', err);
     }
   }
+
   console.log('✅ כל תצוגות האחסון עודכנו בהצלחה');
 };
 
