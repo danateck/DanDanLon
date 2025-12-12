@@ -646,26 +646,49 @@ if (file.size > MAX_DB_FILE_SIZE) {
 } = req.body;
 
 
+    let finalWarrantyStart = warrantyStart || null;
+    let finalWarrantyExpires = warrantyExpiresAt || null;
+    let finalAutoDelete = autoDeleteAfter || null;
+
+    // אם יש תוקף אחריות אבל אין מחיקה אוטומטית → קובעים +7 שנים
+    if (finalWarrantyExpires && !finalAutoDelete) {
+      const d = new Date(finalWarrantyExpires);
+      if (!isNaN(d.getTime())) {
+        d.setFullYear(d.getFullYear() + 7);
+        // רק תאריך (YYYY-MM-DD), בלי שעה
+        finalAutoDelete = d.toISOString().slice(0, 10);
+      }
+    }
+
+
     const recipientArray = JSON.parse(recipient || '[]');
     const sharedWith = [];
 
-    await pool.query(`
-      INSERT INTO documents (
-  id, owner, title, file_name, file_size, mime_type, file_data,
-  category, sub_category, year, org, recipient, shared_with,
-  warranty_start, warranty_expires_at, auto_delete_after,
-  uploaded_at, last_modified, last_modified_by, trashed
-) VALUES ($1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, $12, $13,
-          $14, $15, $16, $17, $18, $19, $20)
-
-    `, [
+await pool.query(`
+  INSERT INTO documents (
+    id, owner, title, file_name, file_size, mime_type, file_data,
+    category, sub_category, year, org, recipient, shared_with,
+    warranty_start, warranty_expires_at, auto_delete_after,
+    uploaded_at, last_modified, last_modified_by, trashed
+  ) VALUES (
+    $1,$2,$3,$4,$5,$6,$7,
+    $8,$9,$10,$11,$12,$13,
+    $14,$15,$16,$17,$18,$19,$20
+  )
+`, [
   id, userEmail, title, file.originalname, file.size, file.mimetype, file.buffer,
-  category, subCategory, year, org, JSON.stringify(recipientArray), JSON.stringify(sharedWith),
-  warrantyStart || null, warrantyExpiresAt || null, autoDeleteAfter || null,
-  now, now, userEmail, false
-]
-);
+  category, subCategory, year, org,
+  JSON.stringify(recipientArray),
+  JSON.stringify(sharedWith),
+  finalWarrantyStart,
+  finalWarrantyExpires,
+  finalAutoDelete,
+  Date.now(),
+  Date.now(),
+  userEmail,
+  false
+]);
+
 
     console.log(`✅ Uploaded: ${id}`);
     
@@ -884,6 +907,16 @@ app.put('/api/docs/:id', async (req, res) => {
 
     const { id } = req.params;
     const updates = req.body || {};
+
+        // אם מעדכנים תוקף אחריות ואין ערך למחיקה אוטומטית → +7 שנים
+    if (updates.warranty_expires_at && !updates.auto_delete_after) {
+      const d = new Date(updates.warranty_expires_at);
+      if (!isNaN(d.getTime())) {
+        d.setFullYear(d.getFullYear() + 7);
+        updates.auto_delete_after = d.toISOString().slice(0, 10);
+      }
+    }
+
 
     // טוענים את המסמך כדי לבדוק בעלות + גודל קובץ + shared_with קיים
     const checkResult = await pool.query(

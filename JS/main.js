@@ -2555,17 +2555,18 @@ function isDuplicateDocument(file, metadata = {}) {
 function buildDocCard(doc, mode) {
   const card = document.createElement("div");
   card.className = "doc-card";
-  const warrantyBlock =
-    (doc.category && doc.category.includes("אחריות")) ?
-    `
-      <span>הועלה ב: ${formatDate(doc.uploadedAt)}</span>
-<span>תאריך קנייה: ${formatDateShort(doc.warrantyStart)}</span>
-<span>תוקף אחריות עד: ${formatDateShort(doc.warrantyExpiresAt)}</span>
-<span>מחיקה אוטומטית אחרי: ${formatDateShort(doc.autoDeleteAfter)}</span>
-    `
-    : `
-      <span>הועלה ב: ${doc.uploadedAt || "-"}</span>
-    `;
+const warrantyBlock =
+  (doc.category && doc.category.includes("אחריות")) ?
+  `
+    <span>הועלה ב: ${formatDateShort(doc.uploadedAt || doc.uploaded_at)}</span>
+    <span>תאריך קנייה: ${formatDateShort(doc.warrantyStart)}</span>
+    <span>תוקף אחריות עד: ${formatDateShort(doc.warrantyExpiresAt)}</span>
+    <span>מחיקה אוטומטית אחרי: ${formatDateShort(doc.autoDeleteAfter)}</span>
+  `
+  : `
+    <span>הועלה ב: ${formatDateShort(doc.uploadedAt || doc.uploaded_at)}</span>
+  `;
+
   const openFileButtonHtml = `
   <button class="doc-open-link" data-open-id="${doc.id}">
     <img src="assests/icons/open.png" 
