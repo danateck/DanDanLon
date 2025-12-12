@@ -4728,6 +4728,103 @@ background: var(--bg-card);
 }
 
 
+.footer-menu {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.footer-menu .menu-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.footer-menu .menu-item {
+  width: 100%;
+}
+
+
+
+
+.about-wrapper {
+  padding: 1.5rem;
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+
+.about-title {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.about-text {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.theme-dark .about-wrapper {
+  background: #121816;
+  border-color: rgba(82, 152, 115, 0.35);
+}
+
+
+
+.about-wrapper {
+  padding: 1.5rem;
+  max-width: 750px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.about-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  padding: 1.25rem 1.5rem;
+  border-radius: 18px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.04);
+}
+
+.about-block h2 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.4rem;
+}
+
+.about-block h3 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-size: 1.2rem;
+}
+
+.about-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.65;
+}
+
+.about-list li {
+  margin-bottom: 0.35rem;
+}
+
+.theme-dark .about-block {
+  background: #111;
+  border-color: rgba(102,255,153,0.25);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+}
+
+
+
 
   </style>
 </head>
@@ -4910,6 +5007,21 @@ background: var(--bg-card);
       </div>
 
       <div class="sidebar-bottom">
+
+
+              <div class="footer-menu">
+        <div class="menu-label">אודות</div>
+
+        <button class="menu-item" data-view="about" id="aboutNavBtn">
+          <div class="menu-item-icon">
+            <!-- אפשר לשים כאן אייקון אחר אם תרצי בעתיד -->
+            <span style="font-size: 18px;">ℹ️</span>
+          </div>
+          <span>אודות</span>
+        </button>
+      </div>
+
+
         <!-- 💎 וידג'ט מנויים -->
 <div id="storage-widget-container"></div>
   <div class="storage-widget" id="storageWidget" aria-label="מצב אחסון">
@@ -5726,6 +5838,115 @@ background: var(--bg-card);
 
 
 <script type="module" src="subscription-limits-enforcer.js"></script>
+
+
+<script>
+  (function () {
+    const aboutBtn = document.getElementById("aboutNavBtn");
+    if (!aboutBtn) return;
+
+    const homeView     = document.getElementById("homeView");
+    const categoryView = document.getElementById("categoryView");
+    const categoryTitle = document.getElementById("categoryTitle");
+    const docsList     = document.getElementById("docsList");
+
+    function showAboutView() {
+      // להוריד active מכל הכפתורים בתפריט (עליון + תחתון)
+      document.querySelectorAll(".menu-item").forEach(btn => {
+        btn.classList.remove("active");
+      });
+      aboutBtn.classList.add("active");
+
+      // להסתיר דף הבית ולהראות את ה־categoryView
+      if (homeView)    homeView.classList.add("hidden");
+      if (categoryView) categoryView.classList.remove("hidden");
+
+      // כותרת העמוד
+      if (categoryTitle) {
+        categoryTitle.textContent = "אודות";
+      }
+
+      // התוכן של האודות – פה תכתבי מה שתרצי
+      if (docsList) {
+        docsList.innerHTML = `
+  <div class="about-wrapper">
+
+    <div class="about-block">
+      <h2>אודות NestyFile</h2>
+      <h3>הארכיון הדיגיטלי החכם למסמכים האישיים שלך</h3>
+      <p>
+        NestyFile היא מערכת ארכיון דיגיטלי חכמה שמאפשרת לכל אחד לשמור, לארגן ולנהל את כל המסמכים החשובים במקום אחד מסודר, מאובטח וזמין מכל מקום.
+        במקום חיפוש אינסופי בוואטסאפ, במיילים או בערימות נייר – NestyFile הופכת את כל המסמכים שלך לאחסון ענן ברור ונגיש בלחיצה.
+      </p>
+    </div>
+
+    <div class="about-block">
+      <h3>למה נולד NestyFile?</h3>
+      <p>
+        NestyFile נולד מתוך צורך אמיתי של אנשים פרטיים:
+        חשבוניות, חוזים, תעודות, מסמכים רפואיים, ביטוחים, מסמכי לימודים, טפסים לרשויות, משכנתא ועוד – מתפזרים בין מיילים, תיקיות ודפים.
+      </p>
+      <p>
+        המטרה היא ליצור ארכיון דיגיטלי מסודר לצרכן הפרטי – מערכת פשוטה לתפעול אך חזקה מספיק כדי לשמור על כל המידע הרגיש שלך באופן מאובטח, חכם ונוח לשימוש יומיומי.
+      </p>
+    </div>
+
+    <div class="about-block">
+      <h3>מה עושה NestyFile בשבילך?</h3>
+      <ul class="about-list">
+        <li>אחסון מסמכים בענן – שמירה מאובטחת עם גיבוי.</li>
+        <li>ניהול מסמכים חכם – תיקיות, תגיות, סוגי מסמכים ותאריכים.</li>
+        <li>שיתוף מסמכים – שיתוף מאובטח עם גורמים שתבחרי.</li>
+        <li>גישה מהירה – חיפוש לפי שם, קטגוריה או סוג.</li>
+        <li>סדר במסמכים האישיים – הכול במקום אחד.</li>
+      </ul>
+      <p>
+        NestyFile מתאימה גם למי שלא טכני – ממשק אינטואיטיבי בעברית מלאה.
+      </p>
+    </div>
+
+    <div class="about-block">
+      <h3>למי NestyFile מתאימה?</h3>
+      <ul class="about-list">
+        <li>למשפחות שרוצות ארכיון דיגיטלי מסודר לבית.</li>
+        <li>לעצמאים ולעסקים קטנים – ניהול מסמכים בלי מערכות כבדות.</li>
+        <li>לסטודנטים – שמירת מסמכי לימודים ותעודות במקום אחד.</li>
+        <li>להורים גרושים – ניהול ושיתוף מסמכים משותפים עבור הילדים.</li>
+        <li>לכל מי שמאס בלחפש מסמכים ברגע האחרון.</li>
+      </ul>
+    </div>
+
+    <div class="about-block">
+      <h3>אבטחה, פרטיות ושקט נפשי</h3>
+      <p>
+        מסמכים אישיים הם דבר רגיש. NestyFile שמה דגש על אבטחת מידע ברמה גבוהה,
+        גישה מאובטחת לחשבון שלך בלבד, אפשרויות שיתוף בשליטה מלאה, ושקיפות מלאה.
+        המסמכים שלך הם שלך בלבד – אנחנו רק נותנים להם בית דיגיטלי מסודר.
+      </p>
+    </div>
+
+    <div class="about-block">
+      <h3>החזון שלנו</h3>
+      <p>
+        להפוך את ניהול המסמכים האישיים לדבר פשוט, ברור ונגיש –
+        כך שלכל אדם יהיה ארכיון דיגיטלי אישי שמסדר לו את החיים:
+        פחות ניירות, פחות בירוקרטיה, יותר סדר ושקט נפשי.
+      </p>
+    </div>
+
+  </div>
+`;
+
+      }
+    }
+
+    aboutBtn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      showAboutView();
+    });
+  })();
+</script>
+
 
 <script type="module" src="JS/shared-folders-navigation-fix.js" onerror="console.error('❌ Failed to load shared-folders-navigation-fix.js')"></script>
 <script src="JS/subfolders-navigation-fix.js" onerror="console.error('❌ Failed to load subfolders-navigation-fix.js')"></script>
