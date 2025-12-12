@@ -338,6 +338,7 @@ if (Array.isArray(window.allDocsData)) {
   }, 200);
 
 // ✅ עדכון מערכת מנויים (אם קיימת)
+// ✅ עדכון מערכת מנויים (אם קיימת)
 if (window.subscriptionManager) {
   try {
     const bytes = Number(result.file_size) || file.size || 0;
@@ -346,10 +347,18 @@ if (window.subscriptionManager) {
     await window.subscriptionManager.updateStorageUsage(bytes);
     await window.subscriptionManager.updateDocumentCount(1);
 
-    // 🌟 הדבר החשוב: לרענן את כל תצוגות האחסון ממקור אמת אחד
+    // 🌟 ריענון מיידי של כל תצוגות האחסון
     if (typeof window.updateAllStorageDisplays === "function") {
       await window.updateAllStorageDisplays();
     }
+
+    // 🌟 ריענון נוסף אחרי כמה שניות – רק למד האחסון
+    setTimeout(() => {
+      if (typeof window.updateAllStorageDisplays === "function") {
+        window.updateAllStorageDisplays();
+      }
+    }, 2500); // 2.5 שניות – אפשר לשחק עם זה אם תרצי
+
   } catch (e) {
     console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
   }
@@ -357,6 +366,7 @@ if (window.subscriptionManager) {
   // ⬅️ fallback ישן, אם אין subscriptionManager
   window.recalculateUserStorage();
 }
+
 
 
     return doc;

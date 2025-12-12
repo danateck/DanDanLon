@@ -788,31 +788,29 @@ if (data.deletedAt || data.trashed) continue;
 
 
 
-  // 🔄 עדכון אחסון (מהיר - רק cache)
-  // 🔄 עדכון אחסון (מהיר - רק cache)
-  async updateStorageUsage(bytesDelta = 0) {
-    try {
-      console.log(
-        '🔄 updateStorageUsage called with delta =',
-        bytesDelta,
-        '→ recalculating from allDocsData'
-      );
+// 🔄 עדכון אחסון (מהיר - רק cache)
+async updateStorageUsage(bytesDelta = 0) {
+  try {
+    console.log(
+      '🔄 updateStorageUsage called with delta =',
+      bytesDelta,
+      '→ recalculating from allDocsData'
+    );
 
-      // מאפס cache כדי שהרענון יהיה אמיתי
-      this._usageCache = null;
-      this._cacheTimestamp = 0;
+    // מאפס cache
+    this._usageCache = null;
+    this._cacheTimestamp = 0;
 
-      // 💡 כמו updateDocumentCount – קודם נסמוך על allDocsData (המצב האמיתי מהשרת)
-      if (typeof window.recalculateUserStorage === "function") {
-        await window.recalculateUserStorage();
-      } else {
-        // אם משום מה אין לנו את הפונקציה – נ fallback לפיירסטור
-        await this.refreshUsageFromFirestore(true);
-      }
-    } catch (err) {
-      console.error('❌ updateStorageUsage failed:', err);
+    // כמו updateDocumentCount – מחשב לפי allDocsData
+    if (typeof window.recalculateUserStorage === "function") {
+      await window.recalculateUserStorage();
+    } else {
+      await this.refreshUsageFromFirestore(true);
     }
+  } catch (err) {
+    console.error('❌ updateStorageUsage failed:', err);
   }
+}
 
 
 
