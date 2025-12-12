@@ -4325,23 +4325,7 @@ let autoDeleteAfter = null;
     // שמירת הקובץ עצמו ל-IndexedDB (לוגי)
     await saveFileToDB(newId, fileDataBase64);
 
-    // 💳 תיאום רמת השיוך לפי תוכנית המנוי
-    let currentPlanId = "free";
-    try {
-      if (window.subscriptionManager && typeof window.subscriptionManager.getSubscriptionInfo === "function") {
-        const info = window.subscriptionManager.getSubscriptionInfo();
-        if (info && info.plan && info.plan.id) {
-          currentPlanId = info.plan.id;
-        }
-      }
-    } catch (e) {
-      console.warn("⚠️ getSubscriptionInfo failed (classification):", e);
-    }
 
-    // במסלול חינם – לא מבצעים שיוך אוטומטי לתת־תיקייה
-    if (currentPlanId === "free") {
-      guessedSubCategory = null;
-    }
 
 
     // בניית אובייקט המסמך
