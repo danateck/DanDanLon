@@ -744,8 +744,7 @@ async refreshUsageFromFirestore(force = false) {
 
   for (const data of byId.values()) {
     // מדלגים על מה שבסל מחזור / נמחק
-    if (data._trashed || data.deletedAt || data.trashed) continue;
-
+if (data.deletedAt || data.trashed) continue;
     const size =
       Number(data.fileSize) ||
       Number(data.size) ||
@@ -809,12 +808,16 @@ async refreshUsageFromFirestore(force = false) {
   // 🔄 עדכון מסמכים (מהיר - רק cache)
   async updateDocumentCount(countDelta = 0) {
     try {
-      console.log('🔄 updateDocumentCount called with delta =', countDelta, '→ doing full refresh from Firestore');
+      console.log('🔄 updateDocumentCount called with delta =', countDelta, '→ recalculating from allDocsData');
 
       this._usageCache = null;
       this._cacheTimestamp = 0;
 
-      await this.refreshUsageFromFirestore(true);
+      if (typeof window.recalculateUserStorage === "function") {
+        await window.recalculateUserStorage();
+      } else {
+        await this.refreshUsageFromFirestore(true);
+      }
     } catch (err) {
       console.error('❌ updateDocumentCount failed:', err);
     }

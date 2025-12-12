@@ -882,7 +882,7 @@ function updateStorageUsageWidget() {
   const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
   let visibleDocs = docs.filter(d =>
     d &&
-    !d._trashed &&            // לא בסל מחזור
+    !d.deletedAt &&            // לא בסל מחזור
     d.hasFile !== false       // לוודא שזה מסמך אמיתי
   );
 
@@ -1048,7 +1048,7 @@ window.recalculateUserStorage = async function() {
     for (const d of docs) {
       if (!d || !d.owner) continue;
       if (String(d.owner).trim().toLowerCase() !== meNorm) continue;
-      if (d._trashed || d.deletedAt) continue;
+      if (d.deletedAt) continue;;
 
       let size = Number(d.fileSize ?? d.file_size ?? d.size);
       if (!Number.isFinite(size) || size <= 0) {
