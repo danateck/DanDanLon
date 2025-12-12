@@ -1,4 +1,62 @@
 function normalizeEmail(e) { return (e || "").trim().toLowerCase(); }
+
+// ═══════════════════════════════════════════════════════════════════
+// 🔧 מערכת עדכון אחסון מאוחדת - תוקן!
+// ═══════════════════════════════════════════════════════════════════
+window.updateAllStorageDisplays = async function() {
+  console.log('📊 מעדכן תצוגות אחסון מהשרת...');
+  
+  // שלב 1: רענן מהשרת תמיד!
+  if (window.subscriptionManager) {
+    try {
+      await window.subscriptionManager.refreshUsageFromFirestore(true);
+      console.log('✅ רענון מהשרת הושלם');
+    } catch (err) {
+      console.error('❌ שגיאה ברענון מהשרת:', err);
+    }
+  }
+  
+  // שלב 2: עדכן ווידג'ט ראשי (subscription-init.js)
+  if (typeof window.updateStorageWidget === 'function') {
+    try {
+      await window.updateStorageWidget();
+    } catch (err) {
+      console.error('❌ שגיאה ב-updateStorageWidget:', err);
+    }
+  }
+  
+  // שלב 3: עדכן ווידג'ט משני (api-bridge.js)
+  if (typeof window.updateStorageUsageWidget === 'function') {
+    try {
+      window.updateStorageUsageWidget();
+    } catch (err) {
+      console.error('❌ שגיאה ב-updateStorageUsageWidget:', err);
+    }
+  }
+  console.log('✅ כל תצוגות האחסון עודכנו בהצלחה');
+};
+
+// 🔄 בעת טעינת הדף - עדכן אוטומטית
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      if (window.updateAllStorageDisplays) {
+        window.updateAllStorageDisplays();
+      }
+    }, 1500);
+  });
+} else {
+  setTimeout(() => {
+    if (window.updateAllStorageDisplays) {
+      window.updateAllStorageDisplays();
+    }
+  }, 1500);
+}
+
+console.log('✅ מערכת עדכון אחסון מאוחדת הותקנה');
+// ═══════════════════════════════════════════════════════════════════
+
+
 import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 const auth = getAuth();
 // API Base URL for backend
@@ -303,8 +361,8 @@ window.allDocsData = docs || [];
       await window.recalculateUserStorage();
     }
 
-    if (typeof window.updateStorageUsageWidget === "function") {
-      window.updateStorageUsageWidget();
+    if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
     }
 
     const userNow = me;
@@ -508,8 +566,8 @@ allDocsData = docs || [];
     if (typeof renderHome === "function") renderHome();
     
     // 💾 עדכון תצוגת האחסון אחרי טעינה ראשונית
-    if (typeof window.updateStorageUsageWidget === "function") {
-      window.updateStorageUsageWidget();
+    if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
     }
     
     console.log("✅ Boot from cloud complete:", allDocsData.length, "documents loaded");
@@ -1044,11 +1102,14 @@ async function uploadDocumentWithStorage(file, metadata = {}, forcedId=null) {
   // ✅ עדכן את מונה המסמכים והאחסון במערכת המנויים
   if (window.subscriptionManager) {
     try {
-      await window.subscriptionManager.refreshUsageFromFirestore(true);
-      if (window.updateStorageWidget) {
-        await window.updateStorageWidget();
-      }
+      await window.subscriptionManager.updateDocumentCount(1);
+      await window.subscriptionManager.updateStorageUsage(file.size);
       console.log('✅ עודכן מונה מסמכים ואחסון');
+      
+      // עדכן את הוידג'ט
+      if (window.updateAllStorageDisplays) {
+        await window.updateAllStorageDisplays();
+      }
     } catch (error) {
       console.error('⚠️ לא הצלחתי לעדכן מערכת מנויים:', error);
     }
@@ -1131,10 +1192,8 @@ async function deleteDocumentPermanently(docId) {
   if (window.subscriptionManager && (wasOwner || data.deletedForAll)) {
     try {
       // הפחת מהמונים
-      await window.subscriptionManager.refreshUsageFromFirestore(true);
-      if (window.updateStorageWidget) {
-        await window.updateStorageWidget();
-      }
+      await window.subscriptionManager.updateDocumentCount(-1);
+      await window.subscriptionManager.updateStorageUsage(-fileSize);
       
       console.log('✅ עודכנו מונים אחרי מחיקה:', {
         documents: -1,
@@ -1143,8 +1202,8 @@ async function deleteDocumentPermanently(docId) {
       });
       
       // עדכן וידג'ט
-      if (window.updateStorageWidget) {
-        window.updateStorageWidget();
+      if (window.updateAllStorageDisplays) {
+        await window.updateAllStorageDisplays();
       }
     } catch (error) {
       console.error('⚠️ שגיאה בעדכון מונים אחרי מחיקה:', error);
@@ -2705,8 +2764,8 @@ mode === "shared"
     }
     
     // 💾 עדכון תצוגת האחסון (למרות שמסמכים בסל עדיין תופסים מקום)
-    if (typeof window.updateStorageUsageWidget === "function") {
-      window.updateStorageUsageWidget();
+    if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
     }
     
     const categoryTitle = document.getElementById("categoryTitle");
@@ -2908,24 +2967,20 @@ const doDelete = async () => {
 
         // כשכולם מחקו → להוריד מהאחסון / מסמכים
         if (deletedForAll || notInBackend) {
-          await window.subscriptionManager.refreshUsageFromFirestore(true);
-          if (window.updateStorageWidget) {
-            await window.updateStorageWidget();
-          }
+          await window.subscriptionManager.updateStorageUsage(-bytes);
+          await window.subscriptionManager.updateDocumentCount(-1);
         } else {
           // רק את מחקת לצמיתות → מבחינת החשבון שלך הוא כבר לא נספר
-          await window.subscriptionManager.refreshUsageFromFirestore(true);
-          if (window.updateStorageWidget) {
-            await window.updateStorageWidget();
-          }
+          await window.subscriptionManager.updateStorageUsage(-bytes);
+          await window.subscriptionManager.updateDocumentCount(-1);
         }
 
-        if (typeof window.updateStorageWidget === "function") {
-          window.updateStorageWidget();
-        }
-        if (typeof window.updateStorageUsageWidget === "function") {
-          window.updateStorageUsageWidget();
-        }
+        if (typeof window.updateAllStorageDisplays === "function") {
+        await window.updateAllStorageDisplays();
+      }
+        if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
+    }
       } catch (e) {
         console.warn("⚠️ בעיה בעדכון אחסון אחרי מחיקה לצמיתות:", e);
       }
@@ -3064,7 +3119,7 @@ async function markDocTrashed(id, trashed) {
 // }
 console.log("✅ buildDocCard and helpers defined");
 // ===== END buildDocCard and helpers =====
-window.renderHome = function() {
+window.renderHome = async function() {
   const grid = document.getElementById("docsGrid") 
             || document.getElementById("categoryDocs") 
             || document.getElementById("docsList");
@@ -3120,9 +3175,9 @@ window.renderHome = function() {
   if (categoryView) categoryView.classList.add("hidden");
   
   // 💾 עדכון תצוגת האחסון בכל פעם שחוזרים למסך הבית
-  if (typeof window.updateStorageUsageWidget === "function") {
-    window.updateStorageUsageWidget();
-  }
+  if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
+    }
   
   console.log("✅ renderHome complete");
 };
@@ -4473,10 +4528,13 @@ await window.uploadDocument(file, {
     // 📊 עדכון שימוש באחסון
     if (window.subscriptionManager) {
       try {
-        await window.subscriptionManager.refreshUsageFromFirestore(true);
-        if (window.updateStorageWidget) {
-          await window.updateStorageWidget();
-        }
+        await window.subscriptionManager.updateStorageUsage(file.size);
+        await window.subscriptionManager.updateDocumentCount(1);
+        
+        // עדכן את הוידג'ט
+        if (window.updateAllStorageDisplays) {
+        await window.updateAllStorageDisplays();
+      }
       } catch (e) {
         console.error('❌ שגיאה בעדכון שימוש:', e);
       }
@@ -7459,10 +7517,11 @@ async function deleteDocForever(id) {
     // 📊 עדכון מונה מסמכים במנוי
     if (window.subscriptionManager) {
       try {
-        await window.subscriptionManager.refreshUsageFromFirestore(true);
-        if (window.updateStorageWidget) {
-          await window.updateStorageWidget();
-        }
+        await window.subscriptionManager.updateDocumentCount(-1);
+
+        if (typeof window.updateAllStorageDisplays === "function") {
+        await window.updateAllStorageDisplays();
+      }
       } catch (e) {
         console.error("❌ שגיאה בעדכון מונה:", e);
       }
@@ -7471,8 +7530,8 @@ async function deleteDocForever(id) {
     // 💾 עדכון אחסון (משתמש / וידג'ט)
     if (typeof window.recalculateUserStorage === "function") {
       await window.recalculateUserStorage();
-    } else if (typeof window.updateStorageUsageWidget === "function") {
-      window.updateStorageUsageWidget();
+    } else if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
     }
 
     // ריענון מסך סל מחזור
@@ -7491,9 +7550,9 @@ async function restoreDocument(id) {
   await markDocTrashed(id, false);
   
   // 💾 עדכון תצוגת האחסון אחרי שחזור
-  if (typeof window.updateStorageUsageWidget === "function") {
-    window.updateStorageUsageWidget();
-  }
+  if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
+    }
   
   if (typeof openRecycleView === 'function') {
     openRecycleView();
@@ -10360,11 +10419,11 @@ const visibleDocs = docs.filter(d => !d.deletedAt);
     }
 
     // נעדכן את הווידג'ט
-    if (typeof window.updateStorageWidget === "function") {
-      window.updateStorageWidget();
-    }
-    if (typeof window.updateStorageUsageWidget === "function") {
-      window.updateStorageUsageWidget();
+    if (typeof window.updateAllStorageDisplays === "function") {
+        await window.updateAllStorageDisplays();
+      }
+    if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
     }
 
     console.log("✅ Storage synced from backend:", { totalBytes, totalDocs });
@@ -10446,9 +10505,9 @@ window.recalculateStorage = async function() {
     await window.subscriptionManager.saveSubscription();
     
     // עדכן וידג'ט
-    if (window.updateStorageWidget) {
-      window.updateStorageWidget();
-    }
+    if (window.updateAllStorageDisplays) {
+        await window.updateAllStorageDisplays();
+      }
     
     console.log('✅ חישוב מחדש הושלם!');
     console.log('📊 השוואה:', {
@@ -10540,9 +10599,10 @@ async function deleteDocForeverClient(doc) {
   // 🔹 4. עדכון אחסון
   if (window.subscriptionManager && fileSize) {
     try {
-      await window.subscriptionManager.refreshUsageFromFirestore(true);
-      if (window.updateStorageWidget) {
-        await window.updateStorageWidget();
+      await window.subscriptionManager.updateStorageUsage(-fileSize);
+      await window.subscriptionManager.updateDocumentCount(-1);
+      if (typeof window.recalculateUserStorage === "function") {
+        await window.recalculateUserStorage();
       }
     } catch (e) {
       console.warn("⚠️ בעיה בעדכון אחסון אחרי מחיקה:", e);
