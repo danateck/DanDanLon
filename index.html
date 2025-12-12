@@ -4825,6 +4825,9 @@ background: var(--bg-card);
 
 
 
+.theme-dark #aboutIcon {
+  content: url("assests/icons/aboutLight.png");
+}
 
   </style>
 </head>
@@ -5013,12 +5016,17 @@ background: var(--bg-card);
      
 
         <button class="menu-item" data-view="about" id="aboutNavBtn">
-          <div class="menu-item-icon">
-            <!-- אפשר לשים כאן אייקון אחר אם תרצי בעתיד -->
-            <span style="font-size: 18px;">ℹ️</span>
-          </div>
-          <span>אודות</span>
-        </button>
+  <div class="menu-item-icon">
+    <img 
+      id="aboutIcon" 
+      src="assests/icons/aboutDark.png"
+      alt="אודות" 
+      style="width:18px;height:18px;"
+    >
+  </div>
+  <span>אודות</span>
+</button>
+
       </div>
 
 
