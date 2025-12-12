@@ -333,27 +333,24 @@ if (Array.isArray(window.allDocsData)) {
     }
   }, 200);
 
-
 // ✅ עדכון מערכת מנויים (אם קיימת)
 if (window.subscriptionManager) {
   try {
     const bytes = Number(result.file_size) || file.size || 0;
 
-    // רק המערכת החדשה מטפלת באחסון
+    // מעדכן את הנתונים במסד
     await window.subscriptionManager.updateStorageUsage(bytes);
     await window.subscriptionManager.updateDocumentCount(1);
 
-    if (typeof window.updateStorageWidget === "function") {
-      window.updateStorageWidget();
-    }
-    if (typeof window.updateStorageUsageWidget === "function") {
-      window.updateStorageUsageWidget();
+    // 🌟 הדבר החשוב: לרענן את כל תצוגות האחסון ממקור אמת אחד
+    if (typeof window.updateAllStorageDisplays === "function") {
+      await window.updateAllStorageDisplays();
     }
   } catch (e) {
     console.warn("⚠️ לא הצלחתי לעדכן שימוש באחסון:", e);
   }
 } else if (typeof window.recalculateUserStorage === "function") {
-  // ⬅️ רק אם *אין* subscriptionManager – נ fallback למערכת הישנה
+  // ⬅️ fallback ישן, אם אין subscriptionManager
   window.recalculateUserStorage();
 }
 
