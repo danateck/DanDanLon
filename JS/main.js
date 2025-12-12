@@ -10340,7 +10340,8 @@ window.syncStorageFromBackend = async function() {
     const docs = await loadDocuments();
     
     // נספור רק מה שבאמת קיים ולא בסל מחזור (אם את רוצה לספור גם סל מחזור – אפשר להוריד את הסינון)
-    const visibleDocs = docs.filter(d => !d._trashed && !d.deletedAt);
+// נספור כל מסמך שלא נמחק לצמיתות (גם אם הוא בסל מחזור עדיין תופס מקום)
+const visibleDocs = docs.filter(d => !d.deletedAt);
 
     const totalBytes = visibleDocs.reduce((sum, d) => {
       const size = Number(d.fileSize) || 0;
