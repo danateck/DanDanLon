@@ -861,11 +861,6 @@ function computeStorageUsage() {
 // 📦 WIDGET אחסון – חישוב ועדכון
 // ===============================
 // 🧮 וידג'ט האחסון – לוקח את כל הנתונים אך ורק מ-SubscriptionManager
-// ═══════════════════════════════════════════════════════════════════
-// תיקון לפונקציית updateStorageUsageWidget 
-// החלף את הפונקציה ב-api-bridge.js (שורות 864-1020)
-// ═══════════════════════════════════════════════════════════════════
-
 function updateStorageUsageWidget() {
   console.log("🔄 updateStorageUsageWidget called");
   
@@ -883,124 +878,149 @@ function updateStorageUsageWidget() {
   const MB  = 1024 * 1024;
   const LRM = "\u200E";
 
-  // 🎯 תיקון מרכזי: השתמש רק ב-SubscriptionManager כמקור אמת!
-  if (!window.subscriptionManager) {
-    console.warn("⚠️ SubscriptionManager not available");
+  // 🔹 כל המסמכים שהמשתמשת רואה (OWNED + SHARED), בלי סל מחזור
+  const docs = Array.isArray(window.allDocsData) ? window.allDocsData : [];
+  let visibleDocs = docs.filter(d =>
+    d &&
+    !d.deletedAt &&            // לא בסל מחזור
+    d.hasFile !== false       // לוודא שזה מסמך אמיתי
+  );
+
+   if (typeof window.filterDocsByStorageQuota === "function") {
+    visibleDocs = window.filterDocsByStorageQuota(visibleDocs);
+  }
+  const docsCount = visibleDocs.length;   // 👈 זה יהיה ה-11 שלך
+
+  // ברירת מחדל – חינם
+  let usedBytes  = 0;
+  let totalBytes = 200 * MB;
+  let usedPct    = 0;
+  let maxDocs    = null;
+
+  // 🔧 אם יש SubscriptionManager – לוקחים ממנו רק את מגבלת האחסון
+  if (window.subscriptionManager) {
+    try {
+            const info = window.subscriptionManager.getSubscriptionInfo();
+      const limit = Number(info.storage?.limit);
+
+      if (Number.isFinite(limit) && limit > 0) {
+        totalBytes = limit;
+      }
+
+      const plan = window.subscriptionManager.getCurrentPlan();
+      if (plan && typeof plan.maxDocuments === "number") {
+        maxDocs = plan.maxDocuments;
+      }
+
+      // את האחסון בשימוש ניקח מה-SubscriptionManager אם יש:
+      const used = Number(info.storage?.used);
+      if (Number.isFinite(used) && used >= 0) {
+        usedBytes = used;
+        console.log('✅ לקחנו אחסון מ-SubscriptionManager:', usedBytes, 'bytes');
+      }
+
+    } catch (err) {
+      console.warn("⚠️ Could not read plan from SubscriptionManager:", err);
+    }
+  }
+
+  // 🔥 תיקון: אם יש SubscriptionManager - תמיד נסמוך עליו!
+  // לא נחשב מחדש מהמסמכים המקומיים כי הם לא תמיד מעודכנים
+  if (!window.subscriptionManager || !Number.isFinite(usedBytes) || usedBytes < 0) {
+    // רק אם אין SubscriptionManager בכלל - אז נחשב ידנית
+    console.warn('⚠️ אין SubscriptionManager, מחשב מהמסמכים המקומיים');
+    usedBytes = 0;
+    for (const d of visibleDocs) {
+      let size = Number(d.fileSize ?? d.file_size ?? d.size);
+      if (!Number.isFinite(size) || size <= 0) {
+        size = 300 * 1024; // דיפולט קטן
+      }
+      usedBytes += size;
+    }
+  }
+
+  const totalGB = totalBytes === Infinity ? Infinity : totalBytes / GB;
+  const usedGB  = usedBytes / GB;
+
+  // 🔧 תוכנית ללא הגבלה
+  if (totalBytes === Infinity) {
+    percentEl.textContent = "0%";
+    barFill.style.setProperty("width", "0%", "important");
+
+    const usedMB = usedBytes / MB;
+    const usedDisplay =
+      usedMB < 1024 ? `${usedMB.toFixed(1)}MB` : `${usedGB.toFixed(2)}GB`;
+
+    textEl.textContent = `אחסון: ${usedDisplay} (ללא הגבלה ∞)`;
+    if (docsEl) docsEl.textContent = `${docsCount} מסמכים`;
+
+    console.log("💎 Storage widget: Unlimited plan");
     return;
   }
 
-  try {
-    // קבל מידע מעודכן מה-SubscriptionManager
-    const info = window.subscriptionManager.getSubscriptionInfo();
-    const plan = window.subscriptionManager.getCurrentPlan();
-    
-    // נתוני אחסון
-    const usedBytes = Number(info.storage?.used) || 0;
-    const totalBytes = Number(info.storage?.limit) || (200 * MB);
-    const usedPct = info.storage?.percentage || 0;
-    
-    // נתוני מסמכים
-    const docsCount = Number(info.documents?.count) || 0;
-    const maxDocs = plan.maxDocuments;
+  // אם לא קיבלנו אחוז – נחשב לבד
+  // תמיד מחשבים את האחוז מהבייטים בפועל – מתעלמים מאחוז שמגיע מהשרת
+  usedPct = totalGB > 0 ? (usedGB / totalGB) * 100 : 0;
+  if (usedPct > 100) usedPct = 100;
 
-    console.log('📊 Storage data from SubscriptionManager:', {
-      usedBytes,
-      totalBytes,
-      usedPct,
-      docsCount,
-      maxDocs
-    });
+  // 💾 טקסט האחסון
+  let textValue;
+  if (totalGB < 1) {
+    const usedMB  = usedBytes / MB;
+    const totalMB = totalBytes / MB;
 
-    // 🔧 תוכנית ללא הגבלה
-    if (totalBytes === Infinity) {
-      percentEl.textContent = "0%";
-      barFill.style.setProperty("width", "0%", "important");
+    const usedStr  = `${LRM}${usedMB.toFixed(1)} MB${LRM}`;
+    const totalStr = `${LRM}${totalMB.toFixed(0)} MB${LRM}`;
 
-      const usedMB = usedBytes / MB;
-      const usedGB = usedBytes / GB;
-      const usedDisplay =
-        usedMB < 1024 ? `${usedMB.toFixed(1)}MB` : `${usedGB.toFixed(2)}GB`;
+    textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
+  } else {
+    const usedStr  = `${LRM}${usedGB.toFixed(2)} GB${LRM}`;
+    const totalStr = `${LRM}${totalGB.toFixed(1)} GB${LRM}`;
 
-      textEl.textContent = `אחסון: ${usedDisplay} (ללא הגבלה ∞)`;
-      if (docsEl) docsEl.textContent = `${docsCount} מסמכים`;
-
-      console.log("💎 Storage widget: Unlimited plan");
-      return;
-    }
-
-    // חישוב תצוגה
-    const totalGB = totalBytes / GB;
-    const usedGB = usedBytes / GB;
-
-    // 💾 טקסט האחסון
-    let textValue;
-    if (totalGB < 1) {
-      const usedMB  = usedBytes / MB;
-      const totalMB = totalBytes / MB;
-
-      const usedStr  = `${LRM}${usedMB.toFixed(2)} MB${LRM}`;
-      const totalStr = `${LRM}${totalMB.toFixed(0)} MB${LRM}`;
-
-      textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
-    } else {
-      const usedStr  = `${LRM}${usedGB.toFixed(2)} GB${LRM}`;
-      const totalStr = `${LRM}${totalGB.toFixed(1)} GB${LRM}`;
-
-      textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
-    }
-
-    // 🧮 טקסט המסמכים
-    let docsText;
-    if (typeof maxDocs === "number" && maxDocs !== Infinity) {
-      docsText = `${docsCount}/${maxDocs} מסמכים`;
-    } else {
-      docsText = `${docsCount} מסמכים`;
-    }
-
-    // 🎨 עדכון ה-UI
-    const widthValue   = Math.min(100, usedPct).toFixed(1) + "%";
-    const percentValue = Math.round(usedPct) + "%";
-
-    barFill.style.setProperty("width", widthValue, "important");
-    barFill.setAttribute("style", `width: ${widthValue} !important`);
-    barFill.dataset.width = widthValue;
-
-    // צבע הפס לפי אחוז
-    if (usedPct > 90) {
-      barFill.style.backgroundColor = "#ef4444"; // אדום
-    } else if (usedPct > 70) {
-      barFill.style.backgroundColor = "#f59e0b"; // כתום
-    } else {
-      barFill.style.backgroundColor = "#10b981"; // ירוק
-    }
-
-    percentEl.textContent   = percentValue;
-    percentEl.dataset.value = percentValue;
-
-    textEl.textContent  = textValue;
-    textEl.dataset.text = textValue;
-
-    if (docsEl) {
-      docsEl.textContent  = docsText;
-      docsEl.dataset.text = docsText;
-    }
-
-    void barFill.offsetHeight;
-    barFill.style.display = "block";
-
-    console.log("✅ Storage widget updated:", {
-      docsCount,
-      maxDocs,
-      usedBytes,
-      usedGB: usedGB.toFixed(3),
-      usedPct: usedPct.toFixed(2),
-      textValue,
-      docsText
-    });
-    
-  } catch (err) {
-    console.error('❌ Error in updateStorageUsageWidget:', err);
+    textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
   }
+
+  // 🧮 טקסט המסמכים – לפי מה שהמשתמשת באמת רואה על המסך
+  let docsText;
+  if (typeof maxDocs === "number" && maxDocs !== Infinity) {
+    docsText = `${docsCount}/${maxDocs} מסמכים`;
+  } else {
+    docsText = `${docsCount} מסמכים`;
+  }
+
+  // 🎨 עדכון ה-UI
+  const widthValue   = usedPct.toFixed(1) + "%";
+  const percentValue = Math.round(usedPct) + "%";
+
+  barFill.style.setProperty("width", widthValue, "important");
+  barFill.setAttribute("style", `width: ${widthValue} !important`);
+  barFill.dataset.width = widthValue;
+
+  percentEl.textContent   = percentValue;
+  percentEl.dataset.value = percentValue;
+
+  textEl.textContent  = textValue;
+  textEl.dataset.text = textValue;
+
+  if (docsEl) {
+    docsEl.textContent  = docsText;
+    docsEl.dataset.text = docsText;
+  }
+
+  void barFill.offsetHeight;
+  barFill.style.display = "block";
+
+  console.log("💾 Storage widget updated (visible docs):", {
+    totalDocs: docs.length,
+    visibleDocs: visibleDocs.length,
+    docsCount,
+    maxDocs,
+    usedBytes,
+    usedGB: usedGB.toFixed(3),
+    usedPct: usedPct.toFixed(2),
+    textValue,
+    docsText
+  });
 }
 
 
