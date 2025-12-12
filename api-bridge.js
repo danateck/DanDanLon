@@ -296,11 +296,15 @@ async function uploadDocument(file, metadata = {}) {
 
     
     // Sync to Firestore
-    if (window.db && window.fs) {
-      syncToFirestore(result.id, doc).catch(err => 
-        console.warn("⚠️ Firestore sync failed:", err)
-      );
-    }
+    // ✅ Sync to Firestore *with await* כדי שהאחסון יתעדכן אחרי שהקובץ באמת נרשם
+if (window.db && window.fs) {
+  try {
+    await syncToFirestore(result.id, doc);
+  } catch (err) {
+    console.warn("⚠️ Firestore sync failed:", err);
+  }
+}
+
     
 // Update local cache
 if (Array.isArray(window.allDocsData)) {
