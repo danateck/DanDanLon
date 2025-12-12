@@ -4224,9 +4224,60 @@ if (currentPlanId === "free") {
 }
 
 console.log("📁 Final אחרי התאמה למסלול:", {
+  
   category: guessedCategory,
   subfolder: guessedSubCategory,
 });
+
+
+// 🤖 AI אמיתי במסלולים מתקדמים / פרימיום
+if (["advanced", "pro", "premium", "premium_plus"].includes(currentPlanId) &&
+    typeof window.classifyDocumentWithAI === "function") {
+  try {
+    let textSample = "";
+
+    // PDF – ננסה OCR מלא
+    if (file.type === "application/pdf" && typeof extractTextFromPdfWithOcr === "function") {
+      const txt = await extractTextFromPdfWithOcr(file);
+      textSample = (txt || "").slice(0, 4000);
+    }
+    // תמונה – נשתמש ב-Tesseract אם קיים
+    else if (file.type.startsWith("image/") && window.Tesseract) {
+      const { data } = await window.Tesseract.recognize(file, "heb+eng", {
+        tessedit_pageseg_mode: 6,
+      });
+      textSample = (data?.text || "").slice(0, 4000);
+    }
+    // קובץ טקסט / וורד / אחר – ננסה לקרוא כטקסט
+    else {
+      const buf = await file.arrayBuffer();
+      textSample = new TextDecoder("utf-8").decode(buf).slice(0, 4000);
+    }
+
+    // קריאה אמיתית ל-AI
+ aiResult = await window.classifyDocumentWithAI({
+  planId: currentPlanId,
+  title: fileName,   // ✨ זה השם שהשרת מצפה לו
+  textSample,
+});
+
+
+    console.log("🤖 AI result:", aiResult);
+
+    // אם ה-AI החזיר תיקייה/תת-תיקייה – נותנים לזה עדיפות
+    if (aiResult?.category) {
+      guessedCategory = aiResult.category;
+    }
+    if (aiResult?.subCategory) {
+      guessedSubCategory = aiResult.subCategory;
+    }
+
+  } catch (e) {
+    console.warn("⚠️ AI classify failed, ממשיכים בלי:", e);
+    aiResult = null;
+  }
+}
+
 
 // פרטי אחריות אם צריך
 let warrantyStart = null;

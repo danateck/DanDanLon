@@ -295,32 +295,83 @@ app.post('/api/ai/classify-document', async (req, res) => {
     }
 
     const prompt = `
-אתה מסווג מסמכים למערכת ארגון מסמכים.
+אתה מודל שמסווג מסמכים למערכת ניהול מסמכים של משפחות ועסקים בישראל.
+
+עליך:
+1. לבחור תיקייה ראשית (category)
+2. לבחור תת-תיקייה (subCategory) אם אתה יודע
+3. למלא פרטים נוספים: organization, year, belongsTo, purchaseDate, warrantyUntil
 
 מסלולים:
-- free: רק category (תיקייה ראשית). אם לא בטוח – "לא_בטוח".
-- standard: category + subCategory (אם אפשר). אין שדות מתקדמים.
-- advanced / pro: category + subCategory + organization + year + belongsTo + purchaseDate + warrantyUntil.
-- premium: תתאמץ למקסימום דיוק, ותמלא הכל כמו advanced/pro.
+- free:
+  * נחוצה רק category.
+  * אם אינך בטוח – השתמש ב-"לא_בטוח".
+- standard:
+  * תן category.
+  * נסה לתת subCategory אם אתה די בטוח.
+- advanced / pro:
+  * תן category + subCategory.
+  * נסה למלא גם:
+    - organization (שם חברה/מוסד, ביטוח, קופת חולים, בנק וכו')
+    - year (שנת המסמך – 4 ספרות, למשל 2025)
+    - belongsTo (למי המסמך שייך – שם אדם/עסק)
+    - purchaseDate (תאריך קניה/התחלה)
+    - warrantyUntil (תוקף אחריות עד)
+- premium:
+  * תתאמץ למקסימום דיוק.
+  * תן תמיד category + subCategory.
+  * תנסה למלא את כל השדות הנוספים.
 
-תיקיות אפשריות (לא חובה להשתמש בכולן): "רכב", "ביטוחים", "פנסיה", "בריאות", "משכנתא", "לימודים", "חשבוניות", "הכנסות", "הוצאות", "בנק", "עסק", "אחר".
+תיקיות לדוגמה (מותר גם אחרות אם מתאים יותר):
+- "תעודות אחריות" (מסמכי אחריות, קנייה, חשבונית, קבלה)
+- "רכב"
+- "ביטוחים"
+- "פנסיה"
+- "בריאות"
+- "משכנתא"
+- "לימודים"
+- "חשבוניות"
+- "הכנסות"
+- "הוצאות"
+- "בנק"
+- "עסק"
+- "מסמכים אישיים"
+- "אחר"
 
-תחזיר *רק* JSON תקין במבנה:
+דוגמאות:
+- מסמך עם מילים כמו "תעודת אחריות", "חשבונית", "קבלה", "תאריך קניה":
+  → category מתאים: "תעודות אחריות".
+- מסמך מ"לאומית", "מכבי", "כללית" עם ביקורים, בדיקות:
+  → בדרך כלל "בריאות".
+- מסמך עם ציונים, בית ספר, אוניברסיטה:
+  → בדרך כלל "לימודים".
+- מסמך רכב, רישיון רכב, טסט, ביטוח חובה:
+  → בדרך כלל "רכב" (עם subCategory בהתאם).
+
+תאריכים:
+- ישראל בדרך כלל בפורמט DD/MM/YYYY או DD.MM.YYYY או DD-MM-YYYY.
+- לדוגמה "11.12.2025" = 11 בדצמבר 2025.
+- החזר purchaseDate ו-warrantyUntil בתור מחרוזת בפורמט "YYYY-MM-DD" בלבד, או null אם אינך יודע.
+
+החזר *אך ורק* JSON חוקי במבנה הבא, בלי טקסט נוסף מסביב:
+
 {
-  "category": string,          // שם תיקייה ראשית או "לא_בטוח"
-  "subCategory": string|null,  // תת תיקייה או null
-  "confidence": number,        // 0-100
-  "organization": string|null,
-  "year": number|null,
-  "belongsTo": string|null,
-  "purchaseDate": string|null, // YYYY-MM-DD או null
-  "warrantyUntil": string|null // YYYY-MM-DD או null
+  "category": "שם תיקייה ראשית או \"לא_בטוח\"",
+  "subCategory": "שם תת תיקייה או null",
+  "confidence": מספר בין 0 ל-100,
+  "organization": "שם הארגון או null",
+  "year": מספר שנה כמו 2025 או null,
+  "belongsTo": "למי המסמך שייך או null",
+  "purchaseDate": "YYYY-MM-DD או null",
+  "warrantyUntil": "YYYY-MM-DD או null"
 }
 
-מסלול: ${planId || 'unknown'}
-כותרת הקובץ: ${title || ''}
-קטע תוכן (אם קיים): ${textSample || '(אין טקסט נוסף)'}
+מסלול המנוי הנוכחי: ${planId || 'unknown'}
+שם הקובץ: ${title || ''}
+קטע תוכן מתוך המסמך:
+${textSample || '(אין טקסט נוסף)'}
 `;
+
 
     const aiResponse = await openai.responses.create({
       model: "gpt-5.1-mini",
