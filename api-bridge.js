@@ -887,42 +887,26 @@ function updateStorageUsageWidget() {
   const MB  = 1024 * 1024;
   const LRM = "\u200E";
 
-  // 🚀 פונקציה אסינכרונית שממתינה ל-SubscriptionManager
   (async () => {
     try {
-      // 🔥 תיקון 1: המתן ל-SubscriptionManager להיות מוכן!
+      // המתן ל-SubscriptionManager
       if (!window.subscriptionManager) {
         console.log("⏳ Waiting for SubscriptionManager...");
         
-        // חכה עד 5 שניות ש-SubscriptionManager יהיה מוכן
-        const maxWait = 5000;
-        const startTime = Date.now();
-        
-        while (!window.subscriptionManager && (Date.now() - startTime) < maxWait) {
+        for (let i = 0; i < 30; i++) {
+          if (window.subscriptionManager) break;
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         
         if (!window.subscriptionManager) {
-          console.warn("⚠️ SubscriptionManager not available after waiting");
-          
-          // הצג "טוען..."
-          percentEl.textContent = "0%";
-          barFill.style.width = "0%";
-          barFill.style.backgroundColor = "#10b981";
-          textEl.textContent = "טוען נתוני אחסון...";
-          if (docsEl) docsEl.textContent = "טוען...";
-          
+          console.warn("⚠️ SubscriptionManager not available");
           return;
         }
-        
-        console.log("✅ SubscriptionManager is now ready!");
       }
       
-      // 🔥 תיקון 2: רענן תמיד מהשרת לפני תצוגה!
-      console.log('🔄 Refreshing storage data from server...');
+      // רענן מהשרת
       await window.subscriptionManager.refreshUsageFromFirestore(true);
       
-      // עכשיו קבל מידע מעודכן
       const info = window.subscriptionManager.getSubscriptionInfo();
       const plan = window.subscriptionManager.getCurrentPlan();
     
@@ -932,28 +916,17 @@ function updateStorageUsageWidget() {
       const docsCount = Number(info.documents?.count) || 0;
       const maxDocs = plan.maxDocuments;
 
-      console.log('📊 Storage data from SubscriptionManager:', {
-        usedBytes,
-        totalBytes,
-        usedPct,
-        docsCount,
-        maxDocs
-      });
-
       // תוכנית ללא הגבלה
       if (totalBytes === Infinity) {
         percentEl.textContent = "0%";
-        barFill.style.setProperty("width", "0%", "important");
-
+        barFill.style.width = "0%";
         const usedMB = usedBytes / MB;
         const usedGB = usedBytes / GB;
-        const usedDisplay =
-          usedMB < 1024 ? `${usedMB.toFixed(1)}MB` : `${usedGB.toFixed(2)}GB`;
-
+        const usedDisplay = usedMB < 1024 
+          ? `${usedMB.toFixed(1)}MB` 
+          : `${usedGB.toFixed(2)}GB`;
         textEl.textContent = `בשימוש: ${usedDisplay} | ${docsCount} מסמכים`;
         if (docsEl) docsEl.textContent = `${docsCount} מסמכים`;
-
-        console.log("💎 Storage widget: Unlimited plan");
         return;
       }
 
@@ -965,25 +938,18 @@ function updateStorageUsageWidget() {
       if (totalGB < 1) {
         const usedMB  = usedBytes / MB;
         const totalMB = totalBytes / MB;
-        const usedStr  = `${LRM}${usedMB.toFixed(2)} MB${LRM}`;
-        const totalStr = `${LRM}${totalMB.toFixed(0)} MB${LRM}`;
-        textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
+        textValue = `בשימוש: ${LRM}${usedMB.toFixed(2)} MB${LRM} מתוך ${LRM}${totalMB.toFixed(0)} MB${LRM}`;
       } else {
-        const usedStr  = `${LRM}${usedGB.toFixed(2)} GB${LRM}`;
-        const totalStr = `${LRM}${totalGB.toFixed(1)} GB${LRM}`;
-        textValue = `בשימוש: ${usedStr} מתוך ${totalStr}`;
+        textValue = `בשימוש: ${LRM}${usedGB.toFixed(2)} GB${LRM} מתוך ${LRM}${totalGB.toFixed(1)} GB${LRM}`;
       }
 
       textValue += ` | ${docsCount} מסמכים`;
 
       // עדכון UI
-      const widthValue   = Math.min(100, usedPct).toFixed(1) + "%";
-      const percentValue = Math.round(usedPct) + "%";
-
-      barFill.style.setProperty("width", widthValue, "important");
-      barFill.setAttribute("style", `width: ${widthValue} !important`);
-      barFill.dataset.width = widthValue;
-
+      const widthValue = Math.min(100, usedPct).toFixed(1) + "%";
+      percentEl.textContent = Math.round(usedPct) + "%";
+      barFill.style.width = widthValue;
+      
       if (usedPct > 90) {
         barFill.style.backgroundColor = "#ef4444";
       } else if (usedPct > 70) {
@@ -992,37 +958,24 @@ function updateStorageUsageWidget() {
         barFill.style.backgroundColor = "#10b981";
       }
 
-      percentEl.textContent   = percentValue;
-      percentEl.dataset.value = percentValue;
-
-      textEl.textContent  = textValue;
-      textEl.dataset.text = textValue;
+      textEl.textContent = textValue;
 
       if (docsEl) {
         const docsText = (typeof maxDocs === "number" && maxDocs !== Infinity) 
           ? `${docsCount}/${maxDocs} מסמכים`
           : `${docsCount} מסמכים`;
-        docsEl.textContent  = docsText;
-        docsEl.dataset.text = docsText;
+        docsEl.textContent = docsText;
       }
 
-      void barFill.offsetHeight;
-      barFill.style.display = "block";
-
-      console.log("✅ Storage widget updated:", {
-        docsCount,
-        maxDocs,
-        usedBytes,
-        usedGB: usedGB.toFixed(3),
-        usedPct: usedPct.toFixed(2),
-        textValue
-      });
+      console.log("✅ Widget updated:", usedPct.toFixed(1) + "%");
       
     } catch (err) {
-      console.error('❌ Error in updateStorageUsageWidget:', err);
+      console.error('❌ Error:', err);
     }
   })();
 }
+
+
 
 // שיהיה גלובלי כדי ש-api-bridge.js יוכל לקרוא לזה
 window.updateStorageUsageWidget = updateStorageUsageWidget;

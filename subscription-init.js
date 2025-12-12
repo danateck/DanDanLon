@@ -475,47 +475,6 @@ if (document.readyState === 'loading') {
 
 
 
-window.addEventListener('popstate', () => {
-  console.log('🔄 Navigation detected (popstate)');
-  setTimeout(() => {
-    if (window.updateStorageUsageWidget) {
-      window.updateStorageUsageWidget();
-    }
-  }, 300);
-});
-
-// מאזין נוסף לשינויים ב-hash
-window.addEventListener('hashchange', () => {
-  console.log('🔄 Navigation detected (hashchange)');
-  setTimeout(() => {
-    if (window.updateStorageUsageWidget) {
-      window.updateStorageUsageWidget();
-    }
-  }, 300);
-});
-
-// מאזין כללי - כל פעם שהווידג'ט מופיע מחדש
-const widgetObserver = new MutationObserver(() => {
-  const widget = document.getElementById('storageUsageBarFill');
-  if (widget && widget.offsetParent !== null) {
-    // הווידג'ט נראה - עדכן אותו
-    if (window.updateStorageUsageWidget) {
-      console.log('🔄 Widget visible, updating...');
-      window.updateStorageUsageWidget();
-    }
-  }
-});
-
-if (document.body) {
-  widgetObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['style', 'class']
-  });
-}
-
-
 
 
 

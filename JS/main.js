@@ -3179,6 +3179,14 @@ window.renderHome = async function() {
       await window.updateAllStorageDisplays();
     }
   
+
+    setTimeout(() => {
+    if (window.updateStorageUsageWidget) {
+      window.updateStorageUsageWidget();
+    }
+  }, 300);
+
+
   console.log("✅ renderHome complete");
 };
 // 2. CATEGORY VIEW
@@ -3374,6 +3382,12 @@ window.openRecycleView = async function () {
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
 
+setTimeout(() => {
+    if (window.updateStorageUsageWidget) {
+      window.updateStorageUsageWidget();
+    }
+  }, 300);
+
   console.log("✅ Recycle view opened with", trashedDocs.length, "items");
 };
 
@@ -3502,6 +3516,13 @@ window.openSharedView = function() {
       console.log("📭 No folders to display");
     }
   }, 150);
+
+
+  setTimeout(() => {
+    if (window.updateStorageUsageWidget) {
+      window.updateStorageUsageWidget();
+    }
+  }, 300);
   console.log("✅ Shared view rendered");
 };
 // Export to window.App for backward compatibility
@@ -4954,6 +4975,13 @@ panel.innerHTML = `
       `;
       listWrap.appendChild(row);
     }
+
+setTimeout(() => {
+    if (window.updateStorageUsageWidget) {
+      window.updateStorageUsageWidget();
+    }
+  }, 300);
+
     console.log("✅ Rendered", folders.length, "folders");
   }
   // מצייר רק את ה-UI לפי מערך הזמנות שניתן
@@ -9243,6 +9271,13 @@ window.openProfilesView = async function() {
   
   if (homeView) homeView.classList.add("hidden");
   if (categoryView) categoryView.classList.remove("hidden");
+
+setTimeout(() => {
+    if (window.updateStorageUsageWidget) {
+      window.updateStorageUsageWidget();
+    }
+  }, 300);
+
 };
 
 // 🔹 מסך קטגוריות עבור פרופיל מסוים (כלכלה / רפואה וכו')
