@@ -772,9 +772,11 @@ if (data.deletedAt || data.trashed) continue;
       : Math.min(docsCount, plan.maxDocuments);
 
   // שומרים במנוי
+  // שומרים במנוי בזיכרון בלבד – בלי כתיבה לפיירסטור
   this.userSubscription.usedStorage = clampedUsed;
   this.userSubscription.documentCount = clampedDocs;
-  await this.saveSubscription();
+  // ❌ לא לשמור לפיירסטור בכל רענון, זה מה שעשה עשרות אלפי writes
+  // await this.saveSubscription();
 
   // cache פנימי
   this._usageCache = {
