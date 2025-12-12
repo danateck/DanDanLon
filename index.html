@@ -4829,6 +4829,16 @@ background: var(--bg-card);
   content: url("assests/icons/aboutLight.png");
 }
 
+
+/* כשהעמוד הוא אודות – להפוך את area המרכזי למרחב רחב */
+#docsList.about-mode {
+  display: block !important;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+
   </style>
 </head>
 
@@ -5876,6 +5886,11 @@ background: var(--bg-card);
 
       // התוכן של האודות – פה תכתבי מה שתרצי
       if (docsList) {
+
+
+        docsList.classList.add("about-mode");
+
+        
         docsList.innerHTML = `
   <div class="about-wrapper">
 

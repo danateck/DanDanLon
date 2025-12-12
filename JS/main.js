@@ -10729,3 +10729,26 @@ async function classifyDocumentWithAI({ title, textSample }) {
   }
 }
 
+
+
+
+
+function showAboutView() {
+  // להוריד active משאר הכפתורים
+  document.querySelectorAll(".menu-item").forEach(btn => btn.classList.remove("active"));
+  aboutNavBtn.classList.add("active");
+
+  // להציג את דף האודות
+  homeView.classList.add("hidden");
+  categoryView.classList.remove("hidden");
+
+  categoryTitle.textContent = "אודות";
+
+  // הסרת layout של מסמכים
+  docsList.classList.add("about-mode");
+
+  docsList.innerHTML = `... (האודות שלך) ...`;
+}
+
+
+
