@@ -574,7 +574,8 @@ body {
 .balance-divider {
     display: flex;
     align-items: center;
-    margin: 32px 0;
+    margin: 16px 0;
+        margin-top: -20px;
     gap: 16px;
 }
 
