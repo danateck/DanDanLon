@@ -4839,6 +4839,15 @@ background: var(--bg-card);
   content: url("assests/icons/aboutLight.png");
 }
 
+.theme-dark #contactIcon {
+  content: url("assests/icons/contactLight.png");
+}
+
+.theme-dark #faqIcon {
+  content: url("assests/icons/faqLight.png");
+}
+
+
 
 /* כשהעמוד הוא אודות – להפוך את area המרכזי למרחב רחב */
 #docsList.about-mode {
@@ -4865,6 +4874,150 @@ background: var(--bg-card);
 #storageWidget div:last-child {
   display: none !important;
 } */
+
+
+
+
+/* ====== About / Contact / FAQ ====== */
+
+.docs-list.about-mode {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.about-wrapper {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 1.5rem 1.75rem;
+  border: 1px solid var(--border-soft);
+  line-height: 1.7;
+  font-size: .9rem;
+}
+
+.about-wrapper h2 {
+  margin: 0 0 .25rem;
+  font-size: 1.35rem;
+  color: var(--accent-strong);
+}
+
+.about-wrapper h3 {
+  margin: 1.5rem 0 .5rem;
+  font-size: 1.05rem;
+  color: var(--accent-soft);
+}
+
+.about-wrapper ul {
+  padding-right: 1.1rem;
+  margin: .3rem 0 .8rem;
+}
+
+/* צור קשר */
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.contact-type-grid {
+  display: grid;
+  gap: .5rem;
+}
+
+.contact-type-btn {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: rgba(255,255,255,0.6);
+  padding: .55rem .75rem;
+  font-size: .85rem;
+  text-align: right;
+  cursor: pointer;
+}
+
+.contact-type-btn.active {
+  border-color: var(--accent-soft);
+  background: rgba(88,112,72,0.12);
+}
+
+.contact-form label {
+  display: block;
+  font-size: .8rem;
+  margin-bottom: .35rem;
+}
+
+.contact-form input,
+.contact-form textarea,
+.contact-form select {
+  width: 100%;
+  padding: .45rem .55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0,0,0,0.13);
+  font-family: inherit;
+  font-size: .8rem;
+}
+
+.contact-form textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.contact-check {
+  display: flex;
+  gap: .4rem;
+  font-size: .75rem;
+  margin-top: .75rem;
+}
+
+.contact-check input {
+  margin-top: .2rem;
+}
+
+.contact-actions {
+  margin-top: 1rem;
+  text-align: left;
+}
+
+.contact-status {
+  margin-top: .5rem;
+  font-size: .8rem;
+}
+
+.contact-status.error {
+  color: #b91c1c;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* FAQ */
+
+.faq-list {
+  margin-top: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.faq-item {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  padding: .6rem .8rem;
+  background: rgba(255,255,255,0.6);
+}
+
+.faq-q {
+  font-weight: 600;
+  margin-bottom: .25rem;
+}
+
 
 
   </style>
@@ -5050,22 +5203,49 @@ background: var(--bg-card);
       <div class="sidebar-bottom">
 
 
-              <div class="footer-menu">
-     
+           <div class="footer-menu">
 
-        <button class="menu-item" data-view="about" id="aboutNavBtn">
-  <div class="menu-item-icon">
-    <img 
-      id="aboutIcon" 
-      src="assests/icons/aboutDark.png"
-      alt="אודות" 
-      style="width:18px;height:18px;"
-    >
-  </div>
-  <span>אודות</span>
-</button>
+  <!-- FAQ / שאלות נפוצות -->
+  <button class="menu-item" data-view="faq" id="faqNavBtn">
+    <div class="menu-item-icon">
+      <img
+        id="faqIcon"
+        src="assests/icons/faqDark.png"  
+        alt="שאלות נפוצות"
+        style="width:18px;height:18px;"
+      >
+    </div>
+    <span>שאלות נפוצות</span>
+  </button>
 
-      </div>
+  <!-- צור קשר -->
+  <button class="menu-item" data-view="contact" id="contactNavBtn">
+    <div class="menu-item-icon">
+      <img
+        id="contactIcon"
+        src="assests/icons/contactDark.png"   
+        alt="צור קשר"
+        style="width:18px;height:18px;"
+      >
+    </div>
+    <span>צור קשר</span>
+  </button>
+
+  <!-- אודות (כמו שהיה) -->
+  <button class="menu-item" data-view="about" id="aboutNavBtn">
+    <div class="menu-item-icon">
+      <img 
+        id="aboutIcon" 
+        src="assests/icons/aboutDark.png"
+        alt="אודות" 
+        style="width:18px;height:18px;"
+      >
+    </div>
+    <span>אודות</span>
+  </button>
+
+</div>
+
 
 
         <!-- 💎 וידג'ט מנויים -->
@@ -5889,46 +6069,45 @@ background: var(--bg-card);
 
 <script>
   (function () {
-    const aboutBtn = document.getElementById("aboutNavBtn");
-    if (!aboutBtn) return;
+  const aboutBtn   = document.getElementById("aboutNavBtn");
+  const contactBtn = document.getElementById("contactNavBtn");
+  const faqBtn     = document.getElementById("faqNavBtn");
 
-    const homeView     = document.getElementById("homeView");
-    const categoryView = document.getElementById("categoryView");
-    const categoryTitle = document.getElementById("categoryTitle");
-    const docsList     = document.getElementById("docsList");
+  if (!aboutBtn && !contactBtn && !faqBtn) return;
 
-    function showAboutView() {
-      // להוריד active מכל הכפתורים בתפריט (עליון + תחתון)
-      document.querySelectorAll(".menu-item").forEach(btn => {
-        btn.classList.remove("active");
-      });
-      aboutBtn.classList.add("active");
+  const homeView      = document.getElementById("homeView");
+  const categoryView  = document.getElementById("categoryView");
+  const categoryTitle = document.getElementById("categoryTitle");
+  const docsList      = document.getElementById("docsList");
 
-      // להסתיר דף הבית ולהראות את ה־categoryView
-      if (homeView)    homeView.classList.add("hidden");
-      if (categoryView) categoryView.classList.remove("hidden");
+  if (!homeView || !categoryView || !categoryTitle || !docsList) return;
 
-      // כותרת העמוד
-      if (categoryTitle) {
-        categoryTitle.textContent = "אודות";
-      }
+  // ===== עזרה פנימית =====
+  function setActive(btn) {
+    document.querySelectorAll(".menu-item").forEach(b => b.classList.remove("active"));
+    if (btn) btn.classList.add("active");
+  }
 
-      // התוכן של האודות – פה תכתבי מה שתרצי
-      if (docsList) {
+  function showBaseView(btn, title) {
+    setActive(btn);
+    if (homeView)     homeView.classList.add("hidden");
+    if (categoryView) categoryView.classList.remove("hidden");
+    categoryTitle.textContent = title;
+    docsList.classList.add("about-mode");
+  }
 
+  // ===== אודות =====
+  function showAboutView() {
+    showBaseView(aboutBtn, "אודות");
 
-        docsList.classList.add("about-mode");
-
-
-        docsList.innerHTML = `
+    docsList.innerHTML = `
   <div class="about-wrapper">
 
     <div class="about-logo">
       <h2>אודות NestyFile</h2>
+    </div>
 
-      </div>
     <div class="about-block">
-      
       <h3>הארכיון הדיגיטלי החכם למסמכים האישיים שלך</h3>
       <p>
       NestyFile היא מערכת <strong>ארכיון דיגיטלי חכמה</strong> שמאפשרת לכל אחד לשמור, לנהל ולאגד את כל המסמכים החשובים במקום אחד מסודר, מאובטח וזמין מכל מקום.
@@ -6002,7 +6181,7 @@ background: var(--bg-card);
     <h3>החזון שלנו</h3>
 
     <p>
-      החזון של NestyFile הוא להפוך את <strong>ניהול המסמכים האישיים</strong> לדבר פשוט, ברור ונגיש –
+      החזון של NestyFile הוא להפוך את <strong>ניהול המסמכים האישיים</strong> לדבר פשוט, ברור ונגיש – 
       כך שלכל אדם יהיה ארכיון דיגיטלי אישי שמסדר לו את החיים:
       פחות ניירות, פחות כאב ראש מול רשויות ובירוקרטיה, ויותר <strong>סדר, שליטה ושקט</strong>.
     </p>
@@ -6010,15 +6189,238 @@ background: var(--bg-card);
 
 </div>
 `;
+  }
 
+  // ===== צור קשר =====
+  // שימי כאן את ה-Formspree שלך במקום YOUR_FORM_ID
+  const CONTACT_ENDPOINT = "https://formspree.io/f/movgrppo";
+
+  function initContactForm() {
+    const form       = document.getElementById("contactForm");
+    if (!form) return;
+
+    const typeBtns   = form.querySelectorAll("[data-contact-type]");
+    const typeInput  = document.getElementById("contactTypeInput");
+    const techBlock  = document.getElementById("technicalFields");
+    const statusEl   = document.getElementById("contactStatus");
+    const thankYouEl = document.getElementById("contactThankYou");
+
+    // בחירת סוג פנייה
+    typeBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        typeBtns.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        const label = btn.getAttribute("data-label") || btn.textContent.trim();
+        const kind  = btn.getAttribute("data-contact-type");
+
+        if (typeInput) typeInput.value = label;
+
+        if (techBlock) {
+          if (kind === "technical") techBlock.classList.remove("hidden");
+          else techBlock.classList.add("hidden");
+        }
+      });
+    });
+
+    // ברירת מחדל – תמיכה טכנית
+    const firstBtn = form.querySelector('[data-contact-type="technical"]');
+    if (firstBtn) firstBtn.click();
+
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      if (!form.reportValidity()) return;
+
+      if (statusEl) {
+        statusEl.textContent = "שולחים את הפנייה...";
+        statusEl.classList.remove("error");
       }
-    }
 
+      try {
+        const data = new FormData(form);
+
+        const resp = await fetch(CONTACT_ENDPOINT, {
+          method: "POST",
+          body: data,
+          headers: { "Accept": "application/json" }
+        });
+
+        if (!resp.ok) throw new Error("Failed to send");
+
+        form.classList.add("hidden");
+        if (thankYouEl) thankYouEl.classList.remove("hidden");
+        if (statusEl) statusEl.textContent = "";
+      } catch (err) {
+        console.error("contact form error:", err);
+        if (statusEl) {
+          statusEl.textContent = "משהו השתבש בשליחה. נסי שוב או כתבי לנו ל-nestyfile@gmail.com";
+          statusEl.classList.add("error");
+        }
+      }
+    });
+  }
+
+  function showContactView() {
+    showBaseView(contactBtn, "צור קשר");
+
+    docsList.innerHTML = `
+  <div class="about-wrapper">
+    <h2>אנחנו פה בשבילך</h2>
+    <p>כדי שנחזור אליך מהר, בחרי סוג פנייה והשאירי פרטים.</p>
+
+    <form id="contactForm" class="contact-form">
+      <div class="contact-grid">
+        <section>
+          <h3>1) בחר סוג פנייה</h3>
+          <div class="contact-type-grid">
+            <button type="button" class="contact-type-btn" data-contact-type="technical" data-label="תמיכה טכנית">🛠️ תמיכה טכנית</button>
+            <button type="button" class="contact-type-btn" data-contact-type="billing"   data-label="חיוב ומנויים">💳 חיוב ומנויים</button>
+            <button type="button" class="contact-type-btn" data-contact-type="sharing"   data-label="שיתוף וגישה למסמכים">👥 שיתוף וגישה למסמכים</button>
+            <button type="button" class="contact-type-btn" data-contact-type="biz"       data-label="שיתופי פעולה / עסקים">🤝 שיתופי פעולה / עסקים</button>
+            <button type="button" class="contact-type-btn" data-contact-type="other"     data-label="אחר">📩 אחר</button>
+          </div>
+          <input type="hidden" name="type" id="contactTypeInput" value="">
+        </section>
+
+        <section>
+          <h3>2) פרטים</h3>
+
+          <label>
+            שם מלא*
+            <input name="fullName" type="text" required>
+          </label>
+
+          <label>
+            אימייל*
+            <input name="email" type="email" required>
+          </label>
+
+          <label>
+            טלפון (אופציונלי)
+            <input name="phone" type="text">
+          </label>
+
+          <label>
+            הודעה*
+            <textarea name="message" required></textarea>
+          </label>
+
+          <div id="technicalFields">
+            <h3 style="margin-top:1rem;">פרטים לטיפול בתמיכה טכנית</h3>
+
+            <label>
+              מערכת הפעלה
+              <select name="os">
+                <option value="">בחרי...</option>
+                <option value="Windows">Windows</option>
+                <option value="Mac">Mac</option>
+                <option value="Mobile">Mobile</option>
+              </select>
+            </label>
+
+            <label>
+              דפדפן
+              <select name="browser">
+                <option value="">בחרי...</option>
+                <option value="Chrome">Chrome</option>
+                <option value="Edge">Edge</option>
+                <option value="Safari">Safari</option>
+                <option value="Other">אחר</option>
+              </select>
+            </label>
+
+            <label>
+              תיאור קצר של התקלה + מה ניסית כבר
+              <textarea name="techDescription"></textarea>
+            </label>
+
+            <label>
+              העלאת קובץ/צילום מסך (אופציונלי)
+              <input type="file" name="attachment">
+            </label>
+          </div>
+
+          <label class="contact-check">
+            <input type="checkbox" name="terms" required>
+            <span>אני מבין/ה שהעלאת קבצים דרך הטופס היא באחריותי, וקראתי את תנאי השימוש ומדיניות הפרטיות.</span>
+          </label>
+        </section>
+      </div>
+
+      <div class="contact-actions">
+        <button type="submit" class="btn btn-primary">שלח</button>
+        <div id="contactStatus" class="contact-status" aria-live="polite"></div>
+      </div>
+    </form>
+
+    <div id="contactThankYou" class="hidden">
+      <h3>הפנייה התקבלה ✅</h3>
+      <p>נחזור אליך בהקדם. אם נצטרך להשלים מידע – ניצור קשר במייל.</p>
+    </div>
+  </div>
+`;
+    initContactForm();
+  }
+
+  // ===== FAQ =====
+  function showFaqView() {
+    showBaseView(faqBtn, "שאלות ותשובות");
+
+    docsList.innerHTML = `
+  <div class="about-wrapper">
+    <h2>שאלות ותשובות</h2>
+    <p>אספנו כמה שאלות נפוצות על NestyFile. אם משהו לא ברור – תמיד אפשר לפנות אלינו.</p>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q">מה זה בעצם NestyFile?</div>
+        <div class="faq-a">
+          NestyFile היא מערכת ארכיון דיגיטלי חכמה שמרכזת את כל המסמכים האישיים שלך במקום אחד מסודר, מאובטח ונגיש.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">האם המסמכים שלי בטוחים?</div>
+        <div class="faq-a">
+          כן. הקבצים נשמרים בענן מאובטח, עם גישה רק למשתמשים המורשים והרשאות שיתוף בשליטתך המלאה.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">האם ניתן לשתף מסמכים עם אחרים?</div>
+        <div class="faq-a">
+          אפשר לשתף מסמכים ותיקיות בקלות עם בן/בת זוג, רואה חשבון, עו"ד ושותפים נוספים – לפי ההרשאות שתבחרי.
+        </div>
+      </div>
+    </div>
+  </div>
+`;
+  }
+
+  // ===== חיבור האירועים =====
+  if (aboutBtn) {
     aboutBtn.addEventListener("click", function (ev) {
       ev.preventDefault();
       showAboutView();
     });
-  })();
+  }
+
+  if (contactBtn) {
+    contactBtn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      showContactView();
+    });
+  }
+
+  if (faqBtn) {
+    faqBtn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      showFaqView();
+    });
+  }
+
+})();
+
 </script>
 
 
