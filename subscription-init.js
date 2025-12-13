@@ -83,23 +83,21 @@ async function initSubscriptions() {
 async function updateStorageWidget() {
   if (!window.subscriptionManager) return;
 
-  const widget = document.getElementById("storageWidget");
+  const widget   = document.getElementById("storageWidget");
   if (!widget) {
     console.warn("⚠️ לא נמצא storageWidget");
     return;
   }
 
   const percentEl = document.getElementById("storageUsagePercent");
-  const barFill = document.getElementById("storageUsageBarFill");
-const textEl    = document.getElementById("storageUsageText");
-const docsEl    = document.getElementById("storageDocsText");
+  const barFill   = document.getElementById("storageUsageBarFill");
+  const textEl    = document.getElementById("storageUsageText");
+  const docsEl    = document.getElementById("storageDocsText");
 
   try {
-    // 🔥 תיקון מרכזי: תמיד רענן מהשרת לפני תצוגה
     console.log('🔄 מרענן נתוני אחסון מהשרת...');
     await window.subscriptionManager.refreshUsageFromFirestore(true);
 
-    // עכשיו קח את המידע המעודכן
     const info = window.subscriptionManager.getSubscriptionInfo();
     if (!info || !info.storage || !info.storage.formatted) {
       widget.style.visibility = "visible";
@@ -107,46 +105,43 @@ const docsEl    = document.getElementById("storageDocsText");
     }
 
     const percent = Math.round(info.storage.percentage || 0);
-    const used   = info.storage.formatted.used;
-    const limit  = info.storage.formatted.limit;
+    const used    = info.storage.formatted.used  || "0MB";
+    const limit   = info.storage.formatted.limit || "0MB";
 
-    // אחוז בצד שמאל
+    // אחוז
     if (percentEl) {
       percentEl.textContent = percent + "%";
     }
 
-    // רוחב הפס
+    // פס
     if (barFill) {
       barFill.style.width = Math.min(percent, 100) + "%";
 
-      // צבע לפי אחוז
       if (percent > 80) {
-        barFill.style.backgroundColor = "#ef4444"; // אדום
+        barFill.style.backgroundColor = "#ef4444";
       } else if (percent > 60) {
-        barFill.style.backgroundColor = "#f59e0b"; // כתום
+        barFill.style.backgroundColor = "#f59e0b";
       } else {
-        barFill.style.backgroundColor = "#10b981"; // ירוק
+        barFill.style.backgroundColor = "#10b981";
       }
     }
 
-    // טקסט מתחת לפס - 🔥 תיקון: הצג את מספר המסמכים האמיתי
-  // שורה 1 – טקסט האחסון
-// שורה 1 – טקסט האחסון
-if (textEl) {
-  textEl.textContent = `בשימוש: ${used} מתוך ${limit}`;
-}
+    // שורה 1 – טקסט האחסון
+    if (textEl) {
+      textEl.textContent = `בשימוש: ${used} מתוך ${limit}`;
+    }
 
-// שורה 2 – מספר המסמכים
-if (docsEl) {
-  const docsCount = (info.documents && typeof info.documents.count === "number")
-    ? info.documents.count
-    : 0;
-  docsEl.textContent = `${docsCount} מסמכים`;
-}
+    // שורה 2 – מספר המסמכים (תמיד כותבים משהו)
+    if (docsEl) {
+      const docsCount =
+        info.documents && typeof info.documents.count === "number"
+          ? info.documents.count
+          : 0;
 
-    // אחרי שהכול מוכן – מראים
+      docsEl.textContent = `${docsCount} מסמכים`;
+    }
+
     widget.style.visibility = "visible";
-    
   } catch (err) {
     console.error("❌ Error in updateStorageWidget:", err);
     widget.style.visibility = "visible";
