@@ -4914,11 +4914,20 @@ background: var(--bg-card);
 
 /* צור קשר */
 
+/* גריד בסיסי – ברירת מחדל: טור אחד (למובייל ולטאבלט) */
 .contact-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
-  gap: 1.5rem;
+  gap: 32px;
 }
+
+/* במסכים גדולים – שתי עמודות יפות, אבל עדיין מרכז */
+@media (min-width: 1000px) {
+  .contact-grid {
+    grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.1fr);
+    align-items: flex-start;
+  }
+}
+
 
 @media (max-width: 900px) {
   .contact-grid {
