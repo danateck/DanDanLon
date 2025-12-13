@@ -4377,17 +4377,16 @@ background: var(--bg-card);
   text-align: right;  /* או center אם את אוהבת */
 }
 
-#storageUsageText,
+#storageUsageText, 
 #storageDocsText {
   display: block;
   text-align: center;
+  white-space: nowrap;
 }
 
 #storageDocsText {
-  margin-top: 2px;
-  visibility: visible !important;
+  margin-top: 4px;
 }
-
 
 
 
@@ -5080,7 +5079,7 @@ background: var(--bg-card);
       <div class="storage-bar-fill" id="storageUsageBarFill"></div>
     </div>
 
-    <div class="storage-text" id="storageUsageText">
+    <div class="storage-text" id="storageUsageText" dir="rtl">
   בשימוש: 0MB מתוך 0MB
 </div>
 
