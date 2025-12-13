@@ -91,7 +91,8 @@ async function updateStorageWidget() {
 
   const percentEl = document.getElementById("storageUsagePercent");
   const barFill = document.getElementById("storageUsageBarFill");
-  const textEl = document.getElementById("storageUsageText");
+const textEl    = document.getElementById("storageUsageText");
+const docsEl    = document.getElementById("storageDocsText");
 
   try {
     // 🔥 תיקון מרכזי: תמיד רענן מהשרת לפני תצוגה
@@ -129,10 +130,16 @@ async function updateStorageWidget() {
     }
 
     // טקסט מתחת לפס - 🔥 תיקון: הצג את מספר המסמכים האמיתי
-    if (textEl) {
-      const docsCount = info.documents.count || 0;
-      textEl.textContent = `בשימוש: ${used} מתוך ${limit}  ${docsCount} מסמכים`;
-    }
+  // שורה 1 – טקסט האחסון
+if (textEl) {
+  textEl.textContent = `בשימוש: ${used} מתוך ${limit}`;
+}
+
+// שורה 2 – מספר המסמכים
+if (docsEl && info.documents) {
+  const docsCount = info.documents.count || 0;
+  docsEl.textContent = `${docsCount} מסמכים`;
+}
 
     // אחרי שהכול מוכן – מראים
     widget.style.visibility = "visible";
