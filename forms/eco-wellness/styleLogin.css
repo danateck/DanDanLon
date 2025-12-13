@@ -1377,3 +1377,38 @@ body {
   max-height: 80vh;
   overflow: auto;
 }
+
+
+
+
+
+
+/* Mobile: make room so .earth-social (Google) is visible */
+@media (max-width: 420px) {
+
+  /* להקטין רווחים כלליים בתוך הכרטיס */
+  .wellness-card, .login-card, .auth-card, .card {
+    padding-top: 18px !important;
+    padding-bottom: 16px !important;
+  }
+
+  /* להקטין רווח מעל אזור הגוגל (בד"כ יש divider) */
+  .divider, .or-divider, .separator {
+    margin: 12px 0 !important;
+  }
+
+  /* הכפתור של גוגל עצמו */
+  .earth-social {
+    margin-top: 10px !important;
+    padding: 10px 12px !important;
+    min-height: 44px !important;
+    font-size: 14px !important;
+  }
+
+  /* אם יש אייקון בתוך הכפתור */
+  .earth-social img {
+    width: 18px !important;
+    height: 18px !important;
+  }
+}
+
