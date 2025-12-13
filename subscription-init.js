@@ -131,7 +131,7 @@ async function updateStorageWidget() {
     // טקסט מתחת לפס - 🔥 תיקון: הצג את מספר המסמכים האמיתי
     if (textEl) {
       const docsCount = info.documents.count || 0;
-      textEl.textContent = `בשימוש: ${used} מתוך ${limit} | ${docsCount} מסמכים`;
+      textEl.textContent = `בשימוש: ${used} מתוך ${limit}  ${docsCount} מסמכים`;
     }
 
     // אחרי שהכול מוכן – מראים
