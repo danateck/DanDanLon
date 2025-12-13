@@ -131,13 +131,16 @@ const docsEl    = document.getElementById("storageDocsText");
 
     // טקסט מתחת לפס - 🔥 תיקון: הצג את מספר המסמכים האמיתי
   // שורה 1 – טקסט האחסון
+// שורה 1 – טקסט האחסון
 if (textEl) {
   textEl.textContent = `בשימוש: ${used} מתוך ${limit}`;
 }
 
 // שורה 2 – מספר המסמכים
-if (docsEl && info.documents) {
-  const docsCount = info.documents.count || 0;
+if (docsEl) {
+  const docsCount = (info.documents && typeof info.documents.count === "number")
+    ? info.documents.count
+    : 0;
   docsEl.textContent = `${docsCount} מסמכים`;
 }
 
