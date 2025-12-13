@@ -1198,3 +1198,29 @@ async function updateTwoFactorSetting(enabled) {
 
   console.log("✅ twoFactorEnabled עודכן ל:", enabled);
 }
+
+
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const openBtn  = document.querySelector(".login-about-btn");
+  const modal    = document.getElementById("loginAboutModal");
+  const closeBtn = document.getElementById("closeLoginAbout");
+
+  if (!openBtn || !modal || !closeBtn) return;
+
+  openBtn.addEventListener("click", () => {
+    modal.classList.remove("hidden");
+  });
+
+  closeBtn.addEventListener("click", () => {
+    modal.classList.add("hidden");
+  });
+
+  modal.querySelector(".login-modal-overlay")
+    .addEventListener("click", () => {
+      modal.classList.add("hidden");
+    });
+});
+
+
