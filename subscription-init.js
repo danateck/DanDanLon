@@ -358,7 +358,7 @@ styles.textContent = `
   
 
   #storageWidget {
-  visibility: hidden;
+  visibility: visible;
 }
 
 
