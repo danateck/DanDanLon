@@ -93,6 +93,8 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
 
   // ציור הכרטיסים
   docsList.innerHTML = "";
+  docsList.classList.remove("about-mode");
+
   docsList.classList.remove("shared-mode");
   
   if (docsForThisCategory.length === 0) {

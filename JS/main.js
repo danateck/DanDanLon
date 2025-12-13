@@ -3306,6 +3306,8 @@ window.openCategoryView = function(categoryName, subfolderName = null) {
 
   // ציור הכרטיסים
   docsList.innerHTML = "";
+  docsList.classList.remove("about-mode");
+
   docsList.classList.remove("shared-mode");
   
   if (docsForThisCategory.length === 0) {
@@ -3427,6 +3429,8 @@ window.openSharedView = function() {
     console.error("❌ Shared view elements not found");
     return;
   }
+  docsList.classList.remove("about-mode");
+
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
   docsList.innerHTML = "";
@@ -4838,6 +4842,8 @@ openSharedView = function() {
     subfoldersBar.style.display = "none";
     subfoldersBar.innerHTML = "";
   }
+  docsList.classList.remove("about-mode");
+
   
   docsList.classList.remove("shared-mode");
   categoryTitle.textContent = "אחסון משותף";
@@ -9156,6 +9162,8 @@ window.openProfilesView = async function() {
   const categoryView  = document.getElementById("categoryView");
   if (!categoryTitle || !docsList) return;
 
+  docsList.classList.remove("about-mode");
+
   categoryTitle.textContent = "פרופילים";
   docsList.classList.remove("shared-mode");
   docsList.innerHTML = "";
@@ -9282,6 +9290,8 @@ function openProfileCategories(profileId) {
   }
 
   categoryTitle.textContent = `פרופיל: ${profile.fullName}`;
+  docsList.classList.remove("about-mode");
+
   docsList.classList.remove("shared-mode");
   docsList.innerHTML = "";
 
@@ -9406,6 +9416,8 @@ function openProfileCategoryDocs(profile, categoryName) {
   }
 
   categoryTitle.textContent = `פרופיל: ${profile.fullName} – ${categoryName}`;
+  docsList.classList.remove("about-mode");
+
   docsList.classList.remove("shared-mode");
   docsList.innerHTML = "";
 
@@ -10232,6 +10244,8 @@ if (!window.openSharedFolder) {
       const folderName = folder?.name || "תיקייה משותפת";
       
       categoryTitle.textContent = folderName;
+      docsList.classList.remove("about-mode");
+
       docsList.classList.remove("shared-mode");
       docsList.innerHTML = "<div style='padding:2rem;text-align:center;'>טוען מסמכים...</div>";
       

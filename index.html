@@ -6098,17 +6098,22 @@ background: var(--bg-card);
     if (btn) btn.classList.add("active");
   }
 
-  function showBaseView(btn, title) {
-    setActive(btn);
-    if (homeView)     homeView.classList.add("hidden");
-    if (categoryView) categoryView.classList.remove("hidden");
-    categoryTitle.textContent = title;
-    docsList.classList.add("about-mode");
-  }
+ function showBaseView(btn, title) {
+  setActive(btn);
+  if (homeView)     homeView.classList.add("hidden");
+  if (categoryView) categoryView.classList.remove("hidden");
+  categoryTitle.textContent = title;
+
+  // ✅ חשוב: לא להשאיר מצב "אודות" כשעוברים למסכים אחרים
+  docsList.classList.remove("about-mode");
+  docsList.classList.remove("shared-mode");
+}
 
   // ===== אודות =====
   function showAboutView() {
     showBaseView(aboutBtn, "אודות");
+    docsList.classList.add("about-mode");
+
 
     docsList.innerHTML = `
   <div class="about-wrapper">
@@ -6272,6 +6277,7 @@ background: var(--bg-card);
 
   function showContactView() {
     showBaseView(contactBtn, "צור קשר");
+docsList.classList.add("about-mode");
 
     docsList.innerHTML = `
   <div class="about-wrapper">
@@ -6375,6 +6381,7 @@ background: var(--bg-card);
   // ===== FAQ =====
   function showFaqView() {
     showBaseView(faqBtn, "שאלות ותשובות");
+docsList.classList.add("about-mode");
 
     docsList.innerHTML = `
   <div class="about-wrapper">
